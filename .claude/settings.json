@@ -1,0 +1,47 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(rm -rf .next)",
+      "Bash(npx --yes shadcn@latest init -d -y --base-color blue)",
+      "Bash(npx --yes shadcn@latest init -d -y)",
+      "Bash(npx --yes shadcn@latest add button card dialog dropdown-menu table form input select tabs badge avatar sidebar chart sheet calendar popover tooltip label textarea checkbox switch progress separator skeleton alert scroll-area -y)",
+      "Bash(npm install *)",
+      "Bash(npm audit *)",
+      "Bash(npm uninstall *)",
+      "Bash(npx --yes shadcn@latest add form -y)",
+      "Bash(npx --yes shadcn@latest add form --overwrite -y)",
+      "Bash(npx --yes shadcn@latest add form --overwrite -y --verbose)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" \"https://ui.shadcn.com/r/styles/base-nova/form.json\")",
+      "Bash(curl -s \"https://ui.shadcn.com/r/styles/base-nova/form.json\" -o /tmp/form.json)",
+      "Bash(node -e \"const d=require\\('/tmp/form.json'\\); console.log\\(JSON.stringify\\(Object.keys\\(d\\)\\)\\); console.log\\(d.files.map\\(f=>f.path\\)\\); console.log\\(d.dependencies\\)\")",
+      "Bash(curl -s https://ui.shadcn.com/r/styles/base-nova/form.json -o /c/Users/NORA/AppData/Local/Temp/claude/c--Users-NORA-Downloads-Saving-saas/f48f5342-4fb0-431d-ab24-aaadeaf71e3f/scratchpad/form.json)",
+      "Bash(node -e 'const d=require\\('\\\\''/c/Users/NORA/AppData/Local/Temp/claude/c--Users-NORA-Downloads-Saving-saas/f48f5342-4fb0-431d-ab24-aaadeaf71e3f/scratchpad/form.json'\\\\''\\); console.log\\(d.files.map\\(f=>f.path\\)\\); console.log\\(d.dependencies\\)')",
+      "Read(//c/Users/NORA/AppData/Local/Temp/claude/c--Users-NORA-Downloads-Saving-saas/f48f5342-4fb0-431d-ab24-aaadeaf71e3f/scratchpad/**)",
+      "Bash(curl -sv https://ui.shadcn.com/r/styles/base-nova/form.json -o /c/Users/NORA/AppData/Local/Temp/claude/c--Users-NORA-Downloads-Saving-saas/f48f5342-4fb0-431d-ab24-aaadeaf71e3f/scratchpad/form.json)",
+      "Bash(npx tsc *)",
+      "Bash(mkdir -p \"/c/Users/NORA/Downloads/Saving-saas/src/app/\\(workspace\\)/member/dashboard\" \"/c/Users/NORA/Downloads/Saving-saas/src/app/\\(workspace\\)/member/loans/apply\" \"/c/Users/NORA/Downloads/Saving-saas/src/app/\\(workspace\\)/member/loans/[id]\" \"/c/Users/NORA/Downloads/Saving-saas/src/app/\\(workspace\\)/member/savings/statement\")",
+      "Bash(mkdir -p \"/c/Users/NORA/Downloads/Saving-saas/src/app/\\(workspace\\)/member/loans/[id]/contract\")",
+      "Bash(mkdir -p \"/c/Users/NORA/Downloads/Saving-saas/src/app/\\(workspace\\)/loan-committee/pending/[id]\" \"/c/Users/NORA/Downloads/Saving-saas/src/app/\\(workspace\\)/accountant/import\")",
+      "Bash(node -e \"console.log\\(require\\('./node_modules/react-hook-form/package.json'\\).version, require\\('./node_modules/@hookform/resolvers/package.json'\\).version, require\\('./node_modules/zod/package.json'\\).version\\)\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000/login)",
+      "Bash(tee /tmp/tsc_out.txt)",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(chromium-cli --help)",
+      "Bash(npx --yes playwright --version)",
+      "Bash(npx --yes playwright install chromium --with-deps)",
+      "Bash(mkdir -p /c/Users/NORA/AppData/Local/Temp/claude/c--Users-NORA-Downloads-Saving-saas/f48f5342-4fb0-431d-ab24-aaadeaf71e3f/scratchpad/shots)",
+      "Bash(node /c/Users/NORA/AppData/Local/Temp/claude/c--Users-NORA-Downloads-Saving-saas/f48f5342-4fb0-431d-ab24-aaadeaf71e3f/scratchpad/smoke.mjs)",
+      "Bash(cp /c/Users/NORA/AppData/Local/Temp/claude/c--Users-NORA-Downloads-Saving-saas/f48f5342-4fb0-431d-ab24-aaadeaf71e3f/scratchpad/smoke.mjs /c/Users/NORA/Downloads/Saving-saas/_smoke_tmp.mjs)",
+      "Bash(node _smoke_tmp.mjs)",
+      "Bash(node -e \"console.log\\(new Intl.NumberFormat\\('en-RW', {style:'currency', currency:'RWF', maximumFractionDigits:0}\\).format\\(1740500\\)\\)\")",
+      "Bash(node -e ' *)",
+      "Bash(cp /c/Users/NORA/AppData/Local/Temp/claude/c--Users-NORA-Downloads-Saving-saas/f48f5342-4fb0-431d-ab24-aaadeaf71e3f/scratchpad/smoke2.mjs /c/Users/NORA/Downloads/Saving-saas/_smoke2_tmp.mjs)",
+      "Bash(node _smoke2_tmp.mjs)"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\NORA\\Downloads\\Saving-saas\\src\\app\\(workspace)\\member\\loans",
+      "C:\\Users\\NORA\\Downloads\\Saving-saas\\src\\app\\(workspace)\\member\\loans\\[id]",
+      "C:\\Users\\NORA\\Downloads\\Saving-saas\\src\\app\\(workspace)\\loan-committee\\pending"
+    ]
+  }
+}

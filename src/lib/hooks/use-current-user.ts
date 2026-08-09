@@ -1,5 +1,3 @@
-"use client";
-
 import { useSessionStore } from "@/lib/store/session-store";
 import { useDataStore } from "@/lib/store/data-store";
 

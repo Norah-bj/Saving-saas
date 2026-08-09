@@ -1,7 +1,4 @@
-"use client";
-
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { LogOut, User } from "lucide-react";
 import {
   Sidebar,
@@ -30,8 +27,8 @@ import { NAV_CONFIG } from "@/lib/nav-config";
 import { ROLE_LABEL } from "@/lib/types";
 
 export function AppSidebar() {
-  const pathname = usePathname();
-  const router = useRouter();
+  const { pathname } = useLocation();
+  const navigate = useNavigate();
   const { user, activeRole } = useCurrentUser();
   const logout = useSessionStore((s) => s.logout);
 
@@ -57,7 +54,7 @@ export function AppSidebar() {
                       <SidebarMenuButton
                         isActive={isActive}
                         tooltip={item.title}
-                        render={<Link href={item.href} />}
+                        render={<Link to={item.href} />}
                       >
                         <item.icon />
                         <span>{item.title}</span>
@@ -87,7 +84,7 @@ export function AppSidebar() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-56">
                 <DropdownMenuItem
-                  onClick={() => router.push("/member/profile")}
+                  onClick={() => navigate("/member/profile")}
                   className="gap-2"
                 >
                   <User className="size-4" /> Profile & Settings
@@ -97,7 +94,7 @@ export function AppSidebar() {
                   variant="destructive"
                   onClick={() => {
                     logout();
-                    router.push("/login");
+                    navigate("/login");
                   }}
                   className="gap-2"
                 >

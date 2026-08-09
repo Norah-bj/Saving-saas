@@ -1,6 +1,4 @@
-"use client";
-
-import { useRouter } from "next/navigation";
+import { useNavigate } from "react-router-dom";
 import { ChevronsUpDown, Check } from "lucide-react";
 import {
   DropdownMenu,
@@ -33,7 +31,7 @@ const ROLE_DESCRIPTIONS: Record<Role, string> = {
 };
 
 export function WorkspaceSwitcher() {
-  const router = useRouter();
+  const navigate = useNavigate();
   const { user, activeRole } = useCurrentUser();
   const switchRole = useSessionStore((s) => s.switchRole);
   const organization = useDataStore((s) => s.organization);
@@ -76,7 +74,7 @@ export function WorkspaceSwitcher() {
                   key={role}
                   onClick={() => {
                     switchRole(role);
-                    router.push(HOME_PAGE[role]);
+                    navigate(HOME_PAGE[role]);
                   }}
                   className="flex items-center justify-between py-2"
                 >

@@ -1,7 +1,4 @@
-"use client";
-
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { Link, useLocation } from "react-router-dom";
 import { Bell } from "lucide-react";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
@@ -13,7 +10,7 @@ import { NAV_CONFIG } from "@/lib/nav-config";
 import { ROLE_LABEL } from "@/lib/types";
 
 export function Topbar() {
-  const pathname = usePathname();
+  const { pathname } = useLocation();
   const { user, activeRole } = useCurrentUser();
   const notifications = useDataStore((s) => s.notifications);
 
@@ -40,7 +37,7 @@ export function Topbar() {
       </div>
       <div className="flex items-center gap-1">
         {user.roles.includes("member") && (
-          <Button variant="ghost" size="icon-sm" render={<Link href="/member/notifications" />}>
+          <Button variant="ghost" size="icon-sm" render={<Link to="/member/notifications" />}>
             <span className="relative">
               <Bell className="size-4" />
               {unread > 0 && (

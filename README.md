@@ -1,36 +1,39 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# IkiminaConnect (APUPEKA)
+
+A savings & loan management platform for SACCOs, cooperatives, and employee
+savings associations, built as a Vite + React + TypeScript single-page app
+with React Router, Tailwind v4, and shadcn/ui.
+
+This is currently a frontend-only prototype: all data lives in a zustand
+store seeded with realistic mock data (see `src/lib/mock-data/`). See
+`docs/BACKEND_CONTRACT.md` for the planned Java/Spring Boot API this will
+eventually talk to.
 
 ## Getting Started
 
-First, run the development server:
-
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) and sign in from
+`/login` with any of the demo personas.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Scripts
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `npm run dev` — start the Vite dev server
+- `npm run build` — typecheck (`tsc -b`) and build for production
+- `npm run preview` — preview the production build locally
+- `npm run lint` — run ESLint
 
-## Learn More
+## Project structure
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `src/pages/` — one component per route, grouped by workspace role
+- `src/routes.tsx` — the central route table
+- `src/components/layout/` — sidebar, topbar, workspace switcher, the
+  `ProtectedLayout` auth/role guard
+- `src/components/ui/` — shadcn/ui primitives (base-ui flavor)
+- `src/components/shared/` and `src/components/charts/` — reusable
+  dashboard building blocks (StatCard, DataTable, chart wrappers, etc.)
+- `src/lib/` — types, mock data, the zustand store, and business logic
+  (loan calculator, formatting helpers)

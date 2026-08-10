@@ -87,6 +87,8 @@ export default function SuperAdminOrganizationsPage() {
             ]}
             rows={organizations}
             rowKey={(r) => r.id}
+            getSearchText={(r) => `${r.name} ${r.district}`}
+            searchPlaceholder="Search organizations..."
             emptyMessage="No organizations found."
           />
         </CardContent>

@@ -30,7 +30,7 @@ export function BarComparisonChart({
 
   return (
     <ChartContainer config={config} className="w-full" style={{ height }}>
-      <BarChart data={data} margin={{ left: 4, right: 12, top: 8, bottom: 0 }}>
+      <BarChart data={data} margin={{ left: 4, right: 12, top: 8, bottom: 0 }} barCategoryGap={stacked ? "20%" : "28%"} barGap={4}>
         <CartesianGrid vertical={false} strokeDasharray="3 3" />
         <XAxis dataKey={xKey} tickLine={false} axisLine={false} tickMargin={8} fontSize={11} />
         <YAxis
@@ -42,6 +42,7 @@ export function BarComparisonChart({
           width={56}
         />
         <ChartTooltip
+          cursor={{ fill: "var(--muted)", opacity: 0.5 }}
           content={
             <ChartTooltipContent
               formatter={valueFormatter ? (value) => valueFormatter(Number(value)) : undefined}
@@ -53,7 +54,8 @@ export function BarComparisonChart({
             key={s.key}
             dataKey={s.key}
             fill={`var(--color-${s.key})`}
-            radius={[4, 4, 0, 0]}
+            radius={stacked ? [0, 0, 0, 0] : [6, 6, 0, 0]}
+            maxBarSize={40}
             stackId={stacked ? "stack" : undefined}
           />
         ))}

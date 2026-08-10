@@ -64,6 +64,8 @@ export default function SuperAdminAuditLogsPage() {
             ]}
             rows={filteredLogs}
             rowKey={(r) => r.id}
+            getSearchText={(r) => `${r.actor} ${r.action} ${r.target}`}
+            searchPlaceholder="Search by actor, action, or target..."
             emptyMessage="No audit log entries for this filter."
           />
         </CardContent>

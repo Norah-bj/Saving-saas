@@ -1,4 +1,4 @@
-import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
+import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import {
   ChartContainer,
   ChartTooltip,
@@ -33,7 +33,15 @@ export function TrendLineChart({
 
   return (
     <ChartContainer config={config} className="w-full" style={{ height }}>
-      <LineChart data={data} margin={{ left: 4, right: 12, top: 8, bottom: 0 }}>
+      <AreaChart data={data} margin={{ left: 4, right: 12, top: 8, bottom: 0 }}>
+        <defs>
+          {series.map((s) => (
+            <linearGradient key={s.key} id={`fill-${s.key}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor={`var(--color-${s.key})`} stopOpacity={0.28} />
+              <stop offset="95%" stopColor={`var(--color-${s.key})`} stopOpacity={0.02} />
+            </linearGradient>
+          ))}
+        </defs>
         <CartesianGrid vertical={false} strokeDasharray="3 3" />
         <XAxis
           dataKey={xKey}
@@ -51,6 +59,7 @@ export function TrendLineChart({
           width={56}
         />
         <ChartTooltip
+          cursor={{ stroke: "var(--border)", strokeWidth: 1 }}
           content={
             <ChartTooltipContent
               formatter={
@@ -62,17 +71,18 @@ export function TrendLineChart({
           }
         />
         {series.map((s) => (
-          <Line
+          <Area
             key={s.key}
             type="monotone"
             dataKey={s.key}
             stroke={`var(--color-${s.key})`}
-            strokeWidth={2}
+            strokeWidth={2.25}
+            fill={`url(#fill-${s.key})`}
             dot={false}
-            activeDot={{ r: 4 }}
+            activeDot={{ r: 4, strokeWidth: 2, stroke: "var(--card)" }}
           />
         ))}
-      </LineChart>
+      </AreaChart>
     </ChartContainer>
   );
 }

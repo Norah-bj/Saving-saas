@@ -56,6 +56,10 @@ export default function LoanCommitteeDecisionsPage() {
               rows={decided}
               rowKey={(r) => r.id}
               onRowClick={(r) => navigate(`/loan-committee/pending/${r.id}`)}
+              getSearchText={(r) =>
+                `${r.contractNumber} ${members.find((m) => m.id === r.memberId)?.fullName ?? ""}`
+              }
+              searchPlaceholder="Search by member or contract number..."
               columns={[
                 { header: "Contract #", cell: (r) => r.contractNumber },
                 {

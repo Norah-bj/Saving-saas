@@ -36,7 +36,17 @@
       "Bash(node -e \"console.log\\(new Intl.NumberFormat\\('en-RW', {style:'currency', currency:'RWF', maximumFractionDigits:0}\\).format\\(1740500\\)\\)\")",
       "Bash(node -e ' *)",
       "Bash(cp /c/Users/NORA/AppData/Local/Temp/claude/c--Users-NORA-Downloads-Saving-saas/f48f5342-4fb0-431d-ab24-aaadeaf71e3f/scratchpad/smoke2.mjs /c/Users/NORA/Downloads/Saving-saas/_smoke2_tmp.mjs)",
-      "Bash(node _smoke2_tmp.mjs)"
+      "Bash(node _smoke2_tmp.mjs)",
+      "Bash(rm -rf \"/c/Users/NORA/Downloads/Saving-saas/dist\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000/)",
+      "Bash(cp /c/Users/NORA/AppData/Local/Temp/claude/c--Users-NORA-Downloads-Saving-saas/f48f5342-4fb0-431d-ab24-aaadeaf71e3f/scratchpad/visual.mjs /c/Users/NORA/Downloads/Saving-saas/_visual_tmp.mjs)",
+      "Bash(node _visual_tmp.mjs)",
+      "Bash(sed -i 's/waitForTimeout\\(400\\)/waitForTimeout\\(800\\)/g' /c/Users/NORA/AppData/Local/Temp/claude/c--Users-NORA-Downloads-Saving-saas/f48f5342-4fb0-431d-ab24-aaadeaf71e3f/scratchpad/visual.mjs)",
+      "Bash(rm -f _visual_tmp.mjs)",
+      "Bash(xargs grep -l \"Input\")",
+      "Bash(cp /c/Users/NORA/AppData/Local/Temp/claude/c--Users-NORA-Downloads-Saving-saas/f48f5342-4fb0-431d-ab24-aaadeaf71e3f/scratchpad/verify2.mjs /c/Users/NORA/Downloads/Saving-saas/_verify2_tmp.mjs)",
+      "Bash(node _verify2_tmp.mjs)",
+      "Bash(rm -f _verify2_tmp.mjs)"
     ],
     "additionalDirectories": [
       "C:\\Users\\NORA\\Downloads\\Saving-saas\\src\\app\\(workspace)\\member\\loans",

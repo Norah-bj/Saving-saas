@@ -1,3 +1,4 @@
+import * as React from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   PiggyBank,
@@ -21,8 +22,11 @@ import { useDataStore } from "@/lib/store/data-store";
 import { formatDate, formatRwf } from "@/lib/format";
 import { monthlySeriesFromLedger } from "@/lib/chart-utils";
 
+const PERIOD_MONTHS: Record<string, number> = { "3M": 3, "6M": 6, "1Y": 12, All: 48 };
+
 export default function MemberDashboardPage() {
   const navigate = useNavigate();
+  const [period, setPeriod] = React.useState("6M");
   const { user } = useCurrentUser();
   const savingsLedger = useDataStore((s) => s.savingsLedger);
   const shareHoldings = useDataStore((s) => s.shareHoldings);
@@ -42,7 +46,16 @@ export default function MemberDashboardPage() {
   );
   const nextDeduction = Math.round(user.monthlySalary * 0.1);
 
-  const series = monthlySeriesFromLedger(ledger, 8);
+  const series = monthlySeriesFromLedger(ledger, PERIOD_MONTHS[period]);
+  const sparklineSeries = monthlySeriesFromLedger(ledger, 8).map((s) => s.balance);
+  const savingsTrend =
+    sparklineSeries.length > 1 && sparklineSeries[0] > 0
+      ? Math.round(
+          ((sparklineSeries[sparklineSeries.length - 1] - sparklineSeries[0]) /
+            sparklineSeries[0]) *
+            100
+        )
+      : 0;
   const recentTx = [...ledger].slice(-5).reverse();
   const upcomingMeetings = meetings
     .filter((m) => m.status === "upcoming")
@@ -61,7 +74,18 @@ export default function MemberDashboardPage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Total Savings" value={formatRwf(balance)} icon={PiggyBank} description="All-time balance" />
+        <StatCard
+          label="Total Savings"
+          value={formatRwf(balance)}
+          icon={PiggyBank}
+          sparkline={sparklineSeries}
+          trend={
+            savingsTrend !== 0
+              ? { value: `${savingsTrend > 0 ? "+" : ""}${savingsTrend}%`, direction: savingsTrend > 0 ? "up" : "down", label: "last 8 months" }
+              : undefined
+          }
+          description="All-time balance"
+        />
         <StatCard
           label="Total Shares"
           value={`${shares.totalShares} shares`}
@@ -83,7 +107,14 @@ export default function MemberDashboardPage() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <ChartCard title="Savings Growth" description="Balance over the last 8 months" className="lg:col-span-2">
+        <ChartCard
+          title="Savings Growth"
+          description="Balance over time"
+          className="lg:col-span-2"
+          periodOptions={["3M", "6M", "1Y", "All"]}
+          period={period}
+          onPeriodChange={setPeriod}
+        >
           <TrendLineChart
             data={series}
             xKey="month"

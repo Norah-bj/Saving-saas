@@ -91,6 +91,8 @@ export default function SecretaryExitRequestsPage() {
             ]}
             rows={sorted}
             rowKey={(r) => r.id}
+            getSearchText={(r) => `${memberName(r.memberId)} ${memberEmployeeId(r.memberId)} ${r.reason}`}
+            searchPlaceholder="Search exit requests..."
             emptyMessage="No exit requests have been submitted."
           />
         </CardContent>

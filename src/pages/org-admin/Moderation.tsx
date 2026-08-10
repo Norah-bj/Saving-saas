@@ -62,6 +62,8 @@ export default function OrgAdminModerationPage() {
             ]}
             rows={orgMembers}
             rowKey={(r) => r.id}
+            getSearchText={(r) => `${r.fullName} ${r.employeeId} ${r.department}`}
+            searchPlaceholder="Search members..."
             emptyMessage="No members found."
           />
         </CardContent>

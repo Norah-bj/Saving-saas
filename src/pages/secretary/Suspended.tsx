@@ -52,6 +52,8 @@ export default function SecretarySuspendedMembersPage() {
               ]}
               rows={suspended}
               rowKey={(r) => r.id}
+              getSearchText={(r) => `${r.fullName} ${r.employeeId} ${r.department}`}
+              searchPlaceholder="Search suspended members..."
             />
           )}
         </CardContent>

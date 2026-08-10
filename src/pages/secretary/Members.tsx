@@ -2,7 +2,7 @@ import * as React from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Search, UserPlus } from "lucide-react";
+import { UserPlus } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -57,7 +57,6 @@ export default function SecretaryMembersPage() {
   const employeeRegistry = useDataStore((s) => s.employeeRegistry);
   const addMember = useDataStore((s) => s.addMember);
 
-  const [query, setQuery] = React.useState("");
   const [open, setOpen] = React.useState(false);
 
   const form = useForm<FormValues>({
@@ -78,16 +77,6 @@ export default function SecretaryMembersPage() {
 
   const orgMembers = members.filter((m) => m.organizationId === user.organizationId);
   const candidates = employeeRegistry.filter((e) => !e.registered);
-
-  const filtered = orgMembers.filter((m) => {
-    const q = query.trim().toLowerCase();
-    if (!q) return true;
-    return (
-      m.fullName.toLowerCase().includes(q) ||
-      m.employeeId.toLowerCase().includes(q) ||
-      m.nationalId.toLowerCase().includes(q)
-    );
-  });
 
   function applyCandidate(employeeId: string) {
     const candidate = candidates.find((c) => c.employeeId === employeeId);
@@ -131,18 +120,9 @@ export default function SecretaryMembersPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm font-medium">All Members ({filtered.length})</CardTitle>
+          <CardTitle className="text-sm font-medium">All Members ({orgMembers.length})</CardTitle>
         </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          <div className="relative max-w-sm">
-            <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search by name, employee ID or national ID..."
-              className="pl-8"
-            />
-          </div>
+        <CardContent>
           <DataTable
             columns={[
               { header: "Name", cell: (r) => r.fullName },
@@ -164,9 +144,11 @@ export default function SecretaryMembersPage() {
               },
               { header: "Date Joined", cell: (r) => formatDate(r.dateJoined) },
             ]}
-            rows={filtered}
+            rows={orgMembers}
             rowKey={(r) => r.id}
-            emptyMessage="No members match your search."
+            getSearchText={(r) => `${r.fullName} ${r.employeeId} ${r.nationalId}`}
+            searchPlaceholder="Search by name, employee ID or national ID..."
+            emptyMessage="No members registered yet."
           />
         </CardContent>
       </Card>

@@ -97,6 +97,10 @@ export default function AccountantTransactionsPage() {
             ]}
             rows={filtered}
             rowKey={(r) => r.id}
+            getSearchText={(r) =>
+              `${members.find((m) => m.id === r.memberId)?.fullName ?? ""} ${r.reference} ${r.recordedBy}`
+            }
+            searchPlaceholder="Search by member or reference..."
             emptyMessage="No transactions match these filters."
           />
         </CardContent>

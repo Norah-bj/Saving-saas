@@ -35,6 +35,14 @@ export function AppSidebar() {
   if (!user || !activeRole) return null;
   const groups = NAV_CONFIG[activeRole];
 
+  // Pick the single longest-matching href across all nav items so a parent
+  // route (e.g. "Savings") doesn't stay highlighted alongside a more specific
+  // sibling route (e.g. "Savings Statement") that shares its prefix.
+  const activeHref = groups
+    .flatMap((g) => g.items)
+    .filter((item) => pathname === item.href || pathname.startsWith(item.href + "/"))
+    .sort((a, b) => b.href.length - a.href.length)[0]?.href;
+
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader>
@@ -47,8 +55,7 @@ export function AppSidebar() {
             <SidebarGroupContent>
               <SidebarMenu>
                 {group.items.map((item) => {
-                  const isActive =
-                    pathname === item.href || pathname.startsWith(item.href + "/");
+                  const isActive = item.href === activeHref;
                   return (
                     <SidebarMenuItem key={item.href}>
                       <SidebarMenuButton

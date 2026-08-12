@@ -30,6 +30,12 @@ export interface Organization {
   memberCount: number;
   createdAt: string;
   status: "active" | "suspended" | "trial";
+  loanInterestRate: number;
+  loanInsuranceRate: number;
+  minMonthsBeforeEligible: number;
+  allowedRepaymentPeriods: number[];
+  legalRepresentativeName: string;
+  legalRepresentativeTitle: string;
 }
 
 export interface AppUser {
@@ -47,6 +53,8 @@ export interface AppUser {
   dateJoined: string;
   avatarInitials: string;
   monthlySalary: number;
+  bankName?: string;
+  bankAccountNumber?: string;
 }
 
 export type SavingsTxType =

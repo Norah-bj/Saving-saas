@@ -77,7 +77,7 @@ export default function MemberSharesPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight">Shares</h1>
+        <h1 className="text-lg font-semibold tracking-tight">Shares</h1>
         <p className="text-sm text-muted-foreground">
           Manage your cooperative shareholding. Each share is valued at {formatRwf(shareValue)}.
         </p>

@@ -80,7 +80,7 @@ export default function SuperAdminSupportPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight">Support Center</h1>
+        <h1 className="text-lg font-semibold tracking-tight">Support Center</h1>
         <p className="text-sm text-muted-foreground">
           {openCount} open ticket{openCount === 1 ? "" : "s"} across all organizations.
         </p>

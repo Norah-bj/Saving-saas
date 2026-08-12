@@ -44,6 +44,14 @@ import {
 } from "@/lib/mock-data";
 import type { AuditLogEntry, BackupRecord, LedgerTransaction, RolePolicy } from "@/lib/types";
 
+const OUTSTANDING_LOAN_STATUSES: LoanStatus[] = ["disbursed", "repaying"];
+
+export interface ExitEligibility {
+  eligible: boolean;
+  outstandingLoans: Loan[];
+  activeGuarantees: { guarantee: Guarantee; loan: Loan }[];
+}
+
 function clone<T>(v: T): T {
   return typeof structuredClone === "function"
     ? structuredClone(v)
@@ -80,6 +88,7 @@ interface DataState {
   // --- derived helpers ---
   savingsBalance: (memberId: string) => number;
   memberLoans: (memberId: string) => Loan[];
+  exitEligibility: (memberId: string) => ExitEligibility;
 
   // --- actions ---
   applyForLoan: (
@@ -181,6 +190,26 @@ export const useDataStore = create<DataState>((set, get) => ({
 
   memberLoans: (memberId) => get().loans.filter((l) => l.memberId === memberId),
 
+  // Real APUPEKA rule: a member can't exit while they have an outstanding
+  // loan, or while they're actively guaranteeing someone else's loan (see
+  // src/lib/store data-store.ts's startLoanReview comment / memory
+  // loan-approval-workflow for the source).
+  exitEligibility: (memberId) => {
+    const { loans, guarantees } = get();
+    const outstandingLoans = loans.filter(
+      (l) => l.memberId === memberId && OUTSTANDING_LOAN_STATUSES.includes(l.status)
+    );
+    const activeGuarantees = guarantees
+      .filter((g) => g.guarantorId === memberId && g.status === "accepted")
+      .map((guarantee) => ({ guarantee, loan: loans.find((l) => l.id === guarantee.loanId)! }))
+      .filter(({ loan }) => loan && loan.status !== "completed" && loan.status !== "rejected");
+    return {
+      eligible: outstandingLoans.length === 0 && activeGuarantees.length === 0,
+      outstandingLoans,
+      activeGuarantees,
+    };
+  },
+
   logAudit: (actor, action, target) =>
     set((s) => ({
       auditLogs: [
@@ -198,7 +227,11 @@ export const useDataStore = create<DataState>((set, get) => ({
 
   applyForLoan: (memberId, input) => {
     const savings = get().savingsBalance(memberId);
-    const calc = calculateLoan(input.amount, savings, input.periodMonths);
+    const org = get().organization;
+    const calc = calculateLoan(input.amount, savings, input.periodMonths, {
+      interestRate: org.loanInterestRate / 100,
+      insuranceRate: org.loanInsuranceRate / 100,
+    });
     const member = get().members.find((m) => m.id === memberId);
     const tenureMonths = member ? monthsBetween(member.dateJoined, MOCK_TODAY) : 0;
     const riskScore = riskScoreFor({
@@ -217,7 +250,7 @@ export const useDataStore = create<DataState>((set, get) => ({
       amount: input.amount,
       purpose: input.purpose,
       periodMonths: input.periodMonths,
-      interestRate: 5,
+      interestRate: org.loanInterestRate,
       insuranceRequired: calc.guarantorRequired,
       insuranceFee: calc.insuranceFee,
       monthlyInstallment: calc.monthlyInstallment,
@@ -260,6 +293,12 @@ export const useDataStore = create<DataState>((set, get) => ({
     return loan;
   },
 
+  // Real APUPEKA approval rule (confirmed by the client, not an assumption):
+  // a self-covered loan (amount <= savings) goes straight to Loan Committee
+  // review and is approved directly; a guaranteed loan (amount > savings)
+  // must have its guarantor accept first (see respondGuarantee below) before
+  // the Loan Committee Chair gives the final approval. Don't collapse these
+  // into one uniform "committee review" step.
   startLoanReview: (loanId, actorName) =>
     set((s) => ({
       loans: s.loans.map((l) => {
@@ -425,6 +464,11 @@ export const useDataStore = create<DataState>((set, get) => ({
             }
           : l
       ),
+      // Once a loan is fully repaid, its guarantor is no longer on the hook —
+      // release the guarantee so they become exit-eligible again.
+      guarantees: completed
+        ? s.guarantees.map((g) => (g.loanId === loanId ? { ...g, status: "released" } : g))
+        : s.guarantees,
       ledgerTransactions: [
         {
           id: nextId("led"),
@@ -691,6 +735,11 @@ export const useDataStore = create<DataState>((set, get) => ({
 
   decideExitRequest: (id, decision, actorName) => {
     const request = get().exitRequests.find((r) => r.id === id);
+    if (!request) return;
+    // Defensive backstop — the UI is expected to hide/disable approval when
+    // exitEligibility(...).eligible is false, but never approve a blocked
+    // exit even if this is called some other way.
+    if (decision === "approve" && !get().exitEligibility(request.memberId).eligible) return;
     set((s) => ({
       exitRequests: s.exitRequests.map((r) =>
         r.id === id
@@ -698,17 +747,15 @@ export const useDataStore = create<DataState>((set, get) => ({
           : r
       ),
       members:
-        decision === "approve" && request
+        decision === "approve"
           ? s.members.map((m) => (m.id === request.memberId ? { ...m, status: "exited" } : m))
           : s.members,
     }));
-    if (request) {
-      get().logAudit(
-        actorName,
-        decision === "approve" ? "Approved membership exit" : "Rejected membership exit",
-        request.memberId
-      );
-    }
+    get().logAudit(
+      actorName,
+      decision === "approve" ? "Approved membership exit" : "Rejected membership exit",
+      request.memberId
+    );
   },
 
   decideShareWithdrawal: (id, decision, actorName) =>

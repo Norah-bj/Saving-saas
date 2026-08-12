@@ -91,7 +91,7 @@ export function AppSidebar() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-56">
                 <DropdownMenuItem
-                  onClick={() => navigate("/member/profile")}
+                  onClick={() => navigate("/profile")}
                   className="gap-2"
                 >
                   <User className="size-4" /> Profile & Settings

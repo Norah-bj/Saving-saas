@@ -87,7 +87,7 @@ export default function SecretaryDocumentsPage() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight">Documents</h1>
+          <h1 className="text-lg font-semibold tracking-tight">Documents</h1>
           <p className="text-sm text-muted-foreground">
             All organization documents, including admin-only files, are visible to the Secretary.
           </p>

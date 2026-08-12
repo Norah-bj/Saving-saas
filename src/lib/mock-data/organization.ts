@@ -17,6 +17,12 @@ export const ORGANIZATION: Organization = {
   memberCount: 22,
   createdAt: "2021-03-01",
   status: "active",
+  loanInterestRate: 5,
+  loanInsuranceRate: 1,
+  minMonthsBeforeEligible: 3,
+  allowedRepaymentPeriods: [3, 6, 8, 12, 18, 24, 36],
+  legalRepresentativeName: "NDAHIMANA Longin",
+  legalRepresentativeTitle: "Perezida",
 };
 
 // Other tenants on the platform, for the Super Admin workspace.
@@ -39,6 +45,12 @@ export const PLATFORM_ORGANIZATIONS: Organization[] = [
     memberCount: 64,
     createdAt: "2023-09-12",
     status: "active",
+    loanInterestRate: 5,
+    loanInsuranceRate: 1,
+    minMonthsBeforeEligible: 6,
+    allowedRepaymentPeriods: [6, 12, 24],
+    legalRepresentativeName: "Uwimana Claudine",
+    legalRepresentativeTitle: "President",
   },
   {
     id: "org-huye-health",
@@ -57,6 +69,12 @@ export const PLATFORM_ORGANIZATIONS: Organization[] = [
     memberCount: 138,
     createdAt: "2020-11-04",
     status: "active",
+    loanInterestRate: 4,
+    loanInsuranceRate: 1,
+    minMonthsBeforeEligible: 3,
+    allowedRepaymentPeriods: [3, 6, 12, 18, 24, 36],
+    legalRepresentativeName: "Dr. Mugisha Emmanuel",
+    legalRepresentativeTitle: "Chairperson",
   },
   {
     id: "org-rubavu-traders",
@@ -75,6 +93,12 @@ export const PLATFORM_ORGANIZATIONS: Organization[] = [
     memberCount: 41,
     createdAt: "2024-02-20",
     status: "trial",
+    loanInterestRate: 6,
+    loanInsuranceRate: 1.5,
+    minMonthsBeforeEligible: 3,
+    allowedRepaymentPeriods: [3, 6, 12],
+    legalRepresentativeName: "Nkurunziza Patrick",
+    legalRepresentativeTitle: "President",
   },
   {
     id: "org-nyagatare-farmers",
@@ -93,5 +117,11 @@ export const PLATFORM_ORGANIZATIONS: Organization[] = [
     memberCount: 97,
     createdAt: "2022-06-18",
     status: "suspended",
+    loanInterestRate: 5,
+    loanInsuranceRate: 1,
+    minMonthsBeforeEligible: 4,
+    allowedRepaymentPeriods: [6, 12, 18, 24],
+    legalRepresentativeName: "Habimana Jean de Dieu",
+    legalRepresentativeTitle: "President",
   },
 ];

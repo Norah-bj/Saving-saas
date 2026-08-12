@@ -45,7 +45,7 @@ export default function AccountantStatementsPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight">Member Statements</h1>
+        <h1 className="text-lg font-semibold tracking-tight">Member Statements</h1>
         <p className="text-sm text-muted-foreground">
           Look up any member&apos;s savings statement.
         </p>

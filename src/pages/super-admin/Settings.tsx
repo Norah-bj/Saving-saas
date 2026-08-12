@@ -78,7 +78,7 @@ export default function SuperAdminSettingsPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight">Settings & API Keys</h1>
+        <h1 className="text-lg font-semibold tracking-tight">Settings & API Keys</h1>
         <p className="text-sm text-muted-foreground">
           Platform-wide configuration and programmatic access credentials.
         </p>

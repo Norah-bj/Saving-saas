@@ -558,6 +558,20 @@ export const EXIT_REQUESTS: ExitRequest[] = [
     requestedDate: addDays(MOCK_TODAY, -4),
     status: "pending",
   },
+  {
+    id: "exit-2",
+    memberId: "u-mukeshimana",
+    reason: "Resigning from the district to join the private sector.",
+    requestedDate: addDays(MOCK_TODAY, -2),
+    status: "pending",
+  },
+  {
+    id: "exit-3",
+    memberId: "u-habyarimana",
+    reason: "Retiring from public service at the end of this term.",
+    requestedDate: addDays(MOCK_TODAY, -1),
+    status: "pending",
+  },
 ];
 
 export const SHARE_WITHDRAWALS: ShareWithdrawalRequest[] = [

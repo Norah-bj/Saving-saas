@@ -41,13 +41,13 @@ export default function MemberLoanDetailPage() {
         </Button>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h1 className="text-xl font-semibold tracking-tight">{loan.contractNumber}</h1>
+            <h1 className="text-lg font-semibold tracking-tight">{loan.contractNumber}</h1>
             <p className="text-sm text-muted-foreground">{loan.purpose}</p>
           </div>
           <div className="flex items-center gap-2">
             <LoanStatusBadge status={loan.status} />
             {CONTRACT_VISIBLE_STATUSES.includes(loan.status) && (
-              <Button size="sm" render={<Link to={`/member/loans/${loan.id}/contract`} />}>
+              <Button size="sm" render={<Link to={`/loans/${loan.id}/contract`} />}>
                 <FileText className="size-3.5" /> View Contract
               </Button>
             )}

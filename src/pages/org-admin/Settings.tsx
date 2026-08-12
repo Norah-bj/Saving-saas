@@ -41,7 +41,7 @@ export default function OrgAdminSettingsPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight">Settings & Branding</h1>
+        <h1 className="text-lg font-semibold tracking-tight">Settings & Branding</h1>
         <p className="text-sm text-muted-foreground">
           Update your organization&apos;s profile, contact details and brand identity.
         </p>

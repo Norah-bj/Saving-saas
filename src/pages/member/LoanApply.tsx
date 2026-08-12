@@ -27,11 +27,9 @@ import { DataTable } from "@/components/shared/data-table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useCurrentUser } from "@/lib/hooks/use-current-user";
 import { useDataStore } from "@/lib/store/data-store";
-import { calculateLoan, LOAN_INSURANCE_RATE, LOAN_INTEREST_RATE, MIN_MONTHS_BEFORE_ELIGIBLE } from "@/lib/loan-calculator";
+import { calculateLoan } from "@/lib/loan-calculator";
 import { monthsBetween, MOCK_TODAY } from "@/lib/mock-data";
 import { formatRwf } from "@/lib/format";
-
-const PERIOD_OPTIONS = [6, 10, 12, 18, 24, 36];
 
 const schema = z.object({
   amount: z.number().min(50000, "Minimum loan amount is 50,000 RWF"),
@@ -45,25 +43,32 @@ type FormValues = z.infer<typeof schema>;
 export default function ApplyForLoanPage() {
   const navigate = useNavigate();
   const { user } = useCurrentUser();
+  const organization = useDataStore((s) => s.organization);
   const savingsBalance = useDataStore((s) => s.savingsBalance);
   const members = useDataStore((s) => s.members);
   const applyForLoan = useDataStore((s) => s.applyForLoan);
 
+  const periodOptions = organization.allowedRepaymentPeriods;
+  const defaultPeriod = periodOptions.includes(12) ? 12 : periodOptions[0];
+
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { amount: 500000, purpose: "", periodMonths: 12, guarantorId: undefined },
+    defaultValues: { amount: 500000, purpose: "", periodMonths: defaultPeriod, guarantorId: undefined },
   });
 
   const amount = form.watch("amount") || 0;
-  const periodMonths = form.watch("periodMonths") || 12;
+  const periodMonths = form.watch("periodMonths") || defaultPeriod;
   const guarantorId = form.watch("guarantorId");
 
   if (!user) return null;
 
   const savings = savingsBalance(user.id);
   const tenureMonths = monthsBetween(user.dateJoined, MOCK_TODAY);
-  const eligible = tenureMonths >= MIN_MONTHS_BEFORE_ELIGIBLE;
-  const calc = calculateLoan(amount, savings, periodMonths);
+  const eligible = tenureMonths >= organization.minMonthsBeforeEligible;
+  const calc = calculateLoan(amount, savings, periodMonths, {
+    interestRate: organization.loanInterestRate / 100,
+    insuranceRate: organization.loanInsuranceRate / 100,
+  });
 
   const potentialGuarantors = members.filter(
     (m) => m.organizationId === user.organizationId && m.id !== user.id && m.status === "active"
@@ -88,11 +93,11 @@ export default function ApplyForLoanPage() {
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight">Apply for a Loan</h1>
+        <h1 className="text-lg font-semibold tracking-tight">Apply for a Loan</h1>
         <p className="text-sm text-muted-foreground">
-          Interest is a flat 5% of the loan amount. A 1% insurance fee only applies
-          when the amount you request exceeds your total savings — that&apos;s exactly
-          when a guarantor is required.
+          Interest is a flat {organization.loanInterestRate}% of the loan amount. A{" "}
+          {organization.loanInsuranceRate}% insurance fee only applies when the amount you
+          request exceeds your total savings — that&apos;s exactly when a guarantor is required.
         </p>
       </div>
 
@@ -101,9 +106,9 @@ export default function ApplyForLoanPage() {
           <ShieldAlert className="size-4" />
           <AlertTitle>Not yet eligible</AlertTitle>
           <AlertDescription>
-            Members become eligible for a loan after {MIN_MONTHS_BEFORE_ELIGIBLE} months of
-            continuous savings. You&apos;ve been saving for {tenureMonths} month(s). You may still
-            preview the calculator below.
+            Members become eligible for a loan after {organization.minMonthsBeforeEligible} months
+            of continuous savings. You&apos;ve been saving for {tenureMonths} month(s). You may
+            still preview the calculator below.
           </AlertDescription>
         </Alert>
       )}
@@ -166,7 +171,7 @@ export default function ApplyForLoanPage() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {PERIOD_OPTIONS.map((m) => (
+                          {periodOptions.map((m) => (
                             <SelectItem key={m} value={String(m)}>
                               {m} months
                             </SelectItem>
@@ -229,7 +234,7 @@ export default function ApplyForLoanPage() {
               {calc.guarantorRequired ? <ShieldAlert className="mt-0.5 size-4 shrink-0" /> : <ShieldCheck className="mt-0.5 size-4 shrink-0" />}
               <span>
                 {calc.guarantorRequired
-                  ? `This amount exceeds your savings, so a guarantor and a ${LOAN_INSURANCE_RATE * 100}% insurance fee are required.`
+                  ? `This amount exceeds your savings, so a guarantor and a ${organization.loanInsuranceRate}% insurance fee are required.`
                   : "This amount is within your savings — no guarantor or insurance fee required."}
               </span>
             </div>
@@ -237,9 +242,9 @@ export default function ApplyForLoanPage() {
             <dl className="grid grid-cols-2 gap-y-2 text-sm">
               <dt className="text-muted-foreground">Principal</dt>
               <dd className="text-right font-medium">{formatRwf(calc.amount)}</dd>
-              <dt className="text-muted-foreground">Interest ({LOAN_INTEREST_RATE * 100}%)</dt>
+              <dt className="text-muted-foreground">Interest ({organization.loanInterestRate}%)</dt>
               <dd className="text-right font-medium">{formatRwf(calc.interest)}</dd>
-              <dt className="text-muted-foreground">Insurance ({LOAN_INSURANCE_RATE * 100}%)</dt>
+              <dt className="text-muted-foreground">Insurance ({organization.loanInsuranceRate}%)</dt>
               <dd className="text-right font-medium">{formatRwf(calc.insuranceFee)}</dd>
               <dt className="border-t pt-2 font-medium">Total Payable</dt>
               <dd className="border-t pt-2 text-right font-semibold">{formatRwf(calc.totalPayable)}</dd>

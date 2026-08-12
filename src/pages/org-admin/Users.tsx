@@ -67,7 +67,7 @@ export default function OrgAdminUsersPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight">Users & Roles</h1>
+        <h1 className="text-lg font-semibold tracking-tight">Users & Roles</h1>
         <p className="text-sm text-muted-foreground">
           Manage what each member of {organization.shortName} is permitted to do.
         </p>

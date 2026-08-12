@@ -85,7 +85,7 @@ export default function SecretaryAnnouncementsPage() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight">Announcements</h1>
+          <h1 className="text-lg font-semibold tracking-tight">Announcements</h1>
           <p className="text-sm text-muted-foreground">
             Publish organization-wide updates, notices and reminders.
           </p>

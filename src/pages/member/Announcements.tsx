@@ -25,7 +25,7 @@ export default function MemberAnnouncementsPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight">Announcements</h1>
+        <h1 className="text-lg font-semibold tracking-tight">Announcements</h1>
         <p className="text-sm text-muted-foreground">
           Updates and notices from the cooperative leadership, newest first.
         </p>

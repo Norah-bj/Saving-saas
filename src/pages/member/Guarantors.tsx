@@ -36,7 +36,7 @@ export default function MemberGuarantorsPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight">Guarantors</h1>
+        <h1 className="text-lg font-semibold tracking-tight">Guarantors</h1>
         <p className="text-sm text-muted-foreground">
           Manage guarantee requests you&apos;ve received and track loans you&apos;re currently guaranteeing.
         </p>

@@ -51,7 +51,7 @@ export default function AccountantTransactionsPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight">Transactions</h1>
+        <h1 className="text-lg font-semibold tracking-tight">Transactions</h1>
         <p className="text-sm text-muted-foreground">
           A complete ledger of every recorded transaction across the organization.
         </p>

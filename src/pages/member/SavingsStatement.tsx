@@ -59,7 +59,7 @@ export default function SavingsStatementPage() {
     <div className="mx-auto flex max-w-4xl flex-col gap-4">
       <div className="print-hidden flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight">Savings Statement</h1>
+          <h1 className="text-lg font-semibold tracking-tight">Savings Statement</h1>
           <p className="text-sm text-muted-foreground">
             A full record of your contributions, similar to a bank statement.
           </p>

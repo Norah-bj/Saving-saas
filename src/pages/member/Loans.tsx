@@ -27,7 +27,7 @@ export default function MemberLoansPage() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight">My Loans</h1>
+          <h1 className="text-lg font-semibold tracking-tight">My Loans</h1>
           <p className="text-sm text-muted-foreground">
             Track every loan application you&apos;ve made, from submission through repayment.
           </p>

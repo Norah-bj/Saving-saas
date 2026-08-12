@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, CheckCircle2, XCircle, PlayCircle, SearchX } from "lucide-react";
+import { ArrowLeft, CheckCircle2, XCircle, PlayCircle, SearchX, FileText } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -14,6 +14,9 @@ import { useDataStore } from "@/lib/store/data-store";
 import { riskBand } from "@/lib/loan-calculator";
 import { monthsBetween, MOCK_TODAY } from "@/lib/mock-data";
 import { formatRwf } from "@/lib/format";
+import { LOAN_STATUS_ORDER } from "@/lib/types";
+
+const CONTRACT_VISIBLE_STATUSES = LOAN_STATUS_ORDER.slice(LOAN_STATUS_ORDER.indexOf("approved"));
 
 export default function LoanReviewDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -64,12 +67,19 @@ export default function LoanReviewDetailPage() {
         </Button>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h1 className="text-xl font-semibold tracking-tight">{loan.contractNumber}</h1>
+            <h1 className="text-lg font-semibold tracking-tight">{loan.contractNumber}</h1>
             <p className="text-sm text-muted-foreground">
               {member.fullName} · {member.department} · {formatRwf(member.monthlySalary)}/month
             </p>
           </div>
-          <LoanStatusBadge status={loan.status} />
+          <div className="flex items-center gap-2">
+            <LoanStatusBadge status={loan.status} />
+            {CONTRACT_VISIBLE_STATUSES.includes(loan.status) && (
+              <Button size="sm" variant="outline" render={<Link to={`/loans/${loan.id}/contract`} />}>
+                <FileText className="size-3.5" /> View Contract
+              </Button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -137,8 +147,8 @@ export default function LoanReviewDetailPage() {
               <dd className="text-right font-medium">{loan.purpose}</dd>
               <dt className="text-muted-foreground">Amount</dt>
               <dd className="text-right font-medium">{formatRwf(loan.amount)}</dd>
-              <dt className="text-muted-foreground">Interest</dt>
-              <dd className="text-right font-medium">{formatRwf(Math.round(loan.amount * 0.05))}</dd>
+              <dt className="text-muted-foreground">Interest ({loan.interestRate}%)</dt>
+              <dd className="text-right font-medium">{formatRwf(Math.round((loan.amount * loan.interestRate) / 100))}</dd>
               <dt className="text-muted-foreground">Insurance</dt>
               <dd className="text-right font-medium">{loan.insuranceRequired ? formatRwf(loan.insuranceFee) : "N/A"}</dd>
               <dt className="text-muted-foreground">Period</dt>

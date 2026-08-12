@@ -24,28 +24,28 @@ export function StatCard({
   className,
 }: StatCardProps) {
   return (
-    <Card className={cn("gap-0 py-4", className)}>
-      <CardContent className="px-4">
+    <Card className={cn("gap-0 py-3.5", className)}>
+      <CardContent className="px-3.5">
         <div className="flex items-start justify-between gap-2">
-          <span className="text-sm text-muted-foreground">{label}</span>
+          <span className="text-xs text-muted-foreground">{label}</span>
           {Icon && (
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary ring-1 ring-primary/15">
-              <Icon className="size-4.5" />
+            <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary ring-1 ring-primary/15">
+              <Icon className="size-4" />
             </div>
           )}
         </div>
-        <div className="mt-2 flex items-end justify-between gap-3">
-          <div className="text-2xl font-semibold tracking-tight">{value}</div>
+        <div className="mt-1.5 flex items-end justify-between gap-3">
+          <div className="text-xl font-semibold tracking-tight">{value}</div>
           {sparkline && sparkline.length > 1 && (
             <Sparkline
               data={sparkline}
-              className="mb-0.5 h-8 w-16 shrink-0"
+              className="mb-0.5 h-7 w-14 shrink-0"
               positive={trend ? trend.direction === "up" : true}
             />
           )}
         </div>
         {(trend || description) && (
-          <div className="mt-2 flex items-center gap-1.5 text-xs">
+          <div className="mt-1.5 flex items-center gap-1.5 text-xs">
             {trend && (
               <span
                 className={cn(

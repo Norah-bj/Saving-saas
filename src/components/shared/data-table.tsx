@@ -55,10 +55,10 @@ export function DataTable<T>({
   const pageRows = filteredRows.slice(startIndex, startIndex + pageSize);
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-2.5">
       {getSearchText && (
-        <div className="relative w-full max-w-xs">
-          <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+        <div className="relative w-full max-w-80">
+          <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={query}
             onChange={(e) => {
@@ -66,7 +66,7 @@ export function DataTable<T>({
               setPage(1);
             }}
             placeholder={searchPlaceholder}
-            className="pl-8"
+            className="h-8 pl-7 text-xs"
           />
         </div>
       )}
@@ -85,7 +85,7 @@ export function DataTable<T>({
           <TableBody>
             {pageRows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center text-muted-foreground">
+                <TableCell colSpan={columns.length} className="h-20 text-center text-muted-foreground">
                   {filteredRows.length === 0 && rows.length > 0 ? "No results match your search." : emptyMessage}
                 </TableCell>
               </TableRow>
@@ -118,6 +118,7 @@ export function DataTable<T>({
             <Button
               variant="outline"
               size="icon-sm"
+              aria-label="Previous page"
               disabled={currentPage <= 1}
               onClick={() => setPage(currentPage - 1)}
             >
@@ -129,6 +130,7 @@ export function DataTable<T>({
             <Button
               variant="outline"
               size="icon-sm"
+              aria-label="Next page"
               disabled={currentPage >= totalPages}
               onClick={() => setPage(currentPage + 1)}
             >

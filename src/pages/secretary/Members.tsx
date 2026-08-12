@@ -108,7 +108,7 @@ export default function SecretaryMembersPage() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight">Members</h1>
+          <h1 className="text-lg font-semibold tracking-tight">Members</h1>
           <p className="text-sm text-muted-foreground">
             All registered members of {organization.name}. Search or register a new member.
           </p>

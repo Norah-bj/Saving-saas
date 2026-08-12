@@ -51,7 +51,7 @@ export default function SuperAdminOrganizationsPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight">Organizations</h1>
+        <h1 className="text-lg font-semibold tracking-tight">Organizations</h1>
         <p className="text-sm text-muted-foreground">
           Every cooperative running on IkiminaConnect, their plan and current status.
         </p>

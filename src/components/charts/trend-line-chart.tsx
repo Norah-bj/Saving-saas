@@ -25,7 +25,7 @@ export function TrendLineChart({
   xKey,
   series,
   valueFormatter,
-  height = 260,
+  height = 220,
 }: TrendLineChartProps) {
   const config: ChartConfig = Object.fromEntries(
     series.map((s) => [s.key, { label: s.label, color: s.color }])
@@ -48,13 +48,13 @@ export function TrendLineChart({
           tickLine={false}
           axisLine={false}
           tickMargin={8}
-          fontSize={11}
+          fontSize={10}
         />
         <YAxis
           tickLine={false}
           axisLine={false}
           tickMargin={4}
-          fontSize={11}
+          fontSize={10}
           tickFormatter={(v) => (valueFormatter ? valueFormatter(Number(v)) : String(v))}
           width={56}
         />

@@ -28,7 +28,7 @@ export default function SuperAdminBillingPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight">Subscriptions & Billing</h1>
+        <h1 className="text-lg font-semibold tracking-tight">Subscriptions & Billing</h1>
         <p className="text-sm text-muted-foreground">
           Plan tiers available on the platform and each organization&apos;s current subscription.
         </p>

@@ -98,7 +98,7 @@ export default function AccountantReportsPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight">Financial Reports</h1>
+        <h1 className="text-lg font-semibold tracking-tight">Financial Reports</h1>
         <p className="text-sm text-muted-foreground">
           Portfolio composition, income trends, and key financial metrics.
         </p>

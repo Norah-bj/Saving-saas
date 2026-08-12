@@ -48,7 +48,7 @@ export default function SuperAdminAnalyticsPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight">Platform Analytics</h1>
+        <h1 className="text-lg font-semibold tracking-tight">Platform Analytics</h1>
         <p className="text-sm text-muted-foreground">
           Growth, plan mix and member distribution across all organizations.
         </p>

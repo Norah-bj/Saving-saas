@@ -13,7 +13,7 @@ interface DonutChartProps {
 
 export function DonutChart({
   data,
-  height = 220,
+  height = 190,
   centerLabel,
   centerValue,
   valueFormatter,

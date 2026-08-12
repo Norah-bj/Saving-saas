@@ -58,7 +58,7 @@ export default function MemberSavingsPage() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight">Savings</h1>
+          <h1 className="text-lg font-semibold tracking-tight">Savings</h1>
           <p className="text-sm text-muted-foreground">
             An overview of your savings balance, contribution sources and growth over time.
           </p>
@@ -94,20 +94,12 @@ export default function MemberSavingsPage() {
             {breakdown.length === 0 ? (
               <p className="py-8 text-center text-sm text-muted-foreground">No contributions recorded yet.</p>
             ) : (
-              <>
-                <DonutChart data={breakdown} centerValue={formatRwf(balance)} centerLabel="Total" />
-                <div className="mt-4 flex flex-col gap-2">
-                  {breakdown.map((d) => (
-                    <div key={d.key} className="flex items-center justify-between text-sm">
-                      <span className="flex items-center gap-2">
-                        <span className="size-2.5 rounded-full" style={{ backgroundColor: d.color }} />
-                        {d.label}
-                      </span>
-                      <span className="font-medium">{formatRwf(d.value)}</span>
-                    </div>
-                  ))}
-                </div>
-              </>
+              <DonutChart
+                data={breakdown}
+                centerValue={formatRwf(balance)}
+                centerLabel="Total"
+                valueFormatter={formatRwf}
+              />
             )}
           </CardContent>
         </Card>

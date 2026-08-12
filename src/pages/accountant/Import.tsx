@@ -93,7 +93,7 @@ export default function ExcelImportPage() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight">Excel Payroll Import</h1>
+          <h1 className="text-lg font-semibold tracking-tight">Excel Payroll Import</h1>
           <p className="text-sm text-muted-foreground">
             Upload the monthly payroll savings file. Rows are validated against Employee IDs
             before member statements are updated.

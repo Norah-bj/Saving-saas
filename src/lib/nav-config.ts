@@ -80,8 +80,8 @@ export const NAV_CONFIG: Record<Role, NavGroup[]> = {
     {
       label: "Account",
       items: [
-        { title: "Notifications", href: "/member/notifications", icon: Bell },
-        { title: "Profile & Settings", href: "/member/profile", icon: UserCircle },
+        { title: "Notifications", href: "/notifications", icon: Bell },
+        { title: "Profile & Settings", href: "/profile", icon: UserCircle },
       ],
     },
   ],

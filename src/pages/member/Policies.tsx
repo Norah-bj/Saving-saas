@@ -9,7 +9,7 @@ export default function MemberPoliciesPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight">Policies</h1>
+        <h1 className="text-lg font-semibold tracking-tight">Policies</h1>
         <p className="text-sm text-muted-foreground">
           The rules that govern membership, savings, shares, loans, guarantors and exits.
         </p>

@@ -331,7 +331,10 @@ const SEED: SeedUser[] = [
   },
 ];
 
-export const MEMBERS: AppUser[] = SEED.map((s) => ({
+// Rwandan banks referenced in APUPEKA's real payroll/loan tranche sheet.
+const BANKS = ["BPR Bank", "Bank of Kigali", "Equity Bank", "I&M Bank", "Cogebanque", "Ecobank"];
+
+export const MEMBERS: AppUser[] = SEED.map((s, index) => ({
   id: s.id,
   nationalId: s.nationalId,
   employeeId: s.employeeId,
@@ -346,6 +349,8 @@ export const MEMBERS: AppUser[] = SEED.map((s) => ({
   dateJoined: s.dateJoined,
   avatarInitials: initials(s.fullName),
   monthlySalary: s.monthlySalary,
+  bankName: s.id === "u-twagirayezu" ? undefined : BANKS[index % BANKS.length],
+  bankAccountNumber: s.id === "u-twagirayezu" ? undefined : `${4004000000 + index * 137913}`,
 }));
 
 export const MEMBERS_BY_ID: Record<string, AppUser> = Object.fromEntries(

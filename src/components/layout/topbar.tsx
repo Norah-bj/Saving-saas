@@ -23,7 +23,7 @@ export function Topbar() {
   const unread = notifications.filter((n) => n.userId === user.id && !n.read).length;
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-2 border-b bg-background/95 px-4 backdrop-blur supports-backdrop-filter:bg-background/60">
+    <header className="sticky top-0 z-30 flex h-12 shrink-0 items-center gap-2 border-b bg-background/95 px-4 backdrop-blur supports-backdrop-filter:bg-background/60">
       <SidebarTrigger className="-ml-1" />
       <Separator orientation="vertical" className="mr-1 h-4" />
       <div className="flex flex-1 items-center gap-1.5 text-sm">
@@ -37,7 +37,12 @@ export function Topbar() {
       </div>
       <div className="flex items-center gap-1">
         {user.roles.includes("member") && (
-          <Button variant="ghost" size="icon-sm" render={<Link to="/member/notifications" />}>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label={unread > 0 ? `Notifications, ${unread} unread` : "Notifications"}
+            render={<Link to="/notifications" />}
+          >
             <span className="relative">
               <Bell className="size-4" />
               {unread > 0 && (

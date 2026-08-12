@@ -33,12 +33,15 @@ export interface LoanCalculation {
 export function calculateLoan(
   amount: number,
   memberSavings: number,
-  periodMonths: number
+  periodMonths: number,
+  rates: { interestRate?: number; insuranceRate?: number } = {}
 ): LoanCalculation {
+  const interestRate = rates.interestRate ?? LOAN_INTEREST_RATE;
+  const insuranceRate = rates.insuranceRate ?? LOAN_INSURANCE_RATE;
   const guarantorRequired = amount > memberSavings;
-  const interest = round(amount * LOAN_INTEREST_RATE);
+  const interest = round(amount * interestRate);
   const insuranceFee = guarantorRequired
-    ? round(amount * LOAN_INSURANCE_RATE)
+    ? round(amount * insuranceRate)
     : 0;
   const totalPayable = amount + interest + insuranceFee;
   const monthlyInstallment =

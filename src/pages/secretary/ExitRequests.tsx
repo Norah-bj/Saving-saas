@@ -1,5 +1,6 @@
 import * as React from "react";
-import { Check, X } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Check, X, ShieldAlert, FileText } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/shared/data-table";
@@ -14,6 +15,7 @@ export default function SecretaryExitRequestsPage() {
   const { user } = useCurrentUser();
   const members = useDataStore((s) => s.members);
   const exitRequests = useDataStore((s) => s.exitRequests);
+  const exitEligibility = useDataStore((s) => s.exitEligibility);
   const decideExitRequest = useDataStore((s) => s.decideExitRequest);
 
   const [pendingAction, setPendingAction] = React.useState<{
@@ -26,6 +28,16 @@ export default function SecretaryExitRequestsPage() {
   const memberName = (id: string) => members.find((m) => m.id === id)?.fullName ?? "Unknown Member";
   const memberEmployeeId = (id: string) => members.find((m) => m.id === id)?.employeeId ?? "—";
 
+  function blockReason(memberId: string): string | null {
+    const eligibility = exitEligibility(memberId);
+    if (eligibility.eligible) return null;
+    const loan = eligibility.outstandingLoans[0];
+    if (loan) return `Outstanding loan ${loan.contractNumber}`;
+    const guarantee = eligibility.activeGuarantees[0];
+    if (guarantee) return `Guaranteeing loan ${guarantee.loan.contractNumber}`;
+    return "Not eligible";
+  }
+
   const sorted = [...exitRequests].sort(
     (a, b) => new Date(b.requestedDate).getTime() - new Date(a.requestedDate).getTime()
   );
@@ -33,7 +45,7 @@ export default function SecretaryExitRequestsPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight">Exit Requests</h1>
+        <h1 className="text-lg font-semibold tracking-tight">Exit Requests</h1>
         <p className="text-sm text-muted-foreground">
           Review and decide on membership exit requests submitted by members.
         </p>
@@ -50,7 +62,20 @@ export default function SecretaryExitRequestsPage() {
               { header: "Employee ID", cell: (r) => memberEmployeeId(r.memberId) },
               { header: "Reason", cell: (r) => r.reason },
               { header: "Requested", cell: (r) => formatDate(r.requestedDate) },
-              { header: "Status", cell: (r) => <RequestStatusBadge status={r.status} /> },
+              {
+                header: "Status",
+                cell: (r) => {
+                  if (r.status !== "pending") return <RequestStatusBadge status={r.status} />;
+                  const reason = blockReason(r.memberId);
+                  return reason ? (
+                    <span className="flex items-center gap-1 text-xs text-amber-700 dark:text-amber-400">
+                      <ShieldAlert className="size-3.5 shrink-0" /> Blocked — {reason}
+                    </span>
+                  ) : (
+                    <RequestStatusBadge status={r.status} />
+                  );
+                },
+              },
               {
                 header: "Decided",
                 cell: (r) =>
@@ -64,29 +89,41 @@ export default function SecretaryExitRequestsPage() {
               },
               {
                 header: "Actions",
-                cell: (r) =>
-                  r.status === "pending" ? (
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="text-emerald-600 dark:text-emerald-400"
-                        onClick={() => setPendingAction({ request: r, decision: "approve" })}
-                      >
-                        <Check className="size-3.5" /> Approve
+                cell: (r) => {
+                  if (r.status === "pending") {
+                    const blocked = !!blockReason(r.memberId);
+                    return (
+                      <div className="flex gap-2">
+                        {!blocked && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-emerald-600 dark:text-emerald-400"
+                            onClick={() => setPendingAction({ request: r, decision: "approve" })}
+                          >
+                            <Check className="size-3.5" /> Approve
+                          </Button>
+                        )}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-destructive"
+                          onClick={() => setPendingAction({ request: r, decision: "reject" })}
+                        >
+                          <X className="size-3.5" /> Reject
+                        </Button>
+                      </div>
+                    );
+                  }
+                  if (r.status === "approved") {
+                    return (
+                      <Button size="sm" variant="outline" render={<Link to={`/members/${r.memberId}/exit-settlement`} />}>
+                        <FileText className="size-3.5" /> View Settlement
                       </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="text-destructive"
-                        onClick={() => setPendingAction({ request: r, decision: "reject" })}
-                      >
-                        <X className="size-3.5" /> Reject
-                      </Button>
-                    </div>
-                  ) : (
-                    <span className="text-xs text-muted-foreground">No action needed</span>
-                  ),
+                    );
+                  }
+                  return <span className="text-xs text-muted-foreground">No action needed</span>;
+                },
               },
             ]}
             rows={sorted}

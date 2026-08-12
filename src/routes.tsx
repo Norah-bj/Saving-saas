@@ -7,6 +7,8 @@ const Login = lazy(() => import("@/pages/auth/Login"));
 const Register = lazy(() => import("@/pages/auth/Register"));
 const ForgotPassword = lazy(() => import("@/pages/auth/ForgotPassword"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
+const LoanContract = lazy(() => import("@/pages/LoanContract"));
+const ExitSettlement = lazy(() => import("@/pages/ExitSettlement"));
 
 // Member
 const MemberDashboard = lazy(() => import("@/pages/member/Dashboard"));
@@ -16,14 +18,13 @@ const MemberShares = lazy(() => import("@/pages/member/Shares"));
 const MemberLoans = lazy(() => import("@/pages/member/Loans"));
 const MemberLoanApply = lazy(() => import("@/pages/member/LoanApply"));
 const MemberLoanDetail = lazy(() => import("@/pages/member/LoanDetail"));
-const MemberLoanContract = lazy(() => import("@/pages/member/LoanContract"));
 const MemberGuarantors = lazy(() => import("@/pages/member/Guarantors"));
 const MemberMeetings = lazy(() => import("@/pages/member/Meetings"));
 const MemberAnnouncements = lazy(() => import("@/pages/member/Announcements"));
 const MemberDocuments = lazy(() => import("@/pages/member/Documents"));
 const MemberPolicies = lazy(() => import("@/pages/member/Policies"));
-const MemberNotifications = lazy(() => import("@/pages/member/Notifications"));
-const MemberProfile = lazy(() => import("@/pages/member/Profile"));
+const Notifications = lazy(() => import("@/pages/Notifications"));
+const Profile = lazy(() => import("@/pages/Profile"));
 
 // Secretary
 const SecretaryDashboard = lazy(() => import("@/pages/secretary/Dashboard"));
@@ -91,14 +92,15 @@ export function AppRoutes() {
         <Route path="/member/loans" element={<MemberLoans />} />
         <Route path="/member/loans/apply" element={<MemberLoanApply />} />
         <Route path="/member/loans/:id" element={<MemberLoanDetail />} />
-        <Route path="/member/loans/:id/contract" element={<MemberLoanContract />} />
+        <Route path="/loans/:id/contract" element={<LoanContract />} />
+        <Route path="/members/:id/exit-settlement" element={<ExitSettlement />} />
+        <Route path="/notifications" element={<Notifications />} />
+        <Route path="/profile" element={<Profile />} />
         <Route path="/member/guarantors" element={<MemberGuarantors />} />
         <Route path="/member/meetings" element={<MemberMeetings />} />
         <Route path="/member/announcements" element={<MemberAnnouncements />} />
         <Route path="/member/documents" element={<MemberDocuments />} />
         <Route path="/member/policies" element={<MemberPolicies />} />
-        <Route path="/member/notifications" element={<MemberNotifications />} />
-        <Route path="/member/profile" element={<MemberProfile />} />
 
         <Route path="/secretary/dashboard" element={<SecretaryDashboard />} />
         <Route path="/secretary/members" element={<SecretaryMembers />} />

@@ -1,5 +1,6 @@
 import * as React from "react";
-import { FileSignature, Banknote, HandCoins } from "lucide-react";
+import { Link } from "react-router-dom";
+import { FileSignature, Banknote, HandCoins, Eye } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/shared/data-table";
@@ -32,7 +33,7 @@ export default function LoanDisbursementPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight">Loan Disbursement</h1>
+        <h1 className="text-lg font-semibold tracking-tight">Loan Disbursement</h1>
         <p className="text-sm text-muted-foreground">
           Generate loan contracts, disburse approved funds, and record ongoing repayments.
         </p>
@@ -55,9 +56,14 @@ export default function LoanDisbursementPage() {
                 {
                   header: "Action",
                   cell: (r) => (
-                    <Button size="sm" onClick={() => generateContract(r.id, actorName)}>
-                      <FileSignature className="size-3.5" /> Generate Contract
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" render={<Link to={`/loans/${r.id}/contract`} />}>
+                        <Eye className="size-3.5" /> Preview
+                      </Button>
+                      <Button size="sm" onClick={() => generateContract(r.id, actorName)}>
+                        <FileSignature className="size-3.5" /> Generate Contract
+                      </Button>
+                    </div>
                   ),
                 },
               ]}
@@ -85,9 +91,14 @@ export default function LoanDisbursementPage() {
                 {
                   header: "Action",
                   cell: (r) => (
-                    <Button size="sm" onClick={() => setConfirmDisburseId(r.id)}>
-                      <Banknote className="size-3.5" /> Disburse Funds
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" render={<Link to={`/loans/${r.id}/contract`} />}>
+                        <Eye className="size-3.5" /> View Contract
+                      </Button>
+                      <Button size="sm" onClick={() => setConfirmDisburseId(r.id)}>
+                        <Banknote className="size-3.5" /> Disburse Funds
+                      </Button>
+                    </div>
                   ),
                 },
               ]}

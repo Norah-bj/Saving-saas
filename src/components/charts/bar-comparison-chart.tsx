@@ -21,7 +21,7 @@ export function BarComparisonChart({
   xKey,
   series,
   valueFormatter,
-  height = 260,
+  height = 220,
   stacked = false,
 }: BarComparisonChartProps) {
   const config: ChartConfig = Object.fromEntries(
@@ -32,12 +32,12 @@ export function BarComparisonChart({
     <ChartContainer config={config} className="w-full" style={{ height }}>
       <BarChart data={data} margin={{ left: 4, right: 12, top: 8, bottom: 0 }} barCategoryGap={stacked ? "20%" : "28%"} barGap={4}>
         <CartesianGrid vertical={false} strokeDasharray="3 3" />
-        <XAxis dataKey={xKey} tickLine={false} axisLine={false} tickMargin={8} fontSize={11} />
+        <XAxis dataKey={xKey} tickLine={false} axisLine={false} tickMargin={8} fontSize={10} />
         <YAxis
           tickLine={false}
           axisLine={false}
           tickMargin={4}
-          fontSize={11}
+          fontSize={10}
           tickFormatter={(v) => (valueFormatter ? valueFormatter(Number(v)) : String(v))}
           width={56}
         />

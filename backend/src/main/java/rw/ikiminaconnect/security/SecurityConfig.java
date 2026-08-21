@@ -44,6 +44,13 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers("/actuator/health").permitAll()
+                        // Defense-in-depth alongside GlobalExceptionHandler's catch-all: if an
+                        // exception ever still escapes to the container's error dispatch, it
+                        // should render as its real status, not get rejected as unauthenticated
+                        // just because JwtAuthenticationFilter (a OncePerRequestFilter) already
+                        // cleared SecurityContext for the original request and won't re-run on
+                        // the forwarded /error dispatch.
+                        .requestMatchers("/error").permitAll()
                         .anyRequest().authenticated())
                 .exceptionHandling(ex -> ex.authenticationEntryPoint((request, response, authException) -> {
                     response.setStatus(401);

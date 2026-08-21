@@ -2,6 +2,8 @@ package rw.ikiminaconnect.common;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -12,6 +14,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     @ExceptionHandler(NotFoundException.class)
     public ResponseEntity<ApiError> handleNotFound(NotFoundException ex) {
@@ -45,5 +49,25 @@ public class GlobalExceptionHandler {
                 details.put(fe.getField(), fe.getDefaultMessage()));
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ApiError.of("validation_failed", "One or more fields are invalid.", details));
+    }
+
+    /**
+     * Catch-all for anything not handled above. Critical to have: without
+     * this, an unhandled exception propagates to the servlet container's
+     * default error handling, which internally forwards to /error — and
+     * because JwtAuthenticationFilter is a OncePerRequestFilter that already
+     * cleared SecurityContextHolder in its finally block for the original
+     * request, that forwarded dispatch looks unauthenticated and gets
+     * rejected by SecurityConfig's authenticationEntryPoint. The real error
+     * (a 500, logged here) was masked as a misleading 401 "Authentication
+     * required" — this is exactly what happened in this repo's own dev
+     * testing before this handler existed. Logging at ERROR here is what
+     * makes the real cause visible again.
+     */
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ApiError> handleUnexpected(Exception ex) {
+        log.error("Unhandled exception", ex);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiError.of("internal_error", "Something went wrong. Please try again."));
     }
 }

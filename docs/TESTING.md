@@ -60,6 +60,14 @@ the pattern used and what was actually exercised, so gaps are visible.
   actual login-time effect was checked, not just the DB row. A 409 was confirmed for an
   invalid status transition (suspending an already-`pending` member). Every mutating call checked
   against a corresponding `audit_log` row.
+- **Phases 14, 16**: backup creation's row-count-based `sizeMb` cross-checked against a hand-run
+  SQL query summing the same tables — matched exactly (103 rows / 50 = 2). Confirmed a plain
+  member gets 403 on both `GET`/`POST /backups`. Notification list/mark-read/mark-all-read tested
+  against rows seeded directly via SQL (no create endpoint exists to seed through the API — see
+  [KNOWN_ISSUES.md](KNOWN_ISSUES.md)); confirmed a different user attempting to mark someone else's
+  notification read gets 404, not 403 (so existence isn't leaked). Super-admin-specific behavior
+  (platform-wide backup visibility/creation) not yet tested — no super-admin user exists until
+  phase 15.
 
 ## Known testing gaps
 

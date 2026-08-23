@@ -98,6 +98,23 @@ branding/contact fields) and `PATCH /organizations/{id}/loan-policy` (ORG_ADMIN 
 — interest/insurance rates, eligibility window, repayment periods), so a loan-committee member
 editing loan policy can never also rewrite the organization's branding or contact details.
 
+## Backup visibility (added beyond the frontend mock)
+
+`GET /backups` scopes by role rather than trusting a client-supplied filter: ORG_ADMIN only ever
+sees their own organization's records; SUPER_ADMIN sees everything, platform-wide and every org's.
+This falls out naturally from `CurrentUser.organizationId()` already being null for a super-admin
+— the same repository method call returns the right scope for either role without a branch on
+role name. `POST /backups` scopes the created record's `organizationId` the same way — a
+super-admin's manual backup is automatically platform-wide.
+
+## Notification ownership
+
+A notification's owner is checked, not just its existence — `POST /notifications/{id}/read` on
+someone else's notification returns 404 (not 403), so a caller can't distinguish "doesn't exist"
+from "exists but isn't yours." `GET /notifications` and `POST /notifications/read-all` are always
+scoped to the caller's own `userId`; there is no org-wide or staff view of another member's
+notifications anywhere in the API.
+
 ## Revenue recognition (interest income / insurance fees) — undecided
 
 There is currently **no rule at all** for *when* interest income or insurance fee revenue should

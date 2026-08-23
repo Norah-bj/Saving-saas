@@ -225,4 +225,9 @@ public class Loan {
         this.committeeNotes = committeeNotes;
         this.updatedAt = Instant.now();
     }
+
+    public void markContractGenerated() {
+        this.status = LoanStatus.CONTRACT_GENERATED;
+        this.updatedAt = Instant.now();
+    }
 }

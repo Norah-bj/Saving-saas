@@ -4,6 +4,8 @@ import jakarta.validation.Valid;
 import java.util.UUID;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -16,6 +18,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import rw.ikiminaconnect.common.ForbiddenException;
 import rw.ikiminaconnect.common.PageResponse;
+import rw.ikiminaconnect.contract.LoanContractService;
 import rw.ikiminaconnect.security.CurrentUser;
 
 @RestController
@@ -27,10 +30,15 @@ public class LoanController {
 
     private final LoanApplicationService loanApplicationService;
     private final LoanReviewService loanReviewService;
+    private final LoanContractService loanContractService;
 
-    public LoanController(LoanApplicationService loanApplicationService, LoanReviewService loanReviewService) {
+    public LoanController(
+            LoanApplicationService loanApplicationService,
+            LoanReviewService loanReviewService,
+            LoanContractService loanContractService) {
         this.loanApplicationService = loanApplicationService;
         this.loanReviewService = loanReviewService;
+        this.loanContractService = loanContractService;
     }
 
     @PostMapping("/calculate")
@@ -88,5 +96,33 @@ public class LoanController {
             @Valid @RequestBody CommitteeDecisionRequest request) {
         return loanReviewService.decide(
                 currentUser.organizationId(), id, currentUser.userId(), currentUser.fullName(), request);
+    }
+
+    @PostMapping("/{id}/generate-contract")
+    @PreAuthorize("hasAnyRole('ACCOUNTANT','ORG_ADMIN')")
+    public LoanDetailDto generateContract(@AuthenticationPrincipal CurrentUser currentUser, @PathVariable UUID id) {
+        return loanContractService.generate(
+                currentUser.organizationId(), id, currentUser.userId(), currentUser.fullName());
+    }
+
+    /**
+     * No status gate, matching the frontend: LoanContract.tsx renders live
+     * from current loan data regardless of whether generate-contract has
+     * been called yet — Disbursement.tsx shows a Preview link for
+     * approved-but-not-yet-generated loans too.
+     */
+    @GetMapping("/{id}/contract")
+    public ResponseEntity<byte[]> contract(@AuthenticationPrincipal CurrentUser currentUser, @PathVariable UUID id) {
+        LoanDetailDto loan = loanApplicationService.get(currentUser.organizationId(), id);
+        boolean isStaff = currentUser.roles().stream().anyMatch(STAFF_ROLES::contains);
+        if (!isStaff && !loan.memberId().equals(currentUser.userId())) {
+            throw new ForbiddenException("You can only view your own loan contracts.");
+        }
+
+        byte[] pdf = loanContractService.renderPdf(currentUser.organizationId(), id);
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .header("Content-Disposition", "inline; filename=\"" + loan.contractNumber() + ".pdf\"")
+                .body(pdf);
     }
 }

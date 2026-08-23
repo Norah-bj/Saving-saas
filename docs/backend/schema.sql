@@ -317,11 +317,43 @@ CREATE INDEX idx_guarantees_org_guarantor ON guarantees(organization_id, guarant
 CREATE INDEX idx_guarantees_loan ON guarantees(loan_id);
 
 -- ─────────────────────────────────────────────────────────────────────────
+-- Disbursement & salary-based repayment (phases 9-10) — added in
+-- V4__disbursement_and_repayment.sql. Both write to this one table (the
+-- accountant-facing bookkeeping view, distinct from savings_transactions)
+-- and both live on the same frontend page, so they arrived together.
+-- ─────────────────────────────────────────────────────────────────────────
+
+CREATE TABLE ledger_transactions (
+    id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    organization_id       UUID NOT NULL REFERENCES organizations(id),
+    member_id             UUID NOT NULL REFERENCES users(id),
+    -- Full real vocabulary from src/lib/types.ts's LedgerTransaction.type
+    -- union, even though this phase only ever inserts
+    -- 'loan-disbursement-adjustment' and 'loan-repayment' — the other
+    -- values belong to later reporting phases but are the same stable
+    -- domain vocabulary.
+    type                  TEXT NOT NULL CHECK (type IN (
+                             'salary-deduction', 'voluntary', 'share-purchase', 'loan-repayment',
+                             'withdrawal', 'loan-disbursement-adjustment', 'insurance-fee', 'interest-income'
+                          )),
+    amount                NUMERIC(14,2) NOT NULL,
+    occurred_on           DATE NOT NULL,
+    method                TEXT NOT NULL CHECK (method IN ('payroll', 'cash', 'mobile-money', 'bank-transfer')),
+    reference             TEXT NOT NULL,
+    recorded_by_user_id   UUID REFERENCES users(id),
+    recorded_by_name      TEXT NOT NULL,
+    created_at            TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_ledger_tx_org_member_date
+    ON ledger_transactions(organization_id, member_id, occurred_on DESC);
+CREATE INDEX idx_ledger_tx_org_date ON ledger_transactions(organization_id, occurred_on DESC);
+
+-- ─────────────────────────────────────────────────────────────────────────
 -- Later roadmap phases — not created yet, listed here so the eventual full
 -- schema shape is visible. See BACKEND_CONTRACT.md's entity table and
 -- phased roadmap for the order these arrive in.
 -- ─────────────────────────────────────────────────────────────────────────
--- ledger_transactions         — accountant-facing bookkeeping view (phase 9-11)
 -- meetings                    — secretary ops (phase 12)
 -- announcements               — secretary ops (phase 12)
 -- documents                   — needs real file storage (S3/R2/MinIO) (phase 12)

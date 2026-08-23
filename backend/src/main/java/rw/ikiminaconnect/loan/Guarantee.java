@@ -112,4 +112,15 @@ public class Guarantee {
         this.status = GuaranteeStatus.rejected;
         this.respondedDate = LocalDate.now();
     }
+
+    /**
+     * Once a loan is fully repaid, its guarantor is no longer on the hook —
+     * release the guarantee so they become exit-eligible / loan-eligible
+     * again (data-store.ts's recordRepayment: "release the guarantee so
+     * they become exit-eligible again"). Only meaningful on an accepted
+     * guarantee; a caller should only release ones already accepted.
+     */
+    public void release() {
+        this.status = GuaranteeStatus.released;
+    }
 }

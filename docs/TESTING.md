@@ -65,9 +65,18 @@ the pattern used and what was actually exercised, so gaps are visible.
   member gets 403 on both `GET`/`POST /backups`. Notification list/mark-read/mark-all-read tested
   against rows seeded directly via SQL (no create endpoint exists to seed through the API — see
   [KNOWN_ISSUES.md](KNOWN_ISSUES.md)); confirmed a different user attempting to mark someone else's
-  notification read gets 404, not 403 (so existence isn't leaked). Super-admin-specific behavior
-  (platform-wide backup visibility/creation) not yet tested — no super-admin user exists until
-  phase 15.
+  notification read gets 404, not 403 (so existence isn't leaked).
+- **Phase 15**: since no SUPER_ADMIN user existed anywhere, one was created via direct SQL insert
+  first (see [DEVELOPMENT.md](DEVELOPMENT.md)) — confirmed it logs in correctly with a null
+  `organizationId` in both the JWT and the login response, with no NPE anywhere in that path.
+  `GET /organizations`/`GET /audit-logs` [platform] confirmed working with real cross-org data (3
+  orgs; audit log count cross-checked against a hand-run `GROUP BY organization_id` query — matched
+  exactly after accounting for entries created mid-test). Confirmed an ORG_ADMIN (non-super-admin)
+  gets 403 on all platform endpoints, while still getting 200 on their own org via the existing
+  self-scoped `GET /organizations/{id}` — the two controllers correctly coexist on overlapping base
+  paths. Status transition 409 confirmed on a same-status no-op; a genuine `trial → active`
+  transition and a plan change both confirmed via the API response and cross-checked against the
+  resulting `audit_log` rows.
 
 ## Known testing gaps
 

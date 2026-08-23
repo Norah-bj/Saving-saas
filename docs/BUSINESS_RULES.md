@@ -115,6 +115,16 @@ from "exists but isn't yours." `GET /notifications` and `POST /notifications/rea
 scoped to the caller's own `userId`; there is no org-wide or staff view of another member's
 notifications anywhere in the API.
 
+## Organization status has no functional effect yet
+
+`POST /organizations/{id}/status` (SUPER_ADMIN) lets the platform mark an organization
+`suspended`, but `AuthService.login` only ever checks the logging-in *user's* status — it never
+checks their organization's status. So today, suspending an organization changes what
+`GET /organizations` reports but does not actually block any of its members from logging in or
+using the API. Not fixed here since it touches already-shipped phase-1 auth code without being
+asked — flagged in [KNOWN_ISSUES.md](KNOWN_ISSUES.md) as a real gap for whenever organization
+suspension needs to be a real enforcement mechanism rather than just a status label.
+
 ## Revenue recognition (interest income / insurance fees) — undecided
 
 There is currently **no rule at all** for *when* interest income or insurance fee revenue should

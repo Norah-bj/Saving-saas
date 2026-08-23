@@ -114,6 +114,24 @@ Split into two endpoints (rather than BACKEND_CONTRACT.md's single suggested `PA
 shouldn't need loan-policy access to update branding, and LOAN_COMMITTEE shouldn't be able to touch
 branding/contact fields just because it can edit loan policy.
 
+## Platform organizations — `PlatformOrganizationsController` (SUPER_ADMIN only)
+
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/organizations` | Every organization on the platform — not scoped to the caller's own, unlike `OrganizationController` above. Analytics and Billing's plan display derive entirely from this response client-side, same as the frontend mock. |
+| POST | `/organizations/{id}/status` | Body `{"status": "active"\|"suspended"\|"trial"}`. 409 on a no-op (already at that status) — no other transition restriction, since organization status doesn't gate anything yet (see [KNOWN_ISSUES.md](KNOWN_ISSUES.md)). |
+| POST | `/organizations/{id}/plan` | Body `{"plan": "starter"\|"growth"\|"enterprise"}`. |
+
+Separate controller/base path from `OrganizationController` (`/organizations` vs.
+`/organizations/{id}`, no `#id == my org` check) — a platform view has no self-scoping to enforce,
+so it doesn't share the self-scoped controller's `@PreAuthorize` shape.
+
+## Platform audit log — `AuditLogController` (SUPER_ADMIN only)
+
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/audit-logs` | Every audit entry, every org, plus platform-level (`organizationId: null`) rows. Optional `?organizationId={uuid}` narrows to one org. |
+
 ## Backups — `BackupController` (ORG_ADMIN, SUPER_ADMIN)
 
 | Method | Path | Notes |
@@ -138,6 +156,8 @@ No endpoint creates a notification — see [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
 - Exit requests and share-withdrawal requests (remaining phase-13 scope).
 - Anything creating a notification (nothing does yet, anywhere).
 - Backup restore (no endpoint — the frontend mock doesn't implement it either).
-- Platform Super Admin's Organizations/Analytics/AuditLogs/Billing/Monitoring/Settings/Support —
-  see [FEATURES.md](FEATURES.md) for which parts are realistically portable vs. fabricated mock
-  data with nothing real to port.
+- Any way to create a SUPER_ADMIN user through the API — the one that exists in the dev DB was
+  inserted directly via SQL (see [DEVELOPMENT.md](DEVELOPMENT.md)); `/auth/register` only ever
+  creates a new organization + its first ORG_ADMIN.
+- Platform Super Admin's Monitoring, Settings (API keys), and Support — deliberately not built;
+  see [KNOWN_ISSUES.md](KNOWN_ISSUES.md) for why.

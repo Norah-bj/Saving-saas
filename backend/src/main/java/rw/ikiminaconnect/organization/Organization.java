@@ -173,6 +173,17 @@ public class Organization {
         this.updatedAt = Instant.now();
     }
 
+    /** Platform (SUPER_ADMIN) only — see organization.PlatformOrganizationsController. */
+    public void updateStatus(OrganizationStatus status) {
+        this.status = status;
+        this.updatedAt = Instant.now();
+    }
+
+    public void updatePlan(SubscriptionPlan plan) {
+        this.plan = plan;
+        this.updatedAt = Instant.now();
+    }
+
     public UUID getId() {
         return id;
     }

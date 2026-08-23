@@ -350,15 +350,71 @@ CREATE INDEX idx_ledger_tx_org_member_date
 CREATE INDEX idx_ledger_tx_org_date ON ledger_transactions(organization_id, occurred_on DESC);
 
 -- ─────────────────────────────────────────────────────────────────────────
+-- Secretary ops (phase 12) — added in V5__secretary_ops_and_org_admin.sql.
+-- documents is metadata-only, matching the frontend mock exactly — no real
+-- file storage (S3/R2/MinIO) exists behind it yet; see docs/KNOWN_ISSUES.md.
+-- Phase 13 (organization administration) needed no new tables — user_roles,
+-- users.status, and organizations' profile/policy columns already covered it.
+-- ─────────────────────────────────────────────────────────────────────────
+
+CREATE TABLE meetings (
+    id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    organization_id  UUID NOT NULL REFERENCES organizations(id),
+    title            TEXT NOT NULL,
+    meeting_date     DATE NOT NULL,
+    meeting_time     TEXT NOT NULL,
+    location         TEXT NOT NULL,
+    agenda           TEXT[] NOT NULL DEFAULT '{}',
+    status           TEXT NOT NULL DEFAULT 'upcoming'
+                        CHECK (status IN ('upcoming', 'completed', 'cancelled')),
+    minutes_summary  TEXT,
+    -- Never populated by any current frontend flow — kept for entity
+    -- fidelity with src/lib/types.ts's Meeting, not because anything
+    -- reads/writes it yet.
+    attendee_ids     UUID[] NOT NULL DEFAULT '{}',
+    created_by       TEXT NOT NULL,
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_meetings_org_date ON meetings(organization_id, meeting_date DESC);
+
+CREATE TABLE announcements (
+    id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    organization_id    UUID NOT NULL REFERENCES organizations(id),
+    title              TEXT NOT NULL,
+    body               TEXT NOT NULL,
+    announcement_date  DATE NOT NULL,
+    priority           TEXT NOT NULL CHECK (priority IN ('normal', 'important', 'urgent')),
+    author             TEXT NOT NULL,
+    audience           TEXT NOT NULL CHECK (audience IN ('all', 'members', 'admins')),
+    created_at         TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_announcements_org_date ON announcements(organization_id, announcement_date DESC);
+
+CREATE TABLE documents (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    organization_id UUID NOT NULL REFERENCES organizations(id),
+    name            TEXT NOT NULL,
+    category        TEXT NOT NULL
+                      CHECK (category IN ('constitution', 'policy', 'report', 'minutes', 'form')),
+    file_type       TEXT NOT NULL CHECK (file_type IN ('pdf', 'docx', 'xlsx')),
+    uploaded_date   DATE NOT NULL,
+    uploaded_by     TEXT NOT NULL,
+    size_kb         INTEGER NOT NULL,
+    visibility      TEXT NOT NULL CHECK (visibility IN ('all', 'admins')),
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_documents_org_date ON documents(organization_id, uploaded_date DESC);
+
+-- ─────────────────────────────────────────────────────────────────────────
 -- Later roadmap phases — not created yet, listed here so the eventual full
 -- schema shape is visible. See BACKEND_CONTRACT.md's entity table and
 -- phased roadmap for the order these arrive in.
 -- ─────────────────────────────────────────────────────────────────────────
--- meetings                    — secretary ops (phase 12)
--- announcements               — secretary ops (phase 12)
--- documents                   — needs real file storage (S3/R2/MinIO) (phase 12)
--- exit_requests                — approval workflow (phase 13)
--- share_withdrawal_requests   — approval workflow (phase 13)
+-- exit_requests                — approval workflow (remaining phase-13 scope, not built this round)
+-- share_withdrawal_requests   — approval workflow (remaining phase-13 scope, not built this round)
 -- notifications               — per-user feed (phase 16)
 -- backup_records              — organization_id nullable = platform-wide (phase 14)
 -- subscription_plans          — mostly static reference data

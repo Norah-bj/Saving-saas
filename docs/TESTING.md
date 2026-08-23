@@ -48,6 +48,18 @@ the pattern used and what was actually exercised, so gaps are visible.
   `/ledger`) hit against real dev data in the `tcs2` org and cross-checked against hand-run SQL —
   every figure matched exactly. Found a real bug (query-param enum 500) via a filter test that
   failed, fixed it, re-verified. Confirmed 401 on all three with no auth token.
+- **Phases 12-13**: meeting create → record minutes (verified status flips to `completed` and
+  `minutesSummary` persists, both via the API response and a direct DB read). Announcement and
+  document create with both `all` and `admins` visibility; confirmed a plain-member account's `GET`
+  correctly omits the `admins`-only rows (server-side, not just hidden in a UI) and gets 403
+  attempting to `POST`. Organization profile and loan-policy PATCH, each checked against a direct
+  DB read; confirmed a loan-committee-only (non-ORG_ADMIN) user gets 403 on `/profile` but 200 on
+  `/loan-policy`, and an ORG_ADMIN-only ledger-committee-non-member gets 403 attempting
+  `PUT /members/{id}/roles`. Member role replacement verified (`MEMBER` always retained). Member
+  suspend → real login attempt correctly 403 → reactivate → real login attempt correctly 200 — the
+  actual login-time effect was checked, not just the DB row. A 409 was confirmed for an
+  invalid status transition (suspending an already-`pending` member). Every mutating call checked
+  against a corresponding `audit_log` row.
 
 ## Known testing gaps
 

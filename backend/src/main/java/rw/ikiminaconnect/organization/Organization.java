@@ -140,6 +140,39 @@ public class Organization {
         this.updatedAt = now;
     }
 
+    /** ORG_ADMIN-only fields — see organization.OrganizationService for the field-scoped authorization check. */
+    public void updateProfile(String name, String shortName, String district, String sector, String address,
+                               String contactEmail, String contactPhone, String logoInitials,
+                               String brandColor, String stampLabel) {
+        this.name = name;
+        this.shortName = shortName;
+        this.district = district;
+        this.sector = sector;
+        this.address = address;
+        this.contactEmail = contactEmail;
+        this.contactPhone = contactPhone;
+        this.logoInitials = logoInitials;
+        this.brandColor = brandColor;
+        this.stampLabel = stampLabel;
+        this.updatedAt = Instant.now();
+    }
+
+    /**
+     * ORG_ADMIN or LOAN_COMMITTEE — the loan calculator's org-level policy
+     * inputs (interest/insurance rates, eligibility window, repayment
+     * periods). Existing loans keep the rate that applied when they were
+     * approved (snapshotted on the Loan entity) — changing these never
+     * retroactively affects an already-submitted loan.
+     */
+    public void updateLoanPolicy(BigDecimal loanInterestRate, BigDecimal loanInsuranceRate,
+                                  Integer minMonthsBeforeEligible, List<Integer> allowedRepaymentPeriods) {
+        this.loanInterestRate = loanInterestRate;
+        this.loanInsuranceRate = loanInsuranceRate;
+        this.minMonthsBeforeEligible = minMonthsBeforeEligible;
+        this.allowedRepaymentPeriods = allowedRepaymentPeriods;
+        this.updatedAt = Instant.now();
+    }
+
     public UUID getId() {
         return id;
     }

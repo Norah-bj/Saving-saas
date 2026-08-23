@@ -10,6 +10,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -53,5 +54,25 @@ public class MemberController {
             + "or hasAnyRole('SECRETARY','ORG_ADMIN','ACCOUNTANT','HR','LOAN_COMMITTEE')")
     public MemberDetail get(@AuthenticationPrincipal CurrentUser currentUser, @PathVariable UUID id) {
         return memberService.get(currentUser.organizationId(), id);
+    }
+
+    @PutMapping("/{id}/roles")
+    @PreAuthorize("hasRole('ORG_ADMIN')")
+    public MemberDetail updateRoles(
+            @AuthenticationPrincipal CurrentUser currentUser,
+            @PathVariable UUID id,
+            @Valid @RequestBody UpdateRolesRequest request) {
+        return memberService.updateRoles(
+                currentUser.organizationId(), id, request, currentUser.userId(), currentUser.fullName());
+    }
+
+    @PostMapping("/{id}/status")
+    @PreAuthorize("hasRole('ORG_ADMIN')")
+    public MemberDetail updateStatus(
+            @AuthenticationPrincipal CurrentUser currentUser,
+            @PathVariable UUID id,
+            @Valid @RequestBody UpdateStatusRequest request) {
+        return memberService.updateStatus(
+                currentUser.organizationId(), id, request, currentUser.userId(), currentUser.fullName());
     }
 }

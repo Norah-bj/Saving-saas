@@ -14,10 +14,12 @@ tenant-scoped table (see [ARCHITECTURE.md](ARCHITECTURE.md)). Migrations via Fly
 | `V2__payroll_import.sql` | 4 | `payroll_imports`, `payroll_import_rows` |
 | `V3__loans.sql` | 5 | `loans`, `loan_timeline_events`, `guarantees` |
 | `V4__disbursement_and_repayment.sql` | 9-10 | `ledger_transactions` |
+| `V5__secretary_ops_and_org_admin.sql` | 12 | `meetings`, `announcements`, `documents` |
 
 Phases 6-8 and 11 added no migration (guarantor response, committee review, and contract
 generation reused the phase-5 `loans`/`guarantees` tables; phase 11 reporting/ledger is read-only
-against existing tables).
+against existing tables). Phase 13 also added no migration — role assignment, member status, and
+organization profile/loan-policy updates all use columns that already existed from V1.
 
 **Rule**: once applied, a migration file is immutable — a later phase that needs schema changes
 adds a new `V{n+1}__description.sql`, never edits an existing one.
@@ -43,6 +45,10 @@ adds a new `V{n+1}__description.sql`, never edits an existing one.
 - **refresh_tokens** — hashed, rotated on use, old-token-reuse rejected.
 - **audit_log** — `organization_id` is nullable (NULL = platform-level action), unlike the
   frontend mock's `"platform"` string sentinel.
+- **meetings** / **announcements** / **documents** — org operations content (phase 12). `documents`
+  is metadata-only — no real file storage exists behind it, matching the frontend mock exactly
+  (see [KNOWN_ISSUES.md](KNOWN_ISSUES.md)). `meetings.agenda` and `meetings.attendee_ids` are
+  native Postgres arrays (`text[]`/`uuid[]`), same pattern as `organizations.allowed_repayment_periods`.
 
 ## Constraints worth knowing
 

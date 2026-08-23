@@ -38,7 +38,9 @@ profile and loan-policy updates, verified a loan-committee-only (non-admin) user
 profile but 200 on loan-policy; member role replacement; member suspend → login correctly 403 →
 reactivate → login correctly 200, with a real DB row and audit log entry checked at every step.
 
-**Result**: not yet committed/PR'd as of this changelog entry — see git history for the actual PR.
+**Result**: PR #9, targeting `docs/project-documentation` (PR #8) as base since this phase's doc
+edits build on that branch's new files — merge order noted in the PR: #7 (phase 11) → #8 (docs) →
+#9 (this phase).
 
 **Remaining issues found while testing**: newly created members are stuck `pending` forever (not
 introduced by this phase — see [KNOWN_ISSUES.md](KNOWN_ISSUES.md)). Exit requests and

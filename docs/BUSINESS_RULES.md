@@ -63,12 +63,37 @@ release (see above) happens automatically at zero balance. **Added beyond the fr
 mock's `recordRepayment` writes no audit entry (`disburseLoan` does); the backend audits both, per
 BACKEND_CONTRACT.md's "every mutating endpoint" rule.
 
-## Exit eligibility (designed, not yet built as an endpoint)
+## Exit eligibility
 
-A member should not be able to exit the cooperative while holding an outstanding loan or actively
-guaranteeing someone else's — ported from the mock's `exitEligibility`/
-`OUTSTANDING_LOAN_STATUSES`. No exit endpoint exists yet — remaining phase-13 scope, not built in
-the phase-13 round that shipped role assignment/status/org settings.
+A member is ineligible to exit while they have an outstanding loan of their own (status
+`DISBURSED`/`REPAYING`) or are an active (`accepted`) guarantor on someone else's loan that isn't
+yet `COMPLETED`/`REJECTED`. Ported from the mock's `exitEligibility`/`OUTSTANDING_LOAN_STATUSES` —
+with one correction: `BACKEND_CONTRACT.md`'s business-rules section describes "outstanding loan"
+as any of a long list of statuses (submitted, under-review, guarantor-approval, committee-review,
+approved, contract-generated, disbursed, repaying), but the actual mock code
+(`OUTSTANDING_LOAN_STATUSES` in `data-store.ts`) only ever checks `disbursed`/`repaying`. Ported
+the real code, not the doc's more conservative description — a loan that hasn't been disbursed yet
+isn't real financial exposure, so it shouldn't block someone from leaving.
+
+Submitting an exit request is never blocked by ineligibility — a member can always ask. Only
+**approval** enforces eligibility, re-checked fresh at decision time (409 if the member has become
+ineligible since submitting, e.g. a new loan was disbursed in the meantime) — matches the mock's
+own comment calling this a defensive backstop, now actually enforced server-side rather than just
+commented as intended. **Added beyond the frontend mock**: submitting a second exit request while
+one is already pending is rejected (409) — the mock's UI disables its own button for this case but
+never enforces it server-side, so nothing stopped duplicate pending requests before.
+
+## Share withdrawal: real money movement on approval (added beyond the frontend mock)
+
+The frontend mock's `decideShareWithdrawal` only ever flips the request's status — it never
+touches `shareHoldings` or writes a ledger entry, even on approval. That's a real gap, not a
+business rule to preserve. Approving a share-withdrawal request here actually withdraws: decrements
+`share_holdings.total_shares` and writes a `WITHDRAWAL`-typed `savings_transactions` row that
+reduces the member's running balance by `shares × organizations.share_value_rwf` — the exact
+reverse of how buying shares increases it. Sufficiency (requested shares ≤ currently held shares)
+is validated both at submission and again at approval (defensive re-check, in case something
+changed in between) — the mock validates neither server-side, only disabling its own submit button
+client-side when the local form state exceeds the held count.
 
 ## Announcement and document visibility (added beyond the frontend mock)
 

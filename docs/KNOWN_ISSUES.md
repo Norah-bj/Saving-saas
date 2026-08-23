@@ -9,9 +9,10 @@
   that hasn't been made yet.
 - **`/auth/register` cannot attach a new user to an existing organization** — it always creates a
   brand-new org + its first ORG_ADMIN. There is no invite-a-new-staff-member-to-my-org flow.
-- **No exit endpoint, and no share-withdrawal endpoint.** Exit eligibility rules are ported into
-  docs/memory but there's no `POST /members/{id}/exit` or `POST /share-withdrawals/{id}/decision`
-  yet — remaining phase-13 scope.
+- **No exit-settlement page/endpoint.** `secretary/ExitRequests.tsx` links an approved request to
+  `/members/{id}/exit-settlement` — a separate settlement-calculation feature that was never
+  requested and isn't built. Exit/share-withdrawal requests themselves (submit, decide, real share
+  and savings-balance movement on approval) are fully built — see [FEATURES.md](FEATURES.md).
 - **No committee-chair assignment endpoint.** `PUT /members/{id}/roles` (phase 13) replaces a
   member's role set but deliberately never grants chair status — it's still only settable directly
   via `UPDATE user_roles SET is_committee_chair = true` against the dev database. No frontend page

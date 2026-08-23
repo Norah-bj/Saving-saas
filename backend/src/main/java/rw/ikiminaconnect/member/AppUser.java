@@ -169,6 +169,11 @@ public class AppUser {
         this.status = MemberStatus.suspended;
     }
 
+    /** Set on approval of an exit request — see membership.ExitRequestService. Permanent; no un-exit path exists. */
+    public void exit() {
+        this.status = MemberStatus.exited;
+    }
+
     public UUID getId() {
         return id;
     }

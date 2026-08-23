@@ -1,5 +1,6 @@
 package rw.ikiminaconnect.loan;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
@@ -15,4 +16,10 @@ public interface LoanRepository extends JpaRepository<Loan, UUID> {
             UUID organizationId, UUID memberId, Pageable pageable);
 
     long countByOrganizationId(UUID organizationId);
+
+    // Exit eligibility (membership.ExitRequestService): a member's own loans
+    // that represent real outstanding debt — DISBURSED/REPAYING only, since a
+    // loan that hasn't been disbursed yet isn't actual financial exposure.
+    List<Loan> findAllByOrganizationIdAndMemberIdAndStatusIn(
+            UUID organizationId, UUID memberId, List<LoanStatus> statuses);
 }

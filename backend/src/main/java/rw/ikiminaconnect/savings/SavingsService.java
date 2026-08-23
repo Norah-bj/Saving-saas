@@ -124,6 +124,48 @@ public class SavingsService {
     }
 
     /**
+     * Reverses {@link #buyShares} — reduces the member's share count and
+     * records a matching {@code WITHDRAWAL} savings transaction that
+     * decreases their running balance, symmetric with how a share purchase
+     * increases it. Used by {@code membership.ShareWithdrawalRequestService}
+     * on approval of a share-withdrawal request. Throws
+     * {@code IllegalStateException} (via {@link ShareHolding#removeShares})
+     * if the member no longer holds enough shares — the caller is expected
+     * to have already validated this at request-submission time too, this
+     * is the defensive re-check at approval time.
+     */
+    @Transactional
+    public SavingsTransactionDto withdrawShares(
+            UUID organizationId, UUID memberId, int shares, UUID actorId, String actorName) {
+        requireMember(organizationId, memberId);
+
+        Organization organization = organizationRepository.findById(organizationId)
+                .orElseThrow(() -> new NotFoundException("Organization not found."));
+        BigDecimal shareValue = organization.getShareValueRwf();
+        BigDecimal amount = shareValue.multiply(BigDecimal.valueOf(shares));
+
+        ShareHolding holding = shareHoldingRepository.findByMemberIdAndOrganizationId(memberId, organizationId)
+                .orElseGet(() -> new ShareHolding(memberId, organizationId));
+        holding.removeShares(shares);
+        shareHoldingRepository.save(holding);
+
+        BigDecimal previousBalance = savingsTransactionRepository
+                .findFirstByOrganizationIdAndMemberIdOrderByCreatedAtDesc(organizationId, memberId)
+                .map(SavingsTransaction::getBalanceAfter)
+                .orElse(BigDecimal.ZERO);
+        BigDecimal newBalance = previousBalance.subtract(amount);
+
+        SavingsTransaction tx = new SavingsTransaction(
+                organizationId, memberId, SavingsTxType.WITHDRAWAL, amount, newBalance,
+                "Withdrawal of " + shares + " shares", "Share Withdrawal Approval");
+        savingsTransactionRepository.save(tx);
+
+        auditService.record(organizationId, actorId, actorName,
+                "Withdrew " + shares + " shares", memberId.toString());
+        return SavingsTransactionDto.from(tx);
+    }
+
+    /**
      * Generic append-to-ledger used by callers that have already validated
      * the member and computed the amount themselves — currently just
      * {@code PayrollImportService} for salary-deduction rows. Shares the same

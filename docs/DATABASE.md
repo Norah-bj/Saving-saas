@@ -15,6 +15,7 @@ tenant-scoped table (see [ARCHITECTURE.md](ARCHITECTURE.md)). Migrations via Fly
 | `V3__loans.sql` | 5 | `loans`, `loan_timeline_events`, `guarantees` |
 | `V4__disbursement_and_repayment.sql` | 9-10 | `ledger_transactions` |
 | `V5__secretary_ops_and_org_admin.sql` | 12 | `meetings`, `announcements`, `documents` |
+| `V6__backups_and_notifications.sql` | 14, 16 | `backup_records`, `notifications` |
 
 Phases 6-8 and 11 added no migration (guarantor response, committee review, and contract
 generation reused the phase-5 `loans`/`guarantees` tables; phase 11 reporting/ledger is read-only
@@ -49,6 +50,12 @@ adds a new `V{n+1}__description.sql`, never edits an existing one.
   is metadata-only — no real file storage exists behind it, matching the frontend mock exactly
   (see [KNOWN_ISSUES.md](KNOWN_ISSUES.md)). `meetings.agenda` and `meetings.attendee_ids` are
   native Postgres arrays (`text[]`/`uuid[]`), same pattern as `organizations.allowed_repayment_periods`.
+- **backup_records** — `organization_id` nullable (NULL = platform-wide, same pattern as
+  `audit_log`). Metadata only; `size_mb` is a row-count-based proxy, not a real file size — there
+  is no `pg_dump`/restore behind this table. See [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
+- **notifications** — scoped by `user_id` alone (no `organization_id` column needed — a personal
+  inbox, same "always mine" pattern as `guarantees`). Nothing currently inserts into this table
+  except direct SQL for testing; no service creates a notification yet.
 
 ## Constraints worth knowing
 

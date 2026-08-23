@@ -114,10 +114,30 @@ Split into two endpoints (rather than BACKEND_CONTRACT.md's single suggested `PA
 shouldn't need loan-policy access to update branding, and LOAN_COMMITTEE shouldn't be able to touch
 branding/contact fields just because it can edit loan policy.
 
+## Backups — `BackupController` (ORG_ADMIN, SUPER_ADMIN)
+
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/backups` | ORG_ADMIN sees only their own org's records; SUPER_ADMIN sees every record, including platform-wide ones (works automatically since a super-admin's JWT already carries a null `organizationId`). |
+| POST | `/backups` | Creates a record scoped to the caller — ORG_ADMIN's own org, or platform-wide (`organizationId: null`) for SUPER_ADMIN. Metadata only, no real backup file — see [KNOWN_ISSUES.md](KNOWN_ISSUES.md). |
+
+## Notifications — `NotificationController`
+
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/notifications` | Always the caller's own inbox (scoped by `userId`, no organization-level view). |
+| POST | `/notifications/{id}/read` | 404 if the notification belongs to someone else — never a 403 that would reveal it exists. |
+| POST | `/notifications/read-all` | |
+
+No endpoint creates a notification — see [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
+
 ## Not built yet — needed but currently only reachable via direct SQL
 
 - Committee-chair assignment (still only settable via `UPDATE user_roles SET is_committee_chair
   = true` directly against the dev DB — see [KNOWN_ISSUES.md](KNOWN_ISSUES.md)).
 - Exit requests and share-withdrawal requests (remaining phase-13 scope).
-- Backups, platform Super Admin, and notifications — see [FEATURES.md](FEATURES.md) for the full
-  roadmap status.
+- Anything creating a notification (nothing does yet, anywhere).
+- Backup restore (no endpoint — the frontend mock doesn't implement it either).
+- Platform Super Admin's Organizations/Analytics/AuditLogs/Billing/Monitoring/Settings/Support —
+  see [FEATURES.md](FEATURES.md) for which parts are realistically portable vs. fabricated mock
+  data with nothing real to port.

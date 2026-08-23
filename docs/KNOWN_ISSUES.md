@@ -26,6 +26,28 @@
   phase 13 — just newly surfaced by it. `MemberStatus.pending` doesn't block login either (only
   `suspended`/`exited` do in `AuthService.login`), so this hasn't blocked anything functionally,
   but it means member status is not actually meaningful yet for freshly created members.
+- **No real backup mechanism, and no restore endpoint at all.** `backup_records` (phase 14) is
+  metadata tracking only — `size_mb` is a row-count-based proxy, not an actual file size, and
+  nothing performs a real `pg_dump`. This matches the frontend mock, which also never implements
+  restore (its "Restore" button only sets local component state, calling no store action). Real
+  disaster-recovery automation is future work, and restoring a shared-schema multi-tenant database
+  per-organization is a genuinely harder problem than a single-tenant `pg_dump`/`pg_restore` pair —
+  worth designing deliberately when it's actually needed, not bolted on here.
+- **Nothing creates a notification.** Phase 16 only built the inbox read side (list, mark-read,
+  mark-all-read) — same gap as the frontend mock, where `NOTIFICATIONS` is static seed data despite
+  per-type icons implying loan/meeting/announcement/savings events should push one. Wiring other
+  services (loan status changes, new meetings, new announcements, ...) to actually create
+  notifications is future work, deliberately not done here to avoid touching many already-shipped
+  services' logic without an explicit decision on which events should notify whom.
+- **Platform Super Admin (phase 15) scope is undecided.** `super-admin/`'s 9 pages span very
+  different maturity levels — Organizations, Analytics, and AuditLogs are real data already in the
+  system and straightforwardly portable; Billing's plan-assignment part is too (revenue figures are
+  a derived sum, not real payment processing); Monitoring (fabricated system uptime/response-time/
+  DB-size numbers) and Settings (fabricated platform API keys) have no real backing system at all to
+  port from — building them for real would mean inventing observability infrastructure and an
+  API-key auth system that don't exist anywhere else in this backend; Support is a hardcoded ticket
+  list not even wired to the mock's data layer, i.e. no spec exists to port. Not started pending a
+  scope decision on which parts to build for real vs. defer.
 
 ## Fixed bugs worth remembering (so the same mistake doesn't recur)
 

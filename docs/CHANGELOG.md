@@ -6,6 +6,36 @@ verified.
 
 ---
 
+## 2026-08-23 — Phases 14, 16: Backups (records only) + notifications (read side)
+
+**Changed**: New `backup` package (`BackupRecord`, `BackupService`, `BackupController`) —
+`GET/POST /backups`. New `notification` package (`AppNotification`, `NotificationService`,
+`NotificationController`) — `GET /notifications`, `POST /notifications/{id}/read`,
+`POST /notifications/read-all`.
+
+**Why**: next two well-scoped roadmap phases. Bundled together since both are small
+tracking/inbox-style features with no relationship to each other.
+
+**Database**: `V6__backups_and_notifications.sql` — adds `backup_records` (`organization_id`
+nullable, same platform-wide pattern as `audit_log`) and `notifications` (scoped by `user_id`
+alone, no `organization_id` needed).
+
+**Deliberate scope limits, not oversights**: `backup_records` is metadata only — `sizeMb` is a
+real row-count-based proxy (not a random number, but also not an actual file size), and there is
+no `pg_dump`/restore automation, matching the frontend mock exactly (it doesn't implement restore
+either). `notifications` only has the read side — nothing creates a notification anywhere in the
+system yet, same gap as the frontend mock. Both flagged in
+[KNOWN_ISSUES.md](KNOWN_ISSUES.md) rather than silently built halfway.
+
+**Testing**: see [TESTING.md](TESTING.md#phases-14-16). Backup size cross-checked against hand-run
+SQL (exact match). Notification cross-user isolation confirmed (404, not 403, on someone else's
+notification). Role gates confirmed for both.
+
+**Result**: PR #10, targeting PR #9 as base (stacked, same reason as #9 on #8) — merge order
+#7 → #8 → #9 → #10.
+
+---
+
 ## 2026-08-23 — Phases 12-13: Secretary ops + organization administration
 
 **Changed**: New `secretary` package (`Meeting`/`Announcement`/`DocumentItem` entities,

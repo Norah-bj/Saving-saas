@@ -77,6 +77,19 @@ the pattern used and what was actually exercised, so gaps are visible.
   paths. Status transition 409 confirmed on a same-status no-op; a genuine `trial → active`
   transition and a plan change both confirmed via the API response and cross-checked against the
   resulting `audit_log` rows.
+- **Phase 13 completion (exit/share-withdrawal requests)**: full exit lifecycle tested against real
+  login behavior, not just DB state — submitted, approved, then confirmed the exited member's next
+  real login attempt is actually 403'd. Duplicate-pending-request rejection confirmed (409).
+  Ineligibility correctly blocks approval (409) — verified against a real disbursed test loan
+  (inserted via SQL) *and* a real active guarantee that already existed in the dev data from
+  earlier phase testing, both surfaced correctly by the same eligibility check. Share withdrawal:
+  insufficient-shares rejection confirmed at submission (409); approval cross-checked directly
+  against the DB — `share_holdings.total_shares` decremented exactly, and the resulting
+  `savings_transactions` row's `amount`/`balance_after` matched hand computation exactly (4 shares
+  × 5000 RWF = 20,000; balance 100,000 → 80,000). Rejection confirmed to leave shares/balance
+  untouched. Role gates re-verified with a genuinely plain-only test user after discovering the
+  original "plain" fixture had been promoted to SECRETARY by earlier phase-13 testing — see
+  [DEVELOPMENT.md](DEVELOPMENT.md).
 
 ## Known testing gaps
 

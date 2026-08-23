@@ -13,7 +13,7 @@ Build order is locked in (see [DECISIONS.md](DECISIONS.md)) — don't re-derive 
 | 9-10 | Disbursement, salary-based repayment | ✅ Built & verified | `loan` (disbursement), `ledger` | `accountant/` |
 | 11 | Accountant reporting | ✅ Built & verified | `reporting`, `ledger` (read side) | `accountant/Dashboard.tsx`, `Reports.tsx`, `Transactions.tsx`, `Statements.tsx` |
 | 12 | Secretary ops (meetings, documents, announcements) | ✅ Built & verified | `secretary` | `secretary/Meetings.tsx`, `Announcements.tsx`, `Documents.tsx`, `member/Meetings.tsx`, `Announcements.tsx`, `Documents.tsx` |
-| 13 | Organization administration | 🟡 Partial — see note | `organization`, `member` (roles/status) | `org-admin/Users.tsx`, `Settings.tsx`, `Moderation.tsx`, `loan-committee/Policy.tsx` |
+| 13 | Organization administration | ✅ Built & verified (see note) | `organization`, `member` (roles/status), `membership` | `org-admin/Users.tsx`, `Settings.tsx`, `Moderation.tsx`, `loan-committee/Policy.tsx`, `Profile.tsx`, `member/Shares.tsx`, `secretary/ExitRequests.tsx` |
 | 14 | Backups (records only, no restore) | ✅ Built & verified | `backup` | `org-admin/Backups.tsx`, `super-admin/Backups.tsx` |
 | 15 | Platform Super Admin | 🟡 Partial by design — see note | `organization` (platform), `audit` (platform) | `super-admin/Organizations.tsx`, `Analytics.tsx`, `AuditLogs.tsx`, `Billing.tsx` (plan part) |
 | 16 | Notifications (read side only) | ✅ Built & verified | `notification` | `Notifications.tsx`, topbar bell |
@@ -29,10 +29,15 @@ zustand mock store. Wiring is expected to happen once the roadmap's backend phas
 enough to cover a given page's needs (see the per-page notes in [API.md](API.md)).
 
 **Phase 13 note**: role assignment (`org-admin/Users.tsx`), member suspend/activate
-(`org-admin/Moderation.tsx`), org profile/branding (`org-admin/Settings.tsx`), and loan policy
-(`loan-committee/Policy.tsx`) are all built and verified. Exit requests and share-withdrawal
-requests (`secretary/ExitRequests.tsx`, the share-withdrawal approval flow) are the remaining
-organization-administration scope, not yet built — see [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
+(`org-admin/Moderation.tsx`), org profile/branding (`org-admin/Settings.tsx`), loan policy
+(`loan-committee/Policy.tsx`), and exit/share-withdrawal requests (`Profile.tsx`,
+`member/Shares.tsx`, `secretary/ExitRequests.tsx`) are all built and verified — phase 13 is
+complete. The exit/share-withdrawal work goes beyond what the frontend mock does in two real
+ways: approving a share withdrawal actually moves the shares and money (the mock's
+`decideShareWithdrawal` only ever flips a status flag), and both request types validate for real
+server-side (share sufficiency, exit eligibility) rather than only disabling a button client-side
+— see [BUSINESS_RULES.md](BUSINESS_RULES.md). Not built: `secretary/ExitRequests.tsx`'s "View
+Settlement" link (a separate settlement-calculation page/feature, not requested).
 
 **Phase 14 note**: `backup_records` is metadata tracking only (label, type, a row-count-based
 size proxy) — there is no real `pg_dump`/restore automation, matching the frontend mock exactly

@@ -1,6 +1,7 @@
 # API — endpoints that actually exist today
 
-All under `/api/v1`. This lists what's *built*, current as of phase 13 — for the full planned
+All under `/api/v1`. This lists what's *built*, current through phases 1-16 plus the
+exit/share-withdrawal-request completion of phase 13 — for the full planned
 endpoint list (including future phases), see [BACKEND_CONTRACT.md](../BACKEND_CONTRACT.md).
 Concrete request/response JSON for the original vertical slice:
 [backend/vertical-slice-api.md](backend/vertical-slice-api.md).
@@ -27,6 +28,7 @@ ORG_ADMIN. Unmarked = any authenticated user of the org (no extra role check bey
 | GET | `/members/{id}` | self, or SECRETARY/ACCOUNTANT/ORG_ADMIN |
 | PUT | `/members/{id}/roles` | ORG_ADMIN. Replaces the member's full role set; MEMBER is always kept even if omitted. Does not touch committee-chair status (see [KNOWN_ISSUES.md](KNOWN_ISSUES.md)). |
 | POST | `/members/{id}/status` | ORG_ADMIN. Body `{"status": "active"\|"suspended"}` only — the transition must be the opposite of the member's current status (409 otherwise); `exited`/`pending` aren't reachable through this endpoint. |
+| GET | `/members/{id}/exit-eligibility` | self, or SECRETARY/ORG_ADMIN. Returns `{eligible, outstandingLoanContractNumbers, activeGuaranteeLoanContractNumbers}`. |
 
 ## Savings — `SavingsController` (`SELF_OR_STAFF`: self, or ACCOUNTANT/SECRETARY/ORG_ADMIN)
 
@@ -149,11 +151,26 @@ so it doesn't share the self-scoped controller's `@PreAuthorize` shape.
 
 No endpoint creates a notification — see [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
 
+## Exit requests — `ExitRequestController`
+
+| Method | Path | Role | Notes |
+|---|---|---|---|
+| GET | `/exit-requests` | SECRETARY, ORG_ADMIN | Every exit request in the org. |
+| POST | `/exit-requests` | any authenticated user | Self only — the caller's own `userId` is always the target, there's no way to submit on someone else's behalf. 409 if the caller already has a pending request. |
+| POST | `/exit-requests/{id}/decision` | SECRETARY, ORG_ADMIN | Body `{"decision": "approve"\|"reject"}`. Approving re-checks eligibility server-side (409 if the member has since become ineligible) and sets the member's status to `exited`; 409 if the request was already decided. |
+
+## Share withdrawals — `ShareWithdrawalRequestController`
+
+| Method | Path | Role | Notes |
+|---|---|---|---|
+| GET | `/share-withdrawals` | SECRETARY, ORG_ADMIN | Every request in the org. |
+| POST | `/share-withdrawals` | any authenticated user | Self only. 409 if the requested share count exceeds the member's current holding. |
+| POST | `/share-withdrawals/{id}/decision` | SECRETARY, ORG_ADMIN | Body `{"decision": "approve"\|"reject"}`. Approving actually moves the shares and money — decrements `share_holdings`, writes a `WITHDRAWAL` `savings_transactions` row reducing the running balance — genuinely more than the frontend mock does (its `decideShareWithdrawal` only flips a status flag); see [BUSINESS_RULES.md](BUSINESS_RULES.md). |
+
 ## Not built yet — needed but currently only reachable via direct SQL
 
 - Committee-chair assignment (still only settable via `UPDATE user_roles SET is_committee_chair
   = true` directly against the dev DB — see [KNOWN_ISSUES.md](KNOWN_ISSUES.md)).
-- Exit requests and share-withdrawal requests (remaining phase-13 scope).
 - Anything creating a notification (nothing does yet, anywhere).
 - Backup restore (no endpoint — the frontend mock doesn't implement it either).
 - Any way to create a SUPER_ADMIN user through the API — the one that exists in the dev DB was

@@ -6,6 +6,46 @@ verified.
 
 ---
 
+## 2026-08-23 — Phase 13 completion: Exit and share-withdrawal requests
+
+**Changed**: New `membership` package (`ExitRequest`/`ShareWithdrawalRequest`,
+`ExitRequestService`/`ShareWithdrawalRequestService`, `ExitRequestController`/
+`ShareWithdrawalRequestController`/`ExitEligibilityController`) — `GET/POST /exit-requests`,
+`POST /exit-requests/{id}/decision`, `GET/POST /share-withdrawals`,
+`POST /share-withdrawals/{id}/decision`, `GET /members/{id}/exit-eligibility`. `AppUser` gained
+`exit()`. `ShareHolding` gained `removeShares()`. `SavingsService` gained `withdrawShares()`.
+`LoanRepository`/`GuaranteeRepository` gained the queries the eligibility check needs.
+
+**Why**: user-requested — the largest remaining piece of phase 13, explicitly asked to be built
+"end-to-end using real backend data... Do not use mock-only behavior," after being offered as one
+of several flagged gaps to circle back to.
+
+**Database**: `V7__exit_and_share_withdrawal_requests.sql` — two new tables.
+
+**One correction to BACKEND_CONTRACT.md, not just the mock, ported**: its business-rules section
+describes "outstanding loan" as blocking exit across a long list of statuses (submitted through
+repaying); the actual `data-store.ts` code only ever checks `disbursed`/`repaying`. Ported the real
+code — a loan that hasn't been disbursed yet isn't real financial exposure.
+
+**Genuinely goes beyond the frontend mock, as asked**: approving a share withdrawal actually moves
+the shares and money (decrements `share_holdings`, writes a `WITHDRAWAL` savings transaction) —
+the mock's `decideShareWithdrawal` only ever flipped a status flag, never touching either. Share
+sufficiency and exit eligibility are both validated server-side (409s), not just via a disabled
+button client-side. Duplicate-pending-exit-request submission is rejected (409) — the mock's UI
+prevents this but never enforces it server-side.
+
+**Testing**: see [TESTING.md](TESTING.md#phase-13-completion). Full exit lifecycle verified
+against real login behavior (not just DB state) — approved exit correctly blocks the member's next
+real login attempt. Ineligibility-blocks-approval verified against both a real disbursed loan
+(inserted via SQL for the test) and a real pre-existing active guarantee from earlier phase
+testing. Share withdrawal approval cross-checked directly against the DB — shares and balance
+matched hand computation exactly; rejection confirmed to leave both untouched.
+
+**Result**: PR #12, targeting PR #11 as base (stacked, same reason as the prior PRs) — merge order
+#7 → #8 → #9 → #10 → #11 → #12.
+
+---
+
 ## 2026-08-23 — Phase 15: Platform Super Admin (scoped to the real parts)
 
 **Changed**: New `PlatformOrganizationsController`/`AuditLogController` — `GET /organizations`

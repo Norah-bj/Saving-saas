@@ -17,8 +17,15 @@
   same way if one stops working, rather than guessing):
   - `admin2@tcs2.rw` — org-admin + hr + loan-committee + member, status `active`
   - `chair@tcs2.rw` — loan-committee (committee chair) + member, status `active`
-  - `plain@tcs2.rw` — member only, status `pending` (useful for testing plain-member-vs-staff
-    authorization and visibility filtering — see [BUSINESS_RULES.md](BUSINESS_RULES.md))
+  - `plain@tcs2.rw` — **secretary** + member (promoted during phase 13 role-assignment testing —
+    no longer a genuinely plain member), status `pending`. Also now holds a disbursed test loan
+    (`TC-2026-TEST-BLOCK`) and an active guarantee on `TC-2026-002`, making it a ready-made
+    "blocked from exiting" fixture — see [BUSINESS_RULES.md](BUSINESS_RULES.md).
+  - `g2@tcs2.rw` — member only, status `active` — use this one for genuinely-plain-member /
+    staff-authorization testing now that `plain@tcs2.rw` isn't plain anymore.
+  - `zero@tcs2.rw` — status `exited` (used to verify the exit-approval flow end-to-end, including
+    that login is actually blocked afterward) — **cannot log in**, kept as a record of that test,
+    don't reset its password expecting it to work.
   - `superadmin@ikiminaconnect.rw` / `DevTest123!` — SUPER_ADMIN, `organization_id = NULL`. Not
     reset from an existing row — this one was **inserted from scratch** via SQL, since no API path
     creates a super-admin (`/auth/register` only creates ORG_ADMIN + a new org). If it's ever

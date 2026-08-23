@@ -41,7 +41,8 @@ real login attempt. Ineligibility-blocks-approval verified against both a real d
 testing. Share withdrawal approval cross-checked directly against the DB — shares and balance
 matched hand computation exactly; rejection confirmed to leave both untouched.
 
-**Result**: not yet pushed/PR'd as of this entry — see git history for the actual PR.
+**Result**: PR #12, targeting PR #11 as base (stacked, same reason as the prior PRs) — merge order
+#7 → #8 → #9 → #10 → #11 → #12.
 
 ---
 

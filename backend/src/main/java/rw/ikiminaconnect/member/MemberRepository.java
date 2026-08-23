@@ -25,4 +25,6 @@ public interface MemberRepository extends JpaRepository<AppUser, UUID> {
 
     Page<AppUser> findAllByOrganizationIdAndFullNameContainingIgnoreCase(
             UUID organizationId, String search, Pageable pageable);
+
+    long countByOrganizationId(UUID organizationId);
 }

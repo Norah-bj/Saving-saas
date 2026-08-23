@@ -3,6 +3,7 @@ package rw.ikiminaconnect.member;
 import java.math.BigDecimal;
 import java.security.SecureRandom;
 import java.util.Base64;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
@@ -11,6 +12,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import rw.ikiminaconnect.audit.AuditService;
+import rw.ikiminaconnect.common.BadRequestException;
 import rw.ikiminaconnect.common.ConflictException;
 import rw.ikiminaconnect.common.NotFoundException;
 import rw.ikiminaconnect.organization.Organization;
@@ -95,6 +97,43 @@ public class MemberService {
         auditService.record(organizationId, actorId, actorName, "Added member", member.getFullName());
 
         return new CreateMemberResponse(toSummary(member), temporaryPassword);
+    }
+
+    @Transactional
+    public MemberDetail updateRoles(
+            UUID organizationId, UUID memberId, UpdateRolesRequest request, UUID actorId, String actorName) {
+        AppUser member = memberRepository.findByIdAndOrganizationId(memberId, organizationId)
+                .orElseThrow(() -> new NotFoundException("Member not found."));
+        // Every member always keeps the base MEMBER role, matching
+        // org-admin/Users.tsx's own client-side guarantee of the same thing.
+        var roles = new LinkedHashSet<>(request.roles());
+        roles.add(Role.MEMBER);
+        member.replaceRoles(roles);
+        auditService.record(organizationId, actorId, actorName, "Updated member roles", member.getFullName());
+        return toDetail(member);
+    }
+
+    @Transactional
+    public MemberDetail updateStatus(
+            UUID organizationId, UUID memberId, UpdateStatusRequest request, UUID actorId, String actorName) {
+        if (request.status() != MemberStatus.active && request.status() != MemberStatus.suspended) {
+            throw new BadRequestException("Status must be 'active' or 'suspended'.");
+        }
+        AppUser member = memberRepository.findByIdAndOrganizationId(memberId, organizationId)
+                .orElseThrow(() -> new NotFoundException("Member not found."));
+        boolean validTransition = (request.status() == MemberStatus.active && member.getStatus() == MemberStatus.suspended)
+                || (request.status() == MemberStatus.suspended && member.getStatus() == MemberStatus.active);
+        if (!validTransition) {
+            throw new ConflictException(
+                    "Cannot change status from " + member.getStatus() + " to " + request.status() + ".");
+        }
+        if (request.status() == MemberStatus.active) {
+            member.activate();
+        } else {
+            member.suspend();
+        }
+        auditService.record(organizationId, actorId, actorName, "Set member status to " + request.status(), member.getFullName());
+        return toDetail(member);
     }
 
     private MemberSummary toSummary(AppUser user) {

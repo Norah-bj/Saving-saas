@@ -137,6 +137,22 @@ public class AppUser {
         roles.add(new UserRoleAssignment(role, committeeChair));
     }
 
+    /**
+     * Replaces this user's entire role set. Committee-chair status is
+     * preserved if {@code LOAN_COMMITTEE} remains in the new set, and lost
+     * (reset to false) if it doesn't — this method never grants chair status,
+     * only carries it forward. Chair assignment has no dedicated endpoint yet
+     * (see docs/KNOWN_ISSUES.md); it's still only settable directly in the DB.
+     */
+    public void replaceRoles(Set<Role> newRoles) {
+        boolean wasChair = isCommitteeChair();
+        Set<UserRoleAssignment> updated = new LinkedHashSet<>();
+        for (Role role : newRoles) {
+            updated.add(new UserRoleAssignment(role, role == Role.LOAN_COMMITTEE && wasChair));
+        }
+        this.roles = updated;
+    }
+
     public boolean hasRole(Role role) {
         return roles.stream().anyMatch(r -> r.getRole() == role);
     }
@@ -147,6 +163,10 @@ public class AppUser {
 
     public void activate() {
         this.status = MemberStatus.active;
+    }
+
+    public void suspend() {
+        this.status = MemberStatus.suspended;
     }
 
     public UUID getId() {

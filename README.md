@@ -1,13 +1,16 @@
 # IkiminaConnect (APUPEKA)
 
-A savings & loan management platform for SACCOs, cooperatives, and employee
-savings associations, built as a Vite + React + TypeScript single-page app
-with React Router, Tailwind v4, and shadcn/ui.
+A multi-tenant savings & loan management platform for SACCOs, cooperatives,
+and employee savings associations. Frontend: Vite + React + TypeScript SPA
+with React Router, Tailwind v4, and shadcn/ui. Backend: Java 21 + Spring Boot
++ PostgreSQL, built vertical-slice by vertical-slice (11 of 17 phases done —
+see `docs/FEATURES.md`).
 
-This is currently a frontend-only prototype: all data lives in a zustand
-store seeded with realistic mock data (see `src/lib/mock-data/`). See
-`docs/BACKEND_CONTRACT.md` for the planned Java/Spring Boot API this will
-eventually talk to.
+The frontend still runs entirely on a zustand store seeded with mock data
+(see `src/lib/mock-data/`) — it is not yet wired to the real backend, which
+runs locally only. **Start at [`docs/README.md`](docs/README.md)** for the
+full documentation map (architecture, API, database, business rules,
+decisions, changelog, known issues, dev setup).
 
 ## Getting Started
 
@@ -37,3 +40,14 @@ Open [http://localhost:3000](http://localhost:3000) and sign in from
   dashboard building blocks (StatCard, DataTable, chart wrappers, etc.)
 - `src/lib/` — types, mock data, the zustand store, and business logic
   (loan calculator, formatting helpers)
+
+## Backend
+
+Lives in `backend/` (separate Maven project, Java 21 + Spring Boot + PostgreSQL). See
+[`docs/backend/DEV_SETUP.md`](docs/backend/DEV_SETUP.md) for local setup and
+[`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) for the dev workflow.
+
+```bash
+cd backend
+mvn spring-boot:run
+```

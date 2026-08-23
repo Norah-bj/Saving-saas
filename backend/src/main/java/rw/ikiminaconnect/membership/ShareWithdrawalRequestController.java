@@ -26,9 +26,9 @@ public class ShareWithdrawalRequestController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('SECRETARY','ORG_ADMIN')")
     public List<ShareWithdrawalRequestDto> list(@AuthenticationPrincipal CurrentUser currentUser) {
-        return shareWithdrawalRequestService.list(currentUser.organizationId());
+        return shareWithdrawalRequestService.list(
+                currentUser.organizationId(), currentUser.userId(), isStaff(currentUser));
     }
 
     @PostMapping
@@ -47,5 +47,9 @@ public class ShareWithdrawalRequestController {
             @Valid @RequestBody DecisionRequest request) {
         return shareWithdrawalRequestService.decide(
                 currentUser.organizationId(), id, request, currentUser.userId(), currentUser.fullName());
+    }
+
+    private static boolean isStaff(CurrentUser currentUser) {
+        return currentUser.roles().stream().anyMatch(role -> !role.equals("member"));
     }
 }

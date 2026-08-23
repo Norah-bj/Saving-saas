@@ -54,11 +54,17 @@ public class ExitRequestService {
         this.auditService = auditService;
     }
 
+    /**
+     * Staff (SECRETARY/ORG_ADMIN) see every request in the org; a plain
+     * member sees only their own — same self-or-staff shape as
+     * secretary.SecretaryOpsService's announcement/document visibility.
+     */
     @Transactional(readOnly = true)
-    public List<ExitRequestDto> list(UUID organizationId) {
-        return exitRequestRepository.findAllByOrganizationIdOrderByRequestedDateDesc(organizationId).stream()
-                .map(ExitRequestDto::from)
-                .toList();
+    public List<ExitRequestDto> list(UUID organizationId, UUID callerId, boolean isStaff) {
+        List<ExitRequest> requests = isStaff
+                ? exitRequestRepository.findAllByOrganizationIdOrderByRequestedDateDesc(organizationId)
+                : exitRequestRepository.findAllByOrganizationIdAndMemberIdOrderByRequestedDateDesc(organizationId, callerId);
+        return requests.stream().map(ExitRequestDto::from).toList();
     }
 
     @Transactional(readOnly = true)

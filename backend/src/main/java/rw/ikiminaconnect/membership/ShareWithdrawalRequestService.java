@@ -46,11 +46,14 @@ public class ShareWithdrawalRequestService {
         this.auditService = auditService;
     }
 
+    /** Staff see every request in the org; a plain member sees only their own. */
     @Transactional(readOnly = true)
-    public List<ShareWithdrawalRequestDto> list(UUID organizationId) {
-        return shareWithdrawalRequestRepository.findAllByOrganizationIdOrderByRequestedDateDesc(organizationId).stream()
-                .map(ShareWithdrawalRequestDto::from)
-                .toList();
+    public List<ShareWithdrawalRequestDto> list(UUID organizationId, UUID callerId, boolean isStaff) {
+        List<ShareWithdrawalRequest> requests = isStaff
+                ? shareWithdrawalRequestRepository.findAllByOrganizationIdOrderByRequestedDateDesc(organizationId)
+                : shareWithdrawalRequestRepository.findAllByOrganizationIdAndMemberIdOrderByRequestedDateDesc(
+                        organizationId, callerId);
+        return requests.stream().map(ShareWithdrawalRequestDto::from).toList();
     }
 
     @Transactional

@@ -26,9 +26,8 @@ public class ExitRequestController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('SECRETARY','ORG_ADMIN')")
     public List<ExitRequestDto> list(@AuthenticationPrincipal CurrentUser currentUser) {
-        return exitRequestService.list(currentUser.organizationId());
+        return exitRequestService.list(currentUser.organizationId(), currentUser.userId(), isStaff(currentUser));
     }
 
     @PostMapping
@@ -47,5 +46,9 @@ public class ExitRequestController {
             @Valid @RequestBody DecisionRequest request) {
         return exitRequestService.decide(
                 currentUser.organizationId(), id, request, currentUser.userId(), currentUser.fullName());
+    }
+
+    private static boolean isStaff(CurrentUser currentUser) {
+        return currentUser.roles().stream().anyMatch(role -> !role.equals("member"));
     }
 }

@@ -31,7 +31,8 @@ system yet, same gap as the frontend mock. Both flagged in
 SQL (exact match). Notification cross-user isolation confirmed (404, not 403, on someone else's
 notification). Role gates confirmed for both.
 
-**Result**: not yet pushed/PR'd as of this entry — see git history for the actual PR.
+**Result**: PR #10, targeting PR #9 as base (stacked, same reason as #9 on #8) — merge order
+#7 → #8 → #9 → #10.
 
 ---
 

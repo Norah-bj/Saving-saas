@@ -31,14 +31,17 @@ public class LoanController {
     private final LoanApplicationService loanApplicationService;
     private final LoanReviewService loanReviewService;
     private final LoanContractService loanContractService;
+    private final LoanDisbursementService loanDisbursementService;
 
     public LoanController(
             LoanApplicationService loanApplicationService,
             LoanReviewService loanReviewService,
-            LoanContractService loanContractService) {
+            LoanContractService loanContractService,
+            LoanDisbursementService loanDisbursementService) {
         this.loanApplicationService = loanApplicationService;
         this.loanReviewService = loanReviewService;
         this.loanContractService = loanContractService;
+        this.loanDisbursementService = loanDisbursementService;
     }
 
     @PostMapping("/calculate")
@@ -124,5 +127,19 @@ public class LoanController {
                 .contentType(MediaType.APPLICATION_PDF)
                 .header("Content-Disposition", "inline; filename=\"" + loan.contractNumber() + ".pdf\"")
                 .body(pdf);
+    }
+
+    @PostMapping("/{id}/disburse")
+    @PreAuthorize("hasAnyRole('ACCOUNTANT','ORG_ADMIN')")
+    public LoanDetailDto disburse(@AuthenticationPrincipal CurrentUser currentUser, @PathVariable UUID id) {
+        return loanDisbursementService.disburse(
+                currentUser.organizationId(), id, currentUser.userId(), currentUser.fullName());
+    }
+
+    @PostMapping("/{id}/record-repayment")
+    @PreAuthorize("hasAnyRole('ACCOUNTANT','ORG_ADMIN')")
+    public LoanDetailDto recordRepayment(@AuthenticationPrincipal CurrentUser currentUser, @PathVariable UUID id) {
+        return loanDisbursementService.recordRepayment(
+                currentUser.organizationId(), id, currentUser.userId(), currentUser.fullName());
     }
 }

@@ -230,4 +230,34 @@ public class Loan {
         this.status = LoanStatus.CONTRACT_GENERATED;
         this.updatedAt = Instant.now();
     }
+
+    public void disburse() {
+        this.status = LoanStatus.DISBURSED;
+        this.disbursedDate = LocalDate.now();
+        this.remainingBalance = this.totalPayable;
+        this.updatedAt = Instant.now();
+    }
+
+    /**
+     * Applies one monthly installment (data-store.ts's recordRepayment):
+     * installment = min(monthlyInstallment, remainingBalance), so the final
+     * payment never overshoots into a negative balance. Returns the actual
+     * amount applied, since the caller needs that exact figure for the
+     * ledger transaction — it may be less than monthlyInstallment on the
+     * last payment.
+     */
+    public BigDecimal applyRepaymentInstallment() {
+        BigDecimal installment = monthlyInstallment.min(remainingBalance);
+        BigDecimal remaining = remainingBalance.subtract(installment).max(BigDecimal.ZERO);
+        boolean completed = remaining.signum() <= 0;
+
+        this.remainingBalance = remaining;
+        this.status = completed ? LoanStatus.COMPLETED : LoanStatus.REPAYING;
+        this.updatedAt = Instant.now();
+        return installment;
+    }
+
+    public boolean isCompleted() {
+        return status == LoanStatus.COMPLETED;
+    }
 }

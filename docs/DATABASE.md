@@ -20,7 +20,9 @@ tenant-scoped table (see [ARCHITECTURE.md](ARCHITECTURE.md)). Migrations via Fly
 Phases 6-8 and 11 added no migration (guarantor response, committee review, and contract
 generation reused the phase-5 `loans`/`guarantees` tables; phase 11 reporting/ledger is read-only
 against existing tables). Phase 13 also added no migration — role assignment, member status, and
-organization profile/loan-policy updates all use columns that already existed from V1.
+organization profile/loan-policy updates all use columns that already existed from V1. Phase 15
+(the parts built — see [FEATURES.md](FEATURES.md)) added no migration either, reusing
+`organizations` and `audit_log` as-is.
 
 **Rule**: once applied, a migration file is immutable — a later phase that needs schema changes
 adds a new `V{n+1}__description.sql`, never edits an existing one.
@@ -68,6 +70,8 @@ adds a new `V{n+1}__description.sql`, never edits an existing one.
 
 ## Seed / test data
 
-No seed data is scripted — all dev-database rows so far were created through real API calls
-during interactive testing sessions across phases. See [DEVELOPMENT.md](DEVELOPMENT.md) for the
-current known dev test credential and the local Postgres connection details.
+No seed data is scripted — almost all dev-database rows were created through real API calls during
+interactive testing sessions across phases. The one exception: the dev SUPER_ADMIN test user (an
+`organization_id = NULL` row) was inserted directly via SQL, since no API path can create one
+(`/auth/register` only ever creates an ORG_ADMIN + new org). See [DEVELOPMENT.md](DEVELOPMENT.md)
+for the current known dev test credentials and the local Postgres connection details.

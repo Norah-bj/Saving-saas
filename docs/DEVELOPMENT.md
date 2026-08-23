@@ -19,6 +19,11 @@
   - `chair@tcs2.rw` — loan-committee (committee chair) + member, status `active`
   - `plain@tcs2.rw` — member only, status `pending` (useful for testing plain-member-vs-staff
     authorization and visibility filtering — see [BUSINESS_RULES.md](BUSINESS_RULES.md))
+  - `superadmin@ikiminaconnect.rw` / `DevTest123!` — SUPER_ADMIN, `organization_id = NULL`. Not
+    reset from an existing row — this one was **inserted from scratch** via SQL, since no API path
+    creates a super-admin (`/auth/register` only creates ORG_ADMIN + a new org). If it's ever
+    deleted, recreate it the same way: insert into `users` with `organization_id = NULL`, then
+    insert `('<that user's id>', 'super-admin', false)` into `user_roles`.
 
 ## Environment variables
 

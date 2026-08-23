@@ -39,15 +39,25 @@
   services (loan status changes, new meetings, new announcements, ...) to actually create
   notifications is future work, deliberately not done here to avoid touching many already-shipped
   services' logic without an explicit decision on which events should notify whom.
-- **Platform Super Admin (phase 15) scope is undecided.** `super-admin/`'s 9 pages span very
-  different maturity levels — Organizations, Analytics, and AuditLogs are real data already in the
-  system and straightforwardly portable; Billing's plan-assignment part is too (revenue figures are
-  a derived sum, not real payment processing); Monitoring (fabricated system uptime/response-time/
-  DB-size numbers) and Settings (fabricated platform API keys) have no real backing system at all to
-  port from — building them for real would mean inventing observability infrastructure and an
-  API-key auth system that don't exist anywhere else in this backend; Support is a hardcoded ticket
-  list not even wired to the mock's data layer, i.e. no spec exists to port. Not started pending a
-  scope decision on which parts to build for real vs. defer.
+- **Platform Super Admin (phase 15) deliberately covers only part of `super-admin/`'s 9 pages.**
+  Asked the user how to scope it given the pages span very different maturity levels; chose "build
+  only the real parts." Built: Organizations (list/status/plan), Analytics and Billing's
+  plan-display (both derive from the same `GET /organizations` response, no new endpoint needed),
+  AuditLogs. **Deliberately not built**: Monitoring (fabricated system uptime/response-time/DB-size
+  numbers with no real observability pipeline behind them), Settings (fabricated platform API
+  keys — this backend has no API-key auth mechanism, JWT-only), Support (a hardcoded ticket list
+  not even wired to the mock's own data layer, i.e. no spec exists to port). Building those three
+  for real would mean inventing entire new subsystems unrelated to anything else in this app —
+  revisit only with an explicit decision to build real observability/API-key-auth/ticketing.
+- **No SUPER_ADMIN bootstrap flow.** The only way to create a platform super-admin user today is a
+  direct SQL insert (`organization_id = NULL`, a `user_roles` row with `role = 'super-admin'`) —
+  `/auth/register` only ever creates an ORG_ADMIN + brand-new org. Fine for one dev-only test
+  account; a real platform launch needs a real way to provision the first super-admin.
+- **Organization status doesn't gate anything.** `POST /organizations/{id}/status` (phase 15) can
+  mark an org `suspended`, but `AuthService.login` never checks the logging-in user's
+  *organization's* status, only the user's own — so a "suspended" organization's members can still
+  log in and use the API normally today. See [BUSINESS_RULES.md](BUSINESS_RULES.md). Not fixed
+  here since it touches already-shipped phase-1 auth code without being asked.
 
 ## Fixed bugs worth remembering (so the same mistake doesn't recur)
 

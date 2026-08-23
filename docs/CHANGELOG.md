@@ -6,6 +6,50 @@ verified.
 
 ---
 
+## 2026-08-23 — Phase 15: Platform Super Admin (scoped to the real parts)
+
+**Changed**: New `PlatformOrganizationsController`/`AuditLogController` — `GET /organizations`
+[platform], `POST /organizations/{id}/status`, `POST /organizations/{id}/plan`,
+`GET /audit-logs` [platform, optional `?organizationId=`]. `Organization` gained `updateStatus`/
+`updatePlan`. `AuditLogRepository` gained platform-wide and org-scoped list queries.
+
+**Why**: next roadmap phase, but with an unusual wrinkle — `super-admin/` has 9 pages of wildly
+different maturity (some real, some entirely fabricated placeholder data). Asked the user how to
+scope it rather than guessing; they chose to build only the real parts.
+
+**Scope decision** (asked, not assumed): built Organizations (list/status/plan — real
+`Organization` data), and platform AuditLogs (real `audit_log` data). Analytics and Billing's
+plan-price display needed no new endpoint — both derive from the same `GET /organizations`
+response client-side, exactly like the frontend mock does today. **Deliberately not built**:
+Monitoring (fabricated uptime/response-time/DB-size numbers — no real observability pipeline
+exists), Settings (fabricated platform API keys — no API-key auth mechanism exists, this backend
+is JWT-only), Support (a hardcoded ticket list not even wired to the mock's own data layer — no
+ticketing spec exists to port). See [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
+
+**Database**: no migration — reuses `organizations` and `audit_log` as-is.
+
+**New capability needed for testing, not previously possible**: no SUPER_ADMIN user existed
+anywhere in the dev database, and no API path can create one (`/auth/register` only creates
+ORG_ADMIN + a new org). Created one via direct SQL insert (`organization_id = NULL`,
+`user_roles.role = 'super-admin'`) — confirmed it logs in correctly with a null `organizationId`
+throughout the JWT/response chain.
+
+**Testing**: see [TESTING.md](TESTING.md#phase-15). Real cross-org data (3 orgs) exercised
+end-to-end; confirmed the new platform-wide controller and the existing self-scoped
+`OrganizationController` correctly coexist on overlapping `/organizations` base paths without
+routing conflicts; confirmed an ORG_ADMIN gets 403 on every platform endpoint.
+
+**Real gap surfaced while testing (not introduced by this phase)**: `POST
+/organizations/{id}/status` can mark an org `suspended`, but nothing in `AuthService.login` checks
+an organization's own status — only the logging-in user's. Suspending an org currently has no
+functional effect on its members' ability to log in. Documented, not fixed — touches already-shipped
+phase-1 auth code without being asked.
+
+**Result**: PR #11, targeting PR #10 as base (stacked, same reason as the prior two PRs) — merge
+order #7 → #8 → #9 → #10 → #11.
+
+---
+
 ## 2026-08-23 — Phases 14, 16: Backups (records only) + notifications (read side)
 
 **Changed**: New `backup` package (`BackupRecord`, `BackupService`, `BackupController`) —

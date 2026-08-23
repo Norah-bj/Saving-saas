@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import java.util.UUID;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -25,9 +26,11 @@ public class LoanController {
             java.util.Set.of("secretary", "accountant", "loan-committee", "org-admin", "hr");
 
     private final LoanApplicationService loanApplicationService;
+    private final LoanReviewService loanReviewService;
 
-    public LoanController(LoanApplicationService loanApplicationService) {
+    public LoanController(LoanApplicationService loanApplicationService, LoanReviewService loanReviewService) {
         this.loanApplicationService = loanApplicationService;
+        this.loanReviewService = loanReviewService;
     }
 
     @PostMapping("/calculate")
@@ -62,5 +65,28 @@ public class LoanController {
             throw new ForbiddenException("You can only view your own loans.");
         }
         return loan;
+    }
+
+    @PostMapping("/{id}/start-review")
+    @PreAuthorize("hasRole('LOAN_COMMITTEE')")
+    public LoanDetailDto startReview(@AuthenticationPrincipal CurrentUser currentUser, @PathVariable UUID id) {
+        return loanReviewService.startReview(
+                currentUser.organizationId(), id, currentUser.userId(), currentUser.fullName());
+    }
+
+    /**
+     * Coarse role check here (must be Loan Committee at all); the fine-grained
+     * chair-only check for guarantor-backed loans happens inside
+     * {@link LoanReviewService}, re-reading chair status fresh from the
+     * database rather than trusting the JWT claim.
+     */
+    @PostMapping("/{id}/committee-decision")
+    @PreAuthorize("hasRole('LOAN_COMMITTEE')")
+    public LoanDetailDto committeeDecision(
+            @AuthenticationPrincipal CurrentUser currentUser,
+            @PathVariable UUID id,
+            @Valid @RequestBody CommitteeDecisionRequest request) {
+        return loanReviewService.decide(
+                currentUser.organizationId(), id, currentUser.userId(), currentUser.fullName(), request);
     }
 }

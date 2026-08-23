@@ -1,13 +1,21 @@
 package rw.ikiminaconnect.loan;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface GuaranteeRepository extends JpaRepository<Guarantee, UUID> {
     List<Guarantee> findAllByLoanId(UUID loanId);
 
-    // Guarantor-side queries (list pending requests, the guarantor-lock check)
-    // arrive in phase 6 alongside the respond endpoint — not added here to
-    // avoid unused surface area for a workflow this phase doesn't build yet.
+    Optional<Guarantee> findByIdAndOrganizationId(UUID id, UUID organizationId);
+
+    List<Guarantee> findAllByOrganizationIdAndGuarantorIdOrderByRequestedDateDesc(
+            UUID organizationId, UUID guarantorId);
+
+    // The guarantor-lock rule (BACKEND_CONTRACT.md): a member actively
+    // guaranteeing someone else's loan cannot apply for a new loan of their
+    // own until that guarantee is released.
+    boolean existsByOrganizationIdAndGuarantorIdAndStatus(
+            UUID organizationId, UUID guarantorId, GuaranteeStatus status);
 }

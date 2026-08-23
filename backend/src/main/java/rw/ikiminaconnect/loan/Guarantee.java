@@ -98,4 +98,18 @@ public class Guarantee {
     public LocalDate getRequestedDate() {
         return requestedDate;
     }
+
+    public LocalDate getRespondedDate() {
+        return respondedDate;
+    }
+
+    public void accept() {
+        this.status = GuaranteeStatus.accepted;
+        this.respondedDate = LocalDate.now();
+    }
+
+    public void reject() {
+        this.status = GuaranteeStatus.rejected;
+        this.respondedDate = LocalDate.now();
+    }
 }

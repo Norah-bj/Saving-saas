@@ -34,6 +34,10 @@ import rw.ikiminaconnect.savings.SavingsService;
  *       not just discouraged by a disabled button.</li>
  *   <li>A guarantor-required loan (amount &gt; savings) must actually include a
  *       valid guarantorId — the frontend lets this submit with none.</li>
+ *   <li>The guarantor-lock rule (a member actively guaranteeing someone else's
+ *       loan can't apply for their own) — added in phase 6 alongside
+ *       {@link GuaranteeService}, since it needs the guarantees table's
+ *       accepted-status data to check.</li>
  * </ul>
  */
 @Service
@@ -99,6 +103,15 @@ public class LoanApplicationService {
             throw new ForbiddenException("Members become eligible for a loan after "
                     + organization.getMinMonthsBeforeEligible() + " months of continuous savings. "
                     + "You've been saving for " + tenureMonths + " month(s).");
+        }
+
+        // Guarantor lock (phase 6, BACKEND_CONTRACT.md): a member actively
+        // guaranteeing someone else's loan can't apply for one of their own
+        // until that guarantee is released.
+        if (guaranteeRepository.existsByOrganizationIdAndGuarantorIdAndStatus(
+                organizationId, memberId, GuaranteeStatus.accepted)) {
+            throw new ForbiddenException("You are currently guaranteeing another member's loan and cannot "
+                    + "apply for a new loan until that guarantee is released.");
         }
 
         BigDecimal savings = savingsService.currentBalance(organizationId, memberId);

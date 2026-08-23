@@ -193,4 +193,17 @@ public class Loan {
     public String getCommitteeNotes() {
         return committeeNotes;
     }
+
+    /** Guarantor accepted — forwarded to committee review (data-store.ts's respondGuarantee). */
+    public void forwardToCommitteeReview() {
+        this.status = LoanStatus.COMMITTEE_REVIEW;
+        this.updatedAt = Instant.now();
+    }
+
+    /** Guarantor declined — the loan is rejected outright, same as the frontend mock. */
+    public void rejectByGuarantorDecline() {
+        this.status = LoanStatus.REJECTED;
+        this.committeeNotes = "Guarantor declined the request.";
+        this.updatedAt = Instant.now();
+    }
 }

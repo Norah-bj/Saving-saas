@@ -3,7 +3,6 @@ package rw.ikiminaconnect.loan;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.Period;
-import java.util.List;
 import java.util.UUID;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
@@ -52,6 +51,7 @@ public class LoanApplicationService {
     private final OrganizationRepository organizationRepository;
     private final SavingsService savingsService;
     private final AuditService auditService;
+    private final LoanDetailAssembler loanDetailAssembler;
 
     public LoanApplicationService(
             LoanRepository loanRepository,
@@ -60,7 +60,8 @@ public class LoanApplicationService {
             MemberRepository memberRepository,
             OrganizationRepository organizationRepository,
             SavingsService savingsService,
-            AuditService auditService) {
+            AuditService auditService,
+            LoanDetailAssembler loanDetailAssembler) {
         this.loanRepository = loanRepository;
         this.timelineRepository = timelineRepository;
         this.guaranteeRepository = guaranteeRepository;
@@ -68,6 +69,7 @@ public class LoanApplicationService {
         this.organizationRepository = organizationRepository;
         this.savingsService = savingsService;
         this.auditService = auditService;
+        this.loanDetailAssembler = loanDetailAssembler;
     }
 
     @Transactional(readOnly = true)
@@ -149,7 +151,7 @@ public class LoanApplicationService {
 
         auditService.record(organizationId, memberId, memberName, "Applied for loan", loan.getContractNumber());
 
-        return toDetail(loan);
+        return loanDetailAssembler.toDetail(loan);
     }
 
     @Transactional(readOnly = true)
@@ -165,18 +167,7 @@ public class LoanApplicationService {
     public LoanDetailDto get(UUID organizationId, UUID loanId) {
         Loan loan = loanRepository.findByIdAndOrganizationId(loanId, organizationId)
                 .orElseThrow(() -> new NotFoundException("Loan not found."));
-        return toDetail(loan);
-    }
-
-    private LoanDetailDto toDetail(Loan loan) {
-        List<UUID> guarantorIds = guaranteeRepository.findAllByLoanId(loan.getId()).stream()
-                .map(Guarantee::getGuarantorId)
-                .toList();
-        List<LoanTimelineEventDto> timeline = timelineRepository.findAllByLoanIdOrderByCreatedAtAsc(loan.getId())
-                .stream()
-                .map(LoanTimelineEventDto::from)
-                .toList();
-        return LoanDetailDto.from(loan, guarantorIds, timeline);
+        return loanDetailAssembler.toDetail(loan);
     }
 
     /**

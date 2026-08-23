@@ -54,6 +54,17 @@
             <version>5.3.0</version>
         </dependency>
 
+        <!-- Server-side PDF generation for loan contracts (BACKEND_CONTRACT.md: the
+             frontend's print-styled HTML page was always a demo stand-in for this).
+             OpenPDF (maintained LGPL fork of iText 4) — well suited to this kind of
+             flowing formatted-text document, and Kinyarwanda's plain-Latin-plus-
+             apostrophes alphabet needs no embedded font, just the built-in Helvetica. -->
+        <dependency>
+            <groupId>com.github.librepdf</groupId>
+            <artifactId>openpdf</artifactId>
+            <version>2.0.3</version>
+        </dependency>
+
         <dependency>
             <groupId>org.flywaydb</groupId>
             <artifactId>flyway-core</artifactId>

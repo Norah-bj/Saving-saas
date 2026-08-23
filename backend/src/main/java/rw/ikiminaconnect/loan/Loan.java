@@ -206,4 +206,28 @@ public class Loan {
         this.committeeNotes = "Guarantor declined the request.";
         this.updatedAt = Instant.now();
     }
+
+    /** Self-covered loan under review moves straight to committee-review (no guarantor step). */
+    public void moveToGuarantorApproval() {
+        this.status = LoanStatus.GUARANTOR_APPROVAL;
+        this.updatedAt = Instant.now();
+    }
+
+    public void approve(String committeeNotes) {
+        this.status = LoanStatus.APPROVED;
+        this.approvedDate = LocalDate.now();
+        this.committeeNotes = committeeNotes;
+        this.updatedAt = Instant.now();
+    }
+
+    public void rejectByCommittee(String committeeNotes) {
+        this.status = LoanStatus.REJECTED;
+        this.committeeNotes = committeeNotes;
+        this.updatedAt = Instant.now();
+    }
+
+    public void markContractGenerated() {
+        this.status = LoanStatus.CONTRACT_GENERATED;
+        this.updatedAt = Instant.now();
+    }
 }

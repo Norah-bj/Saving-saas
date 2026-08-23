@@ -45,7 +45,8 @@ an organization's own status — only the logging-in user's. Suspending an org c
 functional effect on its members' ability to log in. Documented, not fixed — touches already-shipped
 phase-1 auth code without being asked.
 
-**Result**: not yet pushed/PR'd as of this entry — see git history for the actual PR.
+**Result**: PR #11, targeting PR #10 as base (stacked, same reason as the prior two PRs) — merge
+order #7 → #8 → #9 → #10 → #11.
 
 ---
 

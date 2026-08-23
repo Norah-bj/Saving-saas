@@ -7,15 +7,25 @@
   backend) — there's no decided rule for revenue-recognition timing. See
   [BUSINESS_RULES.md](BUSINESS_RULES.md) and [DECISIONS.md](DECISIONS.md). Not a bug; a decision
   that hasn't been made yet.
-- **No role-assignment endpoint exists.** `POST /members/{id}/roles` is planned (phase 13,
-  organization administration) but not built. To test phase 7's committee-chair rule, roles were
-  granted directly via `INSERT INTO user_roles ...` against the dev database. A real org cannot
-  use this system to promote a member to staff/committee yet.
 - **`/auth/register` cannot attach a new user to an existing organization** — it always creates a
-  brand-new org + its first ORG_ADMIN. There is no invite-a-new-staff-member-to-my-org flow
-  (also phase 13 scope).
-- **No exit endpoint.** Exit eligibility rules are ported into memory/docs but there's no
-  `POST /members/{id}/exit` yet.
+  brand-new org + its first ORG_ADMIN. There is no invite-a-new-staff-member-to-my-org flow.
+- **No exit endpoint, and no share-withdrawal endpoint.** Exit eligibility rules are ported into
+  docs/memory but there's no `POST /members/{id}/exit` or `POST /share-withdrawals/{id}/decision`
+  yet — remaining phase-13 scope.
+- **No committee-chair assignment endpoint.** `PUT /members/{id}/roles` (phase 13) replaces a
+  member's role set but deliberately never grants chair status — it's still only settable directly
+  via `UPDATE user_roles SET is_committee_chair = true` against the dev database. No frontend page
+  exposes chair assignment either (`org-admin/Users.tsx`'s role editor has no chair toggle), so
+  there's no UI-driven spec to port yet.
+- **Newly created members are stuck `pending` forever.** Discovered while testing phase 13's
+  `POST /members/{id}/status` (which correctly 409s trying to move a `pending` member to
+  `active`/`suspended`, since that's not a transition it supports) — `MemberService.create` never
+  calls `AppUser.activate()`, unlike the self-registering org-admin created by `/auth/register`,
+  which does. Every member added via `POST /members` is `pending` indefinitely; nothing in the
+  system currently moves them to `active`. Pre-existing gap from earlier phases, not introduced by
+  phase 13 — just newly surfaced by it. `MemberStatus.pending` doesn't block login either (only
+  `suspended`/`exited` do in `AuthService.login`), so this hasn't blocked anything functionally,
+  but it means member status is not actually meaningful yet for freshly created members.
 
 ## Fixed bugs worth remembering (so the same mistake doesn't recur)
 

@@ -6,6 +6,46 @@ verified.
 
 ---
 
+## 2026-08-23 — Phases 12-13: Secretary ops + organization administration
+
+**Changed**: New `secretary` package (`Meeting`/`Announcement`/`DocumentItem` entities,
+`SecretaryOpsService`, `MeetingController`/`AnnouncementController`/`DocumentController`) —
+`GET/POST /meetings`, `POST /meetings/{id}/minutes`, `GET/POST /announcements`, `GET/POST
+/documents`. New `OrganizationController`/`OrganizationService`/`OrganizationDto` — `GET
+/organizations/{id}`, `PATCH /organizations/{id}/profile`, `PATCH /organizations/{id}/loan-policy`.
+`MemberController`/`MemberService` gained `PUT /members/{id}/roles` and `POST /members/{id}/status`.
+
+**Why**: next two roadmap phases — secretary's meetings/documents/announcements pages and
+org-admin's user/settings/moderation pages needed real endpoints. Bundled together since they're
+both small and were built in the same session.
+
+**Database**: `V5__secretary_ops_and_org_admin.sql` — adds `meetings`, `announcements`,
+`documents`. Phase 13 needed no migration (reused existing `user_roles`/`users.status`/
+`organizations` columns).
+
+**Added beyond the frontend mock** (see [BUSINESS_RULES.md](BUSINESS_RULES.md) for detail):
+server-side audience/visibility filtering on announcements and documents (the mock either didn't
+filter at all or only filtered client-side); field-scoped authorization on organization settings
+(the mock's single unrestricted `updateOrganization` action is split into an ORG_ADMIN-only
+profile endpoint and an ORG_ADMIN-or-LOAN_COMMITTEE loan-policy endpoint); status-transition
+validation on member suspend/activate (409 on anything other than active↔suspended).
+
+**Testing**: see [TESTING.md](TESTING.md#phases-12-13). Full lifecycle tested for each new
+resource against real dev data in the `tcs2` org — meeting create → record minutes; announcement
+and document create with both `all` and `admins`-restricted visibility, verified a plain-member
+account correctly can't see the restricted ones and gets 403 attempting to create; organization
+profile and loan-policy updates, verified a loan-committee-only (non-admin) user gets 403 on
+profile but 200 on loan-policy; member role replacement; member suspend → login correctly 403 →
+reactivate → login correctly 200, with a real DB row and audit log entry checked at every step.
+
+**Result**: not yet committed/PR'd as of this changelog entry — see git history for the actual PR.
+
+**Remaining issues found while testing**: newly created members are stuck `pending` forever (not
+introduced by this phase — see [KNOWN_ISSUES.md](KNOWN_ISSUES.md)). Exit requests and
+share-withdrawal requests remain unbuilt (also phase-13 roadmap scope).
+
+---
+
 ## 2026-08-23 — Phase 11: Accountant reporting + ledger
 
 **Changed**: New `reporting` package (`ReportingController`/`ReportingService`) —

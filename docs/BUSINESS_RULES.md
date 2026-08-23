@@ -67,8 +67,36 @@ BACKEND_CONTRACT.md's "every mutating endpoint" rule.
 
 A member should not be able to exit the cooperative while holding an outstanding loan or actively
 guaranteeing someone else's — ported from the mock's `exitEligibility`/
-`OUTSTANDING_LOAN_STATUSES`. No exit endpoint exists yet; this is organization-administration
-scope (phase 13).
+`OUTSTANDING_LOAN_STATUSES`. No exit endpoint exists yet — remaining phase-13 scope, not built in
+the phase-13 round that shipped role assignment/status/org settings.
+
+## Announcement and document visibility (added beyond the frontend mock)
+
+A plain member (holding only the `MEMBER` role) never receives `audience: "admins"` announcements
+or `visibility: "admins"` documents from `GET /announcements`/`GET /documents` — filtered
+server-side. **Added beyond the frontend mock**: `member/Announcements.tsx` shows every
+announcement to every viewer regardless of `audience` (a real gap in the mock — the field existed
+but nothing enforced it); `member/Documents.tsx` only filtered admins-only documents client-side,
+which hides them from the UI but never actually protects the data. "Staff" for this check means
+holding any role beyond `MEMBER`.
+
+## Member status transitions
+
+`POST /members/{id}/status` only accepts `active` or `suspended`, and only as a transition from the
+*other* one of those two (409 otherwise) — matching exactly what `org-admin/Moderation.tsx` exposes
+(a Suspend button when active, an Activate button when suspended, nothing for `pending`/`exited`).
+Exit (`exited`) is permanent and only reachable through the exit-request approval flow (not yet
+built); newly created members currently start `pending` and nothing in the system moves them to
+`active` yet — see [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
+
+## Organization settings: field-scoped authorization (added beyond the frontend mock)
+
+`org-admin/Settings.tsx` and `loan-committee/Policy.tsx` both call the mock's single
+`updateOrganization` action, unrestricted — either page could set any organization field in the
+mock. The backend splits this into `PATCH /organizations/{id}/profile` (ORG_ADMIN only —
+branding/contact fields) and `PATCH /organizations/{id}/loan-policy` (ORG_ADMIN or LOAN_COMMITTEE
+— interest/insurance rates, eligibility window, repayment periods), so a loan-committee member
+editing loan policy can never also rewrite the organization's branding or contact details.
 
 ## Revenue recognition (interest income / insurance fees) — undecided
 

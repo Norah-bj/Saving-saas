@@ -10,12 +10,15 @@
   `$env:JAVA_HOME`/`$env:PATH` explicitly at the top of every command that needs them rather than
   assuming persistence.
 - **Frontend**: `npm install && npm run dev`, see the root [README.md](../README.md).
-- **Dev test credential** (for smoke-testing against real data in the `tcs2` org rather than a
-  freshly-registered empty org): `admin2@tcs2.rw` / `DevTest123!` (org-admin + hr + loan-committee
-  roles). This password was reset via a direct DB `UPDATE` partway through phase 11 because the
-  original test-session password was never recorded — if it stops working, that means someone
-  changed it since; reset it the same way (`UPDATE users SET password_hash = crypt('...',
-  gen_salt('bf', 10)) WHERE email = '...'` via `psql`, pgcrypto extension) rather than guessing.
+- **Dev test credentials** (for smoke-testing against real data in the `tcs2` org rather than a
+  freshly-registered empty org) — all `DevTest123!`, all reset via a direct DB `UPDATE` because the
+  original test-session passwords were never recorded (`UPDATE users SET password_hash =
+  crypt('...', gen_salt('bf', 10)) WHERE email = '...'` via `psql`, pgcrypto extension; reset the
+  same way if one stops working, rather than guessing):
+  - `admin2@tcs2.rw` — org-admin + hr + loan-committee + member, status `active`
+  - `chair@tcs2.rw` — loan-committee (committee chair) + member, status `active`
+  - `plain@tcs2.rw` — member only, status `pending` (useful for testing plain-member-vs-staff
+    authorization and visibility filtering — see [BUSINESS_RULES.md](BUSINESS_RULES.md))
 
 ## Environment variables
 

@@ -17,7 +17,7 @@ ORG_ADMIN. Unmarked = any authenticated user of the org (no extra role check bey
 | POST | `/auth/login` | |
 | POST | `/auth/refresh` | Rotates the refresh token; rejects reuse of an old one. |
 | POST | `/auth/logout` | Revokes the refresh token. |
-| GET | `/me` | Authenticated. |
+| GET | `/me` | Authenticated. Includes `dateJoined` (added for `Profile.tsx`). |
 
 ## Members — `MemberController`
 
@@ -26,9 +26,10 @@ ORG_ADMIN. Unmarked = any authenticated user of the org (no extra role check bey
 | GET | `/members` | SECRETARY, ORG_ADMIN |
 | POST | `/members` | SECRETARY, ORG_ADMIN |
 | GET | `/members/{id}` | self, or SECRETARY/ACCOUNTANT/ORG_ADMIN |
+| GET | `/members/guarantor-candidates` | any authenticated user. Deliberately minimal — `{id, fullName, department}` only, excludes the caller. Added for the frontend's loan-application guarantor picker, which needs a member list but shouldn't get the staff-only `GET /members`'s sensitive fields (national ID, savings balance). |
 | PUT | `/members/{id}/roles` | ORG_ADMIN. Replaces the member's full role set; MEMBER is always kept even if omitted. Does not touch committee-chair status (see [KNOWN_ISSUES.md](KNOWN_ISSUES.md)). |
 | POST | `/members/{id}/status` | ORG_ADMIN. Body `{"status": "active"\|"suspended"}` only — the transition must be the opposite of the member's current status (409 otherwise); `exited`/`pending` aren't reachable through this endpoint. |
-| GET | `/members/{id}/exit-eligibility` | self, or SECRETARY/ORG_ADMIN. Returns `{eligible, outstandingLoanContractNumbers, activeGuaranteeLoanContractNumbers}`. |
+| GET | `/members/{id}/exit-eligibility` | self, or SECRETARY/ORG_ADMIN. Returns `{eligible, outstandingLoans: [{id, contractNumber, remainingBalance}], activeGuarantees: [{guaranteeId, loanContractNumber, amountGuaranteed}]}` — restructured from plain contract-number-string lists to these nested records so `Profile.tsx` can render real IDs/amounts, not just names. |
 
 ## Savings — `SavingsController` (`SELF_OR_STAFF`: self, or ACCOUNTANT/SECRETARY/ORG_ADMIN)
 
@@ -107,7 +108,7 @@ ORG_ADMIN. Unmarked = any authenticated user of the org (no extra role check bey
 
 | Method | Path | Role |
 |---|---|---|
-| GET | `/organizations/{id}` | any authenticated user of that org |
+| GET | `/organizations/{id}` | any authenticated user of that org. Now also returns `shareValueRwf`, `loanInterestRate`, `loanInsuranceRate`, `minMonthsBeforeEligible`, `allowedRepaymentPeriods` — needed by `member/Shares.tsx` and `member/LoanApply.tsx` once wired to real data. |
 | PATCH | `/organizations/{id}/profile` | ORG_ADMIN only. Branding/contact fields (`org-admin/Settings.tsx`). |
 | PATCH | `/organizations/{id}/loan-policy` | ORG_ADMIN or LOAN_COMMITTEE. Interest/insurance rates, eligibility window, repayment periods (`loan-committee/Policy.tsx`). Rates are fractions (`0.05` = 5%), matching how this backend stores them everywhere — not the frontend mock's whole-percentage UI convention; see [DECISIONS.md](DECISIONS.md). |
 
@@ -155,7 +156,7 @@ No endpoint creates a notification — see [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
 
 | Method | Path | Role | Notes |
 |---|---|---|---|
-| GET | `/exit-requests` | SECRETARY, ORG_ADMIN | Every exit request in the org. |
+| GET | `/exit-requests` | SELF_OR_STAFF | SECRETARY/ORG_ADMIN see every request in the org; a plain member sees only their own. |
 | POST | `/exit-requests` | any authenticated user | Self only — the caller's own `userId` is always the target, there's no way to submit on someone else's behalf. 409 if the caller already has a pending request. |
 | POST | `/exit-requests/{id}/decision` | SECRETARY, ORG_ADMIN | Body `{"decision": "approve"\|"reject"}`. Approving re-checks eligibility server-side (409 if the member has since become ineligible) and sets the member's status to `exited`; 409 if the request was already decided. |
 
@@ -163,7 +164,7 @@ No endpoint creates a notification — see [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
 
 | Method | Path | Role | Notes |
 |---|---|---|---|
-| GET | `/share-withdrawals` | SECRETARY, ORG_ADMIN | Every request in the org. |
+| GET | `/share-withdrawals` | SELF_OR_STAFF | SECRETARY/ORG_ADMIN see every request in the org; a plain member sees only their own. |
 | POST | `/share-withdrawals` | any authenticated user | Self only. 409 if the requested share count exceeds the member's current holding. |
 | POST | `/share-withdrawals/{id}/decision` | SECRETARY, ORG_ADMIN | Body `{"decision": "approve"\|"reject"}`. Approving actually moves the shares and money — decrements `share_holdings`, writes a `WITHDRAWAL` `savings_transactions` row reducing the running balance — genuinely more than the frontend mock does (its `decideShareWithdrawal` only flips a status flag); see [BUSINESS_RULES.md](BUSINESS_RULES.md). |
 

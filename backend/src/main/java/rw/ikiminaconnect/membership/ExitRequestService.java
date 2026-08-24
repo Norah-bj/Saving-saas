@@ -74,17 +74,22 @@ public class ExitRequestService {
 
         List<Guarantee> guarantees = guaranteeRepository.findAllByOrganizationIdAndGuarantorIdAndStatus(
                 organizationId, memberId, GuaranteeStatus.accepted);
-        List<String> activeGuaranteeLoans = guarantees.stream()
-                .map(g -> loanRepository.findByIdAndOrganizationId(g.getLoanId(), organizationId).orElse(null))
-                .filter(loan -> loan != null && loan.getStatus() != LoanStatus.COMPLETED && loan.getStatus() != LoanStatus.REJECTED)
-                .map(Loan::getContractNumber)
+        List<ExitEligibilityDto.ActiveGuarantee> activeGuarantees = guarantees.stream()
+                .map(g -> {
+                    Loan loan = loanRepository.findByIdAndOrganizationId(g.getLoanId(), organizationId).orElse(null);
+                    if (loan == null || loan.getStatus() == LoanStatus.COMPLETED || loan.getStatus() == LoanStatus.REJECTED) {
+                        return null;
+                    }
+                    return new ExitEligibilityDto.ActiveGuarantee(g.getId(), loan.getContractNumber(), g.getAmountGuaranteed());
+                })
+                .filter(g -> g != null)
                 .toList();
 
-        List<String> outstandingLoanNumbers = outstandingLoans.stream().map(Loan::getContractNumber).toList();
+        List<ExitEligibilityDto.OutstandingLoan> outstanding = outstandingLoans.stream()
+                .map(l -> new ExitEligibilityDto.OutstandingLoan(l.getId(), l.getContractNumber(), l.getRemainingBalance()))
+                .toList();
 
-        return new ExitEligibilityDto(
-                outstandingLoanNumbers.isEmpty() && activeGuaranteeLoans.isEmpty(),
-                outstandingLoanNumbers, activeGuaranteeLoans);
+        return new ExitEligibilityDto(outstanding.isEmpty() && activeGuarantees.isEmpty(), outstanding, activeGuarantees);
     }
 
     @Transactional

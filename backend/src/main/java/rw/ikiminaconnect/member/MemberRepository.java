@@ -1,5 +1,6 @@
 package rw.ikiminaconnect.member;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
@@ -25,4 +26,13 @@ public interface MemberRepository extends JpaRepository<AppUser, UUID> {
 
     Page<AppUser> findAllByOrganizationIdAndFullNameContainingIgnoreCase(
             UUID organizationId, String search, Pageable pageable);
+
+    long countByOrganizationId(UUID organizationId);
+
+    // Guarantor candidate picker (member/LoanApply.tsx) — any authenticated
+    // member can call this, unlike the full GET /members list, so it must
+    // never return anything sensitive (national ID, savings balance, ...).
+    // See GuarantorCandidateDto.
+    List<AppUser> findAllByOrganizationIdAndIdNotAndStatus(
+            UUID organizationId, UUID excludedId, MemberStatus status);
 }

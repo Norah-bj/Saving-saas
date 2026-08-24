@@ -58,6 +58,15 @@ public class MemberService {
     }
 
     @Transactional(readOnly = true)
+    public List<GuarantorCandidateDto> guarantorCandidates(UUID organizationId, UUID excludeMemberId) {
+        return memberRepository
+                .findAllByOrganizationIdAndIdNotAndStatus(organizationId, excludeMemberId, MemberStatus.active)
+                .stream()
+                .map(GuarantorCandidateDto::from)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
     public MemberDetail get(UUID organizationId, UUID memberId) {
         AppUser user = memberRepository.findByIdAndOrganizationId(memberId, organizationId)
                 .orElseThrow(() -> new NotFoundException("Member not found."));

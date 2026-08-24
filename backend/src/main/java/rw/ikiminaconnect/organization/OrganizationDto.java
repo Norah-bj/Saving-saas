@@ -9,7 +9,7 @@ public record OrganizationDto(
         String address, String contactEmail, String contactPhone, String logoInitials,
         String brandColor, String stampLabel, String plan, String status,
         String legalRepresentativeName, String legalRepresentativeTitle,
-        BigDecimal loanInterestRate, BigDecimal loanInsuranceRate,
+        BigDecimal shareValueRwf, BigDecimal loanInterestRate, BigDecimal loanInsuranceRate,
         Integer minMonthsBeforeEligible, List<Integer> allowedRepaymentPeriods) {
 
     public static OrganizationDto from(Organization o) {
@@ -17,7 +17,7 @@ public record OrganizationDto(
                 o.getId(), o.getName(), o.getShortName(), o.getSlug(), o.getDistrict(), o.getSector(),
                 o.getAddress(), o.getContactEmail(), o.getContactPhone(), o.getLogoInitials(),
                 o.getBrandColor(), o.getStampLabel(), o.getPlan().name(), o.getStatus().name(),
-                o.getLegalRepresentativeName(), o.getLegalRepresentativeTitle(),
+                o.getLegalRepresentativeName(), o.getLegalRepresentativeTitle(), o.getShareValueRwf(),
                 o.getLoanInterestRate(), o.getLoanInsuranceRate(), o.getMinMonthsBeforeEligible(),
                 o.getAllowedRepaymentPeriods());
     }

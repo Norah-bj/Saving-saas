@@ -155,7 +155,8 @@ public class AuthService {
         return new MeResponse(
                 user.getId(), user.getOrganizationId(), user.getNationalId(), user.getEmployeeId(),
                 user.getFullName(), user.getEmail(), user.getPhone(), user.getDepartment(), user.getPosition(),
-                user.getStatus().name(), roleValues, user.isCommitteeChair(), user.getMonthlySalaryRwf());
+                user.getStatus().name(), roleValues, user.isCommitteeChair(), user.getMonthlySalaryRwf(),
+                user.getDateJoined());
     }
 
     private AuthResponse issueTokens(AppUser user) {

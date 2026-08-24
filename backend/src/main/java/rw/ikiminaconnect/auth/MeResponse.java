@@ -19,5 +19,6 @@ public record MeResponse(
         List<String> roles,
         boolean committeeChair,
         BigDecimal monthlySalaryRwf,
-        LocalDate dateJoined) {
+        LocalDate dateJoined,
+        boolean emailVerified) {
 }

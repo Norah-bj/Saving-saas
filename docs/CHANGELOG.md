@@ -6,6 +6,57 @@ verified.
 
 ---
 
+## 2026-08-24 — Email verification for self-service organization registration
+
+**Changed**: New `email` package (`EmailService` interface, `ConsoleEmailService` dev stub — logs
+instead of sending). New `auth.EmailVerificationToken`/`EmailVerificationTokenRepository`/
+`EmailVerificationService` (opaque hashed single-use tokens, same pattern as refresh tokens). New
+`security.EmailVerificationFilter` — blocks every request from an authenticated-but-unverified
+user except `/auth/**` and `GET /me`, re-checking the DB fresh on every request rather than
+trusting a JWT claim. `AppUser` gained `emailVerified`/`verifyEmail()`. New endpoints `POST
+/auth/verify-email`, `POST /auth/resend-verification`. `MeResponse` and
+`AuthResponse.UserSummary` both gained `emailVerified`.
+
+**Why**: raised directly by the user after reviewing the frontend-wiring work's corrected
+`Register.tsx` copy (no more "verified within one business day") — instant self-service
+registration is the right call for scaling a multi-tenant SaaS, but a newly registered
+organization shouldn't be able to touch sensitive member/financial data before the registering
+email address is actually confirmed to belong to them. Explicit instruction: keep instant
+self-service, add verification as a gate on *access*, not as a delay on *registration*.
+
+**Scope decision, asked not assumed**: email sending needs a real provider and credentials that
+don't exist yet. Asked the user how to handle it — chose a dev-only console-log stub now
+(`ConsoleEmailService`) over blocking this feature on picking an SMTP/SendGrid/SES account, with a
+real implementation swapped in later behind the same `EmailService` interface.
+
+**Database**: `V8__email_verification.sql` — adds `users.email_verified` (backfilled `true` for
+every existing row, so nobody already using the system is retroactively locked out) and
+`email_verification_tokens`.
+
+**A real distinction preserved, not just self-registration gated blindly**: staff-added members
+(`POST /members`) are marked verified immediately — the adding admin already vouches for their
+identity, there's no email-ownership gap to close there the way there is for an unknown party
+self-registering a brand-new organization. Platform super-admins (provisioned only via direct SQL)
+are exempt from the gate for the same reason. See [BUSINESS_RULES.md](BUSINESS_RULES.md).
+
+**Testing**: real end-to-end curl flow — registered a new org, confirmed `emailVerified: false` in
+the response, confirmed the console-logged link, confirmed `GET /members`/`GET /organizations/{id}`
+correctly 403 `email_not_verified` while `GET /me` and `POST /auth/resend-verification` stayed
+reachable, verified with a bad token (403) and the real one (204), then confirmed the *same*
+still-valid access token could immediately reach the previously-blocked endpoints — proving the
+fresh-DB-check design point, not a JWT-claim staleness workaround. Cross-checked directly against
+`users.email_verified` and `audit_log` via `psql`. Confirmed the migration's backfill against an
+existing dev user (`admin2@tcs2.rw`, verified `true` without re-registering), confirmed a
+staff-created member is verified immediately, and confirmed a super-admin login is unaffected by
+the gate either way.
+
+**Result**: stacked on `feature/organization-and-member-dto-additions` (PR #14) — backend-only,
+additive (new package, new filter, new columns/table), touches shared `AuthService`/`SecurityConfig`
+but every existing endpoint's behavior for already-verified users is unchanged (verified directly:
+the pre-existing dev fixture logged in and used the API exactly as before).
+
+---
+
 ## 2026-08-23 — Phase 13 completion: Exit and share-withdrawal requests
 
 **Changed**: New `membership` package (`ExitRequest`/`ShareWithdrawalRequest`,

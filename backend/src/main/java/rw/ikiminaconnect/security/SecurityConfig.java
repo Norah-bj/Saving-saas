@@ -16,6 +16,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import rw.ikiminaconnect.common.ApiError;
+import rw.ikiminaconnect.member.MemberRepository;
 
 @Configuration
 @EnableWebSecurity
@@ -25,14 +26,17 @@ public class SecurityConfig {
     private final JwtService jwtService;
     private final ObjectMapper objectMapper;
     private final String allowedOrigins;
+    private final MemberRepository memberRepository;
 
     public SecurityConfig(
             JwtService jwtService,
             ObjectMapper objectMapper,
-            @Value("${app.cors.allowed-origins}") String allowedOrigins) {
+            @Value("${app.cors.allowed-origins}") String allowedOrigins,
+            MemberRepository memberRepository) {
         this.jwtService = jwtService;
         this.objectMapper = objectMapper;
         this.allowedOrigins = allowedOrigins;
+        this.memberRepository = memberRepository;
     }
 
     @Bean
@@ -42,6 +46,10 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        // Must precede the broader /auth/** permitAll below — resend needs to
+                        // know *whose* verification to resend, so unlike register/login/refresh
+                        // it can't be reached without a valid token.
+                        .requestMatchers("/api/v1/auth/resend-verification").authenticated()
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers("/actuator/health").permitAll()
                         // Defense-in-depth alongside GlobalExceptionHandler's catch-all: if an
@@ -58,7 +66,10 @@ public class SecurityConfig {
                     response.getWriter().write(objectMapper.writeValueAsString(
                             ApiError.of("unauthorized", "Authentication required.")));
                 }))
-                .addFilterBefore(new JwtAuthenticationFilter(jwtService), UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(new JwtAuthenticationFilter(jwtService), UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(
+                        new EmailVerificationFilter(memberRepository, objectMapper),
+                        JwtAuthenticationFilter.class);
 
         return http.build();
     }

@@ -13,11 +13,17 @@ ORG_ADMIN. Unmarked = any authenticated user of the org (no extra role check bey
 
 | Method | Path | Notes |
 |---|---|---|
-| POST | `/auth/register` | Self-serve signup — always creates a **new** organization + its first ORG_ADMIN. Cannot attach a new user to an existing org (no invite flow yet). |
+| POST | `/auth/register` | Self-serve signup — always creates a **new** organization + its first ORG_ADMIN, and logs them in immediately (instant, no manual review). Cannot attach a new user to an existing org (no invite flow yet). The new admin starts `email_verified: false` and gets a verification email — see below and [BUSINESS_RULES.md](BUSINESS_RULES.md). |
 | POST | `/auth/login` | |
 | POST | `/auth/refresh` | Rotates the refresh token; rejects reuse of an old one. |
 | POST | `/auth/logout` | Revokes the refresh token. |
-| GET | `/me` | Authenticated. |
+| POST | `/auth/verify-email` | Body `{"token": "..."}`. No auth required — the token itself proves identity. 403 if invalid/expired/already used. |
+| POST | `/auth/resend-verification` | Authenticated (the only `/auth/*` endpoint that is — needs to know *whose* verification to resend). 409 if already verified. |
+| GET | `/me` | Authenticated. Includes `dateJoined`, `emailVerified`. One of the few endpoints reachable by an unverified user — see [BUSINESS_RULES.md](BUSINESS_RULES.md). |
+
+**Every endpoint below requires `email_verified: true`** (except for staff-created members and
+super-admins, who are never gated) — an authenticated-but-unverified caller gets `403
+{"error": "email_not_verified"}`. See [BUSINESS_RULES.md](BUSINESS_RULES.md) for the full rule.
 
 ## Members — `MemberController`
 

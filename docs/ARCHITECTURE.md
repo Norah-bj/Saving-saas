@@ -100,6 +100,15 @@ otherwise-identical database — no entity or application-code changes required.
      lifetime). See [BUSINESS_RULES.md](BUSINESS_RULES.md).
 - `committeeChair` is a real boolean on the user's role assignment (`user_roles.is_committee_chair`),
   never inferred from the free-text `position` title string the frontend mock uses as a label.
+- **Third enforcement layer, request-wide rather than per-endpoint**: `EmailVerificationFilter`
+  runs as a servlet filter (after `JwtAuthenticationFilter`, before Spring MVC dispatch) and blocks
+  every request from an authenticated-but-unverified user except a small allowlist. Re-checks the
+  database on every request rather than trusting a JWT claim, same reasoning as committee-chair
+  above — verifying email should unblock access immediately, not after the next token refresh. See
+  [BUSINESS_RULES.md](BUSINESS_RULES.md).
+- **`email` package**: `EmailService` interface + `ConsoleEmailService` (the only implementation
+  today — logs instead of sending real mail, since no provider account/credentials exist yet).
+  Swappable behind the interface once one does — see [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
 
 ## Hyphenated-value enum pattern
 

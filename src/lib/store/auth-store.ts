@@ -18,6 +18,7 @@ export interface AuthUser {
   fullName: string;
   roles: Role[];
   committeeChair: boolean;
+  emailVerified: boolean;
 }
 
 interface AuthState {

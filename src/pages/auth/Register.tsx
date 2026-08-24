@@ -100,10 +100,10 @@ export default function RegisterPage() {
               <CheckCircle2 className="size-10 text-emerald-500" />
               <p className="font-medium">Your organization is ready</p>
               <p className="max-w-sm text-sm text-muted-foreground">
-                You're signed in as the organization administrator. Head to your dashboard to
-                start adding members.
+                You're signed in as the organization administrator. We've sent a verification link
+                to your email — confirm it to unlock your workspace.
               </p>
-              <Button onClick={() => navigate(HOME_PAGE["org-admin"])}>Go to dashboard</Button>
+              <Button onClick={() => navigate(HOME_PAGE["org-admin"])}>Continue</Button>
             </div>
           ) : (
             <Form {...form}>

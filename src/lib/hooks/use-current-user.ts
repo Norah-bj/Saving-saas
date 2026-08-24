@@ -21,6 +21,7 @@ interface MeResponse {
   committeeChair: boolean;
   monthlySalaryRwf: number;
   dateJoined: string;
+  emailVerified: boolean;
 }
 
 /**
@@ -62,5 +63,9 @@ export function useCurrentUser() {
       }
     : null;
 
-  return { user, activeRole, isLoading };
+  // Not part of AppUser (which mirrors the mock's domain model, predating any
+  // backend concept of email verification) — exposed alongside it instead.
+  const emailVerified = data?.emailVerified ?? true;
+
+  return { user, activeRole, isLoading, emailVerified };
 }

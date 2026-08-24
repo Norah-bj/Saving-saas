@@ -7,7 +7,7 @@ import { LoanStatusBadge } from "@/components/shared/status-badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useCurrentUser } from "@/lib/hooks/use-current-user";
-import { useDataStore } from "@/lib/store/data-store";
+import { useMyLoans, useLoanDetail } from "@/lib/api/loans";
 import { formatDate, formatRwf } from "@/lib/format";
 import type { LoanStatus } from "@/lib/types";
 
@@ -16,12 +16,15 @@ const TERMINAL_STATUSES: LoanStatus[] = ["rejected", "completed"];
 export default function MemberLoansPage() {
   const navigate = useNavigate();
   const { user } = useCurrentUser();
-  const loans = useDataStore((s) => s.loans);
+  const { data: myLoans = [] } = useMyLoans();
+
+  // The list endpoint doesn't carry remainingBalance/monthlyInstallment (only
+  // the detail one does) — fetch those separately for just the active loan,
+  // since the summary card needs them.
+  const activeLoanSummary = myLoans.find((l) => !TERMINAL_STATUSES.includes(l.status));
+  const { data: activeLoan } = useLoanDetail(activeLoanSummary?.id);
 
   if (!user) return null;
-
-  const myLoans = loans.filter((l) => l.memberId === user.id);
-  const activeLoan = myLoans.find((l) => !TERMINAL_STATUSES.includes(l.status));
 
   return (
     <div className="flex flex-col gap-6">

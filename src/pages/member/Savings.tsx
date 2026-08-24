@@ -10,22 +10,21 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useCurrentUser } from "@/lib/hooks/use-current-user";
-import { useDataStore } from "@/lib/store/data-store";
+import { useSavingsLedger, useAddVoluntarySaving } from "@/lib/api/savings";
 import { formatRwf } from "@/lib/format";
 import { monthlySeriesFromLedger } from "@/lib/chart-utils";
 
 export default function MemberSavingsPage() {
   const { user } = useCurrentUser();
-  const savingsLedger = useDataStore((s) => s.savingsLedger);
-  const addVoluntarySaving = useDataStore((s) => s.addVoluntarySaving);
+  const { ledger, currentBalance } = useSavingsLedger(user?.id);
+  const addVoluntarySaving = useAddVoluntarySaving(user?.id);
 
   const [amount, setAmount] = React.useState<number>(10000);
   const [submitted, setSubmitted] = React.useState(false);
 
   if (!user) return null;
 
-  const ledger = savingsLedger[user.id] ?? [];
-  const balance = ledger.length ? ledger[ledger.length - 1].balanceAfter : 0;
+  const balance = currentBalance;
 
   const salaryTotal = ledger
     .filter((t) => t.type === "salary-deduction")
@@ -48,10 +47,16 @@ export default function MemberSavingsPage() {
   function handleDeposit(e: React.FormEvent) {
     e.preventDefault();
     if (!user || amount <= 0) return;
-    addVoluntarySaving(user.id, amount, user.fullName);
-    setSubmitted(true);
-    setAmount(10000);
-    setTimeout(() => setSubmitted(false), 3000);
+    addVoluntarySaving.mutate(
+      { amountRwf: amount, source: "Member Self-Service" },
+      {
+        onSuccess: () => {
+          setSubmitted(true);
+          setAmount(10000);
+          setTimeout(() => setSubmitted(false), 3000);
+        },
+      }
+    );
   }
 
   return (
@@ -123,12 +128,19 @@ export default function MemberSavingsPage() {
                 onChange={(e) => setAmount(e.target.valueAsNumber || 0)}
               />
             </div>
-            <Button type="submit" className="w-fit" disabled={amount <= 0}>
+            <Button type="submit" className="w-fit" disabled={amount <= 0 || addVoluntarySaving.isPending}>
               <PlusCircle className="size-4" /> Deposit {amount > 0 ? formatRwf(amount) : ""}
             </Button>
             {submitted && (
               <p className="text-sm text-emerald-600 dark:text-emerald-400">
                 Deposit recorded. Your new balance reflects immediately in your statement.
+              </p>
+            )}
+            {addVoluntarySaving.isError && (
+              <p className="text-sm text-destructive">
+                {addVoluntarySaving.error instanceof Error
+                  ? addVoluntarySaving.error.message
+                  : "Something went wrong."}
               </p>
             )}
           </form>

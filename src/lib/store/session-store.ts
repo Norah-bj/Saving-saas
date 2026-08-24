@@ -2,22 +2,23 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { Role } from "@/lib/types";
 
+/**
+ * Which of the current user's roles they're currently viewing the app as —
+ * decoupled from authentication (see auth-store.ts). A user can hold
+ * multiple roles and switch workspaces from the sidebar without logging out.
+ */
 interface SessionState {
-  userId: string | null;
   activeRole: Role | null;
-  login: (userId: string, role: Role) => void;
   switchRole: (role: Role) => void;
-  logout: () => void;
+  clearRole: () => void;
 }
 
 export const useSessionStore = create<SessionState>()(
   persist(
     (set) => ({
-      userId: null,
       activeRole: null,
-      login: (userId, role) => set({ userId, activeRole: role }),
       switchRole: (role) => set({ activeRole: role }),
-      logout: () => set({ userId: null, activeRole: null }),
+      clearRole: () => set({ activeRole: null }),
     }),
     { name: "ikc-session" }
   )

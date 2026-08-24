@@ -4,6 +4,7 @@ import { Loader2 } from "lucide-react";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { Topbar } from "@/components/layout/topbar";
+import { useAuthStore } from "@/lib/store/auth-store";
 import { useSessionStore } from "@/lib/store/session-store";
 import { useCurrentUser } from "@/lib/hooks/use-current-user";
 import { HOME_PAGE } from "@/lib/nav-config";
@@ -30,19 +31,20 @@ function FullScreenLoader() {
 export function ProtectedLayout() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
-  const userId = useSessionStore((s) => s.userId);
+  const accessToken = useAuthStore((s) => s.accessToken);
   const activeRole = useSessionStore((s) => s.activeRole);
   const switchRole = useSessionStore((s) => s.switchRole);
-  const { user } = useCurrentUser();
+  const { user, isLoading } = useCurrentUser();
 
   const segment = pathname.split("/")[1] as Role;
   const isRoleSegment = ROLE_SEGMENTS.includes(segment);
 
   React.useEffect(() => {
-    if (!userId || !user) {
+    if (!accessToken) {
       navigate("/login", { replace: true });
       return;
     }
+    if (!user) return; // still loading /me
     if (isRoleSegment && !user.roles.includes(segment)) {
       navigate(HOME_PAGE[user.roles[0]], { replace: true });
       return;
@@ -50,9 +52,9 @@ export function ProtectedLayout() {
     if (isRoleSegment && activeRole !== segment) {
       switchRole(segment);
     }
-  }, [userId, user, segment, isRoleSegment, activeRole, navigate, switchRole]);
+  }, [accessToken, user, segment, isRoleSegment, activeRole, navigate, switchRole]);
 
-  if (!userId || !user) {
+  if (!accessToken || !user || isLoading) {
     return <FullScreenLoader />;
   }
 

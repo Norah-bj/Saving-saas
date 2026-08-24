@@ -1,5 +1,4 @@
 import * as React from "react";
-import { Link } from "react-router-dom";
 import {
   Mail,
   Phone,
@@ -28,32 +27,32 @@ import {
 } from "@/components/ui/dialog";
 import { RequestStatusBadge } from "@/components/shared/status-badge";
 import { useCurrentUser } from "@/lib/hooks/use-current-user";
-import { useDataStore } from "@/lib/store/data-store";
+import { useExitRequests, useExitEligibility, useSubmitExitRequest } from "@/lib/api/membership";
 import { formatDate, formatRwf } from "@/lib/format";
 import { ROLE_LABEL } from "@/lib/types";
 
 export default function MemberProfilePage() {
   const { user } = useCurrentUser();
-  const exitRequests = useDataStore((s) => s.exitRequests);
-  const exitEligibility = useDataStore((s) => s.exitEligibility);
-  const requestExit = useDataStore((s) => s.requestExit);
+  const { data: exitRequests = [] } = useExitRequests();
+  const { data: eligibility } = useExitEligibility(user?.id);
+  const submitExitRequest = useSubmitExitRequest();
   const [emailNotifs, setEmailNotifs] = React.useState(true);
   const [smsNotifs, setSmsNotifs] = React.useState(false);
   const [exitDialogOpen, setExitDialogOpen] = React.useState(false);
   const [exitReason, setExitReason] = React.useState("");
 
-  if (!user) return null;
+  if (!user || !eligibility) return null;
 
-  const eligibility = exitEligibility(user.id);
-  const myExitRequest = exitRequests.find(
-    (r) => r.memberId === user.id && (r.status === "pending" || r.status === "approved")
-  );
+  const myExitRequest = exitRequests.find((r) => r.status === "pending" || r.status === "approved");
 
   function submitExit() {
     if (!exitReason.trim()) return;
-    requestExit(user!.id, exitReason.trim());
-    setExitDialogOpen(false);
-    setExitReason("");
+    submitExitRequest.mutate(exitReason.trim(), {
+      onSuccess: () => {
+        setExitDialogOpen(false);
+        setExitReason("");
+      },
+    });
   }
 
   return (
@@ -151,10 +150,10 @@ export default function MemberProfilePage() {
                     {formatRwf(l.remainingBalance)}. Fully repay it before requesting exit.
                   </p>
                 ))}
-                {eligibility.activeGuarantees.map(({ guarantee, loan }) => (
-                  <p key={guarantee.id}>
-                    You&apos;re currently guaranteeing loan {loan.contractNumber}
-                    {" "}({formatRwf(guarantee.amountGuaranteed)}). You can exit once that loan
+                {eligibility.activeGuarantees.map((g) => (
+                  <p key={g.guaranteeId}>
+                    You&apos;re currently guaranteeing loan {g.loanContractNumber}
+                    {" "}({formatRwf(g.amountGuaranteed)}). You can exit once that loan
                     is fully repaid.
                   </p>
                 ))}
@@ -183,11 +182,20 @@ export default function MemberProfilePage() {
               onChange={(e) => setExitReason(e.target.value)}
             />
           </div>
+          {submitExitRequest.isError && (
+            <p className="text-sm text-destructive">
+              {submitExitRequest.error instanceof Error ? submitExitRequest.error.message : "Something went wrong."}
+            </p>
+          )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setExitDialogOpen(false)}>
               Cancel
             </Button>
-            <Button variant="destructive" disabled={!exitReason.trim()} onClick={submitExit}>
+            <Button
+              variant="destructive"
+              disabled={!exitReason.trim() || submitExitRequest.isPending}
+              onClick={submitExit}
+            >
               <FileText className="size-4" /> Submit Request
             </Button>
           </DialogFooter>

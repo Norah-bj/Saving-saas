@@ -9,26 +9,23 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { GuaranteeStatusBadge } from "@/components/shared/status-badge";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { useCurrentUser } from "@/lib/hooks/use-current-user";
-import { useDataStore } from "@/lib/store/data-store";
+import { useMyGuarantees, useRespondGuarantee } from "@/lib/api/guarantees";
 import { formatDate, formatRwf } from "@/lib/format";
 
 export default function MemberGuarantorsPage() {
   const { user } = useCurrentUser();
-  const guarantees = useDataStore((s) => s.guarantees);
-  const members = useDataStore((s) => s.members);
-  const loans = useDataStore((s) => s.loans);
-  const respondGuarantee = useDataStore((s) => s.respondGuarantee);
+  const { data: myGuarantees = [] } = useMyGuarantees();
+  const respondGuarantee = useRespondGuarantee();
 
   const [pendingAction, setPendingAction] = React.useState<{ guaranteeId: string; accept: boolean } | null>(null);
 
   if (!user) return null;
 
-  const myGuarantees = guarantees.filter((g) => g.guarantorId === user.id);
   const requestsToMe = myGuarantees.filter((g) => g.status === "pending");
   const guaranteesGiven = myGuarantees.filter((g) => g.status === "accepted");
 
   function borrowerName(borrowerId: string) {
-    return members.find((m) => m.id === borrowerId)?.fullName ?? "Unknown member";
+    return myGuarantees.find((g) => g.borrowerId === borrowerId)?.borrowerName ?? "Unknown member";
   }
 
   const activeAction = pendingAction ? myGuarantees.find((g) => g.id === pendingAction.guaranteeId) : null;
@@ -99,7 +96,6 @@ export default function MemberGuarantorsPage() {
           ) : (
             <div className="grid gap-3 sm:grid-cols-2">
               {guaranteesGiven.map((g) => {
-                const loan = loans.find((l) => l.id === g.loanId);
                 return (
                   <Card key={g.id}>
                     <CardHeader className="flex flex-row items-center justify-between">
@@ -110,16 +106,12 @@ export default function MemberGuarantorsPage() {
                       <p className="text-sm text-muted-foreground">
                         Guaranteed amount: <span className="font-medium text-foreground">{formatRwf(g.amountGuaranteed)}</span>
                       </p>
-                      {loan && (
-                        <p className="text-sm text-muted-foreground">
-                          Remaining balance: <span className="font-medium text-foreground">{formatRwf(loan.remainingBalance)}</span>
-                        </p>
-                      )}
-                      {loan && (
-                        <Button variant="ghost" size="sm" className="mt-1 w-fit -ml-2" render={<Link to={`/member/loans/${loan.id}`} />}>
-                          View loan
-                        </Button>
-                      )}
+                      <p className="text-sm text-muted-foreground">
+                        Remaining balance: <span className="font-medium text-foreground">{formatRwf(g.loanRemainingBalance)}</span>
+                      </p>
+                      <Button variant="ghost" size="sm" className="mt-1 w-fit -ml-2" render={<Link to={`/member/loans/${g.loanId}`} />}>
+                        View loan
+                      </Button>
                     </CardContent>
                   </Card>
                 );
@@ -161,7 +153,7 @@ export default function MemberGuarantorsPage() {
         tone={pendingAction?.accept ? "default" : "destructive"}
         onConfirm={() => {
           if (pendingAction) {
-            respondGuarantee(pendingAction.guaranteeId, pendingAction.accept, user.fullName);
+            respondGuarantee.mutate({ id: pendingAction.guaranteeId, accept: pendingAction.accept });
           }
         }}
       />

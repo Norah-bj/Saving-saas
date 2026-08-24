@@ -1,46 +1,52 @@
+import * as React from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Loader2, LogIn } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
-  ArrowRight,
-  Landmark,
-  Users,
-  Calculator,
-  Gavel,
-  Briefcase,
-  ShieldCheck,
-  Crown,
-} from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { useAuthStore } from "@/lib/store/auth-store";
 import { useSessionStore } from "@/lib/store/session-store";
-import { MEMBERS } from "@/lib/mock-data";
 import { HOME_PAGE } from "@/lib/nav-config";
-import { ROLE_LABEL, type Role } from "@/lib/types";
-import type { LucideIcon } from "lucide-react";
+import { ApiError } from "@/lib/api/client";
 
-interface Persona {
-  userId: string;
-  role: Role;
-  blurb: string;
-  icon: LucideIcon;
-}
-
-const PERSONAS: Persona[] = [
-  { userId: "u-nkurunziza", role: "member", blurb: "Head Teacher — savings, shares & loans", icon: Landmark },
-  { userId: "u-habimana", role: "secretary", blurb: "Cooperative Secretary — membership & operations", icon: Users },
-  { userId: "u-uwase", role: "accountant", blurb: "Chief Accountant — finance & disbursement", icon: Calculator },
-  { userId: "u-nsengimana", role: "loan-committee", blurb: "Loan Committee Chair — reviews & approvals", icon: Gavel },
-  { userId: "u-byiringiro", role: "hr", blurb: "HR Officer — payroll deductions", icon: Briefcase },
-  { userId: "u-ingabire", role: "org-admin", blurb: "Organization Admin — full org management", icon: ShieldCheck },
-  { userId: "u-twagirayezu", role: "super-admin", blurb: "Platform Super Admin — all organizations", icon: Crown },
-];
+const schema = z.object({
+  email: z.string().min(1, "Email is required").email("Enter a valid email address"),
+  password: z.string().min(1, "Password is required"),
+});
+type FormValues = z.infer<typeof schema>;
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const login = useSessionStore((s) => s.login);
+  const login = useAuthStore((s) => s.login);
+  const switchRole = useSessionStore((s) => s.switchRole);
+  const [error, setError] = React.useState<string | null>(null);
 
-  function handleLogin(persona: Persona) {
-    login(persona.userId, persona.role);
-    navigate(HOME_PAGE[persona.role]);
+  const form = useForm<FormValues>({
+    resolver: zodResolver(schema),
+    defaultValues: { email: "", password: "" },
+  });
+
+  async function onSubmit(values: FormValues) {
+    setError(null);
+    try {
+      const user = await login(values.email, values.password);
+      const homeRole = user.roles[0];
+      switchRole(homeRole);
+      navigate(HOME_PAGE[homeRole]);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
+    }
   }
 
   return (
@@ -52,48 +58,59 @@ export default function LoginPage() {
           </div>
           <span className="text-lg font-semibold">IkiminaConnect</span>
         </div>
-        <h1 className="mt-2 text-2xl font-semibold tracking-tight">
-          Welcome back
-        </h1>
+        <h1 className="mt-2 text-2xl font-semibold tracking-tight">Welcome back</h1>
         <p className="max-w-md text-sm text-muted-foreground">
-          This is a demo environment. Choose a persona below to sign in and explore
-          that role&apos;s workspace — every admin role is also a member and can
-          switch workspaces from the sidebar.
+          Sign in with your cooperative account to access your workspace.
         </p>
       </div>
 
-      <div className="grid w-full max-w-3xl gap-3 sm:grid-cols-2">
-        {PERSONAS.map((persona) => {
-          const member = MEMBERS.find((m) => m.id === persona.userId)!;
-          const Icon = persona.icon;
-          return (
-            <Card
-              key={persona.userId}
-              role="button"
-              tabIndex={0}
-              onClick={() => handleLogin(persona)}
-              onKeyDown={(e) => e.key === "Enter" && handleLogin(persona)}
-              className="cursor-pointer transition-colors hover:border-primary/50 hover:bg-accent/40"
-            >
-              <CardContent className="flex items-center gap-3 px-4 py-3">
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-                  <Icon className="size-5" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="truncate font-medium">{member.fullName}</span>
-                    <Badge variant="secondary" className="shrink-0">
-                      {ROLE_LABEL[persona.role]}
-                    </Badge>
-                  </div>
-                  <p className="truncate text-xs text-muted-foreground">{persona.blurb}</p>
-                </div>
-                <ArrowRight className="size-4 shrink-0 text-muted-foreground" />
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+      <Card className="w-full max-w-sm">
+        <CardHeader>
+          <CardTitle className="text-base font-semibold">Sign in</CardTitle>
+          <CardDescription>Enter your email and password.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4">
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                      <Input type="email" autoComplete="email" placeholder="you@organization.rw" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Password</FormLabel>
+                    <FormControl>
+                      <Input type="password" autoComplete="current-password" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              {error && <p className="text-sm text-destructive">{error}</p>}
+              <Button type="submit" disabled={form.formState.isSubmitting} className="mt-1">
+                {form.formState.isSubmitting ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <LogIn className="size-4" />
+                )}
+                Sign in
+              </Button>
+            </form>
+          </Form>
+        </CardContent>
+      </Card>
 
       <p className="mt-8 text-xs text-muted-foreground">
         New organization?{" "}

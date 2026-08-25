@@ -5,14 +5,14 @@ import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { useCurrentUser } from "@/lib/hooks/use-current-user";
-import { useDataStore } from "@/lib/store/data-store";
+import { useNotifications } from "@/lib/api/notifications";
 import { NAV_CONFIG } from "@/lib/nav-config";
 import { ROLE_LABEL } from "@/lib/types";
 
 export function Topbar() {
   const { pathname } = useLocation();
   const { user, activeRole } = useCurrentUser();
-  const notifications = useDataStore((s) => s.notifications);
+  const { data: notifications = [] } = useNotifications();
 
   if (!user || !activeRole) return null;
 
@@ -20,7 +20,7 @@ export function Topbar() {
   const current = items.find(
     (item) => pathname === item.href || pathname.startsWith(item.href + "/")
   );
-  const unread = notifications.filter((n) => n.userId === user.id && !n.read).length;
+  const unread = notifications.filter((n) => !n.read).length;
 
   return (
     <header className="sticky top-0 z-30 flex h-12 shrink-0 items-center gap-2 border-b bg-background/95 px-4 backdrop-blur supports-backdrop-filter:bg-background/60">

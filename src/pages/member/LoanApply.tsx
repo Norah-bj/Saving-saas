@@ -26,10 +26,14 @@ import {
 import { DataTable } from "@/components/shared/data-table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useCurrentUser } from "@/lib/hooks/use-current-user";
-import { useDataStore } from "@/lib/store/data-store";
+import { useOrganization } from "@/lib/api/organization";
+import { useSavingsLedger } from "@/lib/api/savings";
+import { useGuarantorCandidates } from "@/lib/api/members";
+import { useApplyLoan } from "@/lib/api/loans";
 import { calculateLoan } from "@/lib/loan-calculator";
-import { monthsBetween, MOCK_TODAY } from "@/lib/mock-data";
+import { monthsBetween } from "@/lib/mock-data";
 import { formatRwf } from "@/lib/format";
+import { ApiError } from "@/lib/api/client";
 
 const schema = z.object({
   amount: z.number().min(50000, "Minimum loan amount is 50,000 RWF"),
@@ -43,12 +47,13 @@ type FormValues = z.infer<typeof schema>;
 export default function ApplyForLoanPage() {
   const navigate = useNavigate();
   const { user } = useCurrentUser();
-  const organization = useDataStore((s) => s.organization);
-  const savingsBalance = useDataStore((s) => s.savingsBalance);
-  const members = useDataStore((s) => s.members);
-  const applyForLoan = useDataStore((s) => s.applyForLoan);
+  const { data: organization } = useOrganization();
+  const { currentBalance: savings } = useSavingsLedger(user?.id);
+  const { data: potentialGuarantors = [] } = useGuarantorCandidates();
+  const applyForLoan = useApplyLoan();
+  const [submitError, setSubmitError] = React.useState<string | null>(null);
 
-  const periodOptions = organization.allowedRepaymentPeriods;
+  const periodOptions = organization?.allowedRepaymentPeriods ?? [3, 6, 12, 24];
   const defaultPeriod = periodOptions.includes(12) ? 12 : periodOptions[0];
 
   const form = useForm<FormValues>({
@@ -60,19 +65,17 @@ export default function ApplyForLoanPage() {
   const periodMonths = form.watch("periodMonths") || defaultPeriod;
   const guarantorId = form.watch("guarantorId");
 
-  if (!user) return null;
+  if (!user || !organization) return null;
 
-  const savings = savingsBalance(user.id);
-  const tenureMonths = monthsBetween(user.dateJoined, MOCK_TODAY);
+  // Real current date, unlike the frontend mock's hardcoded MOCK_TODAY demo anchor.
+  const tenureMonths = monthsBetween(user.dateJoined, new Date().toISOString());
   const eligible = tenureMonths >= organization.minMonthsBeforeEligible;
+  // Backend rates are already fractions (0.05 = 5%) — no /100 needed, unlike
+  // the mock's whole-percentage organization.loanInterestRate.
   const calc = calculateLoan(amount, savings, periodMonths, {
-    interestRate: organization.loanInterestRate / 100,
-    insuranceRate: organization.loanInsuranceRate / 100,
+    interestRate: organization.loanInterestRate,
+    insuranceRate: organization.loanInsuranceRate,
   });
-
-  const potentialGuarantors = members.filter(
-    (m) => m.organizationId === user.organizationId && m.id !== user.id && m.status === "active"
-  );
 
   function onSubmit(values: FormValues) {
     if (calc.guarantorRequired && !values.guarantorId) {
@@ -81,13 +84,19 @@ export default function ApplyForLoanPage() {
       });
       return;
     }
-    const loan = applyForLoan(user!.id, {
-      amount: values.amount,
-      purpose: values.purpose,
-      periodMonths: values.periodMonths,
-      guarantorId: values.guarantorId,
-    });
-    navigate(`/member/loans/${loan.id}`);
+    setSubmitError(null);
+    applyForLoan.mutate(
+      {
+        amount: values.amount,
+        purpose: values.purpose,
+        periodMonths: values.periodMonths,
+        guarantorId: values.guarantorId,
+      },
+      {
+        onSuccess: (loan) => navigate(`/member/loans/${loan.id}`),
+        onError: (err) => setSubmitError(err instanceof ApiError ? err.message : "Something went wrong."),
+      }
+    );
   }
 
   return (
@@ -95,8 +104,8 @@ export default function ApplyForLoanPage() {
       <div>
         <h1 className="text-lg font-semibold tracking-tight">Apply for a Loan</h1>
         <p className="text-sm text-muted-foreground">
-          Interest is a flat {organization.loanInterestRate}% of the loan amount. A{" "}
-          {organization.loanInsuranceRate}% insurance fee only applies when the amount you
+          Interest is a flat {organization.loanInterestRate * 100}% of the loan amount. A{" "}
+          {organization.loanInsuranceRate * 100}% insurance fee only applies when the amount you
           request exceeds your total savings — that&apos;s exactly when a guarantor is required.
         </p>
       </div>
@@ -210,7 +219,8 @@ export default function ApplyForLoanPage() {
                   />
                 )}
 
-                <Button type="submit" className="mt-2 w-fit">
+                {submitError && <p className="text-sm text-destructive">{submitError}</p>}
+                <Button type="submit" className="mt-2 w-fit" disabled={applyForLoan.isPending}>
                   Submit Application
                 </Button>
               </form>
@@ -234,7 +244,7 @@ export default function ApplyForLoanPage() {
               {calc.guarantorRequired ? <ShieldAlert className="mt-0.5 size-4 shrink-0" /> : <ShieldCheck className="mt-0.5 size-4 shrink-0" />}
               <span>
                 {calc.guarantorRequired
-                  ? `This amount exceeds your savings, so a guarantor and a ${organization.loanInsuranceRate}% insurance fee are required.`
+                  ? `This amount exceeds your savings, so a guarantor and a ${organization.loanInsuranceRate * 100}% insurance fee are required.`
                   : "This amount is within your savings — no guarantor or insurance fee required."}
               </span>
             </div>
@@ -242,9 +252,9 @@ export default function ApplyForLoanPage() {
             <dl className="grid grid-cols-2 gap-y-2 text-sm">
               <dt className="text-muted-foreground">Principal</dt>
               <dd className="text-right font-medium">{formatRwf(calc.amount)}</dd>
-              <dt className="text-muted-foreground">Interest ({organization.loanInterestRate}%)</dt>
+              <dt className="text-muted-foreground">Interest ({organization.loanInterestRate * 100}%)</dt>
               <dd className="text-right font-medium">{formatRwf(calc.interest)}</dd>
-              <dt className="text-muted-foreground">Insurance ({organization.loanInsuranceRate}%)</dt>
+              <dt className="text-muted-foreground">Insurance ({organization.loanInsuranceRate * 100}%)</dt>
               <dd className="text-right font-medium">{formatRwf(calc.insuranceFee)}</dd>
               <dt className="border-t pt-2 font-medium">Total Payable</dt>
               <dd className="border-t pt-2 text-right font-semibold">{formatRwf(calc.totalPayable)}</dd>

@@ -1,11 +1,11 @@
 import { CalendarDays, Clock, MapPin } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/shared/empty-state";
-import { useDataStore } from "@/lib/store/data-store";
+import { useMeetings } from "@/lib/api/secretary-ops";
 import { formatDate } from "@/lib/format";
 
 export default function MemberMeetingsPage() {
-  const meetings = useDataStore((s) => s.meetings);
+  const { data: meetings = [] } = useMeetings();
 
   const upcoming = meetings
     .filter((m) => m.status === "upcoming")

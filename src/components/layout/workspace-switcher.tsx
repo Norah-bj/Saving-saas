@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/sidebar";
 import { useCurrentUser } from "@/lib/hooks/use-current-user";
 import { useSessionStore } from "@/lib/store/session-store";
-import { useDataStore } from "@/lib/store/data-store";
+import { useOrganization } from "@/lib/api/organization";
 import { HOME_PAGE } from "@/lib/nav-config";
 import { ROLE_LABEL, type Role } from "@/lib/types";
 
@@ -34,13 +34,13 @@ export function WorkspaceSwitcher() {
   const navigate = useNavigate();
   const { user, activeRole } = useCurrentUser();
   const switchRole = useSessionStore((s) => s.switchRole);
-  const organization = useDataStore((s) => s.organization);
+  const { data: organization } = useOrganization();
 
   if (!user || !activeRole) return null;
 
   const isSuperAdmin = user.roles.includes("super-admin");
-  const orgLabel = isSuperAdmin ? "IkiminaConnect Platform" : organization.shortName;
-  const orgInitials = isSuperAdmin ? "IK" : organization.logoInitials;
+  const orgLabel = isSuperAdmin ? "IkiminaConnect Platform" : (organization?.shortName ?? "…");
+  const orgInitials = isSuperAdmin ? "IK" : (organization?.logoInitials ?? "…");
 
   return (
     <SidebarMenu>

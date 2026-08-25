@@ -5,6 +5,7 @@ import { ProtectedLayout } from "@/components/layout/protected-layout";
 const LandingPage = lazy(() => import("@/pages/LandingPage"));
 const Login = lazy(() => import("@/pages/auth/Login"));
 const Register = lazy(() => import("@/pages/auth/Register"));
+const VerifyEmail = lazy(() => import("@/pages/auth/VerifyEmail"));
 const ForgotPassword = lazy(() => import("@/pages/auth/ForgotPassword"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
 const LoanContract = lazy(() => import("@/pages/LoanContract"));
@@ -82,6 +83,7 @@ export function AppRoutes() {
       <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/verify-email" element={<VerifyEmail />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
 
       <Route element={<ProtectedLayout />}>

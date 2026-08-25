@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 import rw.ikiminaconnect.audit.AuditService;
 import rw.ikiminaconnect.common.ConflictException;
 import rw.ikiminaconnect.common.ForbiddenException;
+import rw.ikiminaconnect.common.NotFoundException;
 import rw.ikiminaconnect.member.AppUser;
 import rw.ikiminaconnect.member.MemberRepository;
 import rw.ikiminaconnect.member.MemberStatus;
@@ -41,6 +42,7 @@ public class AuthService {
     private final JwtService jwtService;
     private final RefreshTokenService refreshTokenService;
     private final AuditService auditService;
+    private final EmailVerificationService emailVerificationService;
 
     public AuthService(
             OrganizationRepository organizationRepository,
@@ -49,7 +51,8 @@ public class AuthService {
             PasswordEncoder passwordEncoder,
             JwtService jwtService,
             RefreshTokenService refreshTokenService,
-            AuditService auditService) {
+            AuditService auditService,
+            EmailVerificationService emailVerificationService) {
         this.organizationRepository = organizationRepository;
         this.memberRepository = memberRepository;
         this.shareHoldingRepository = shareHoldingRepository;
@@ -57,6 +60,7 @@ public class AuthService {
         this.jwtService = jwtService;
         this.refreshTokenService = refreshTokenService;
         this.auditService = auditService;
+        this.emailVerificationService = emailVerificationService;
     }
 
     @Transactional
@@ -114,6 +118,8 @@ public class AuthService {
         auditService.record(organization.getId(), admin.getId(), admin.getFullName(),
                 "Registered organization", organization.getName());
 
+        emailVerificationService.issueAndSend(admin);
+
         return issueTokens(admin);
     }
 
@@ -144,6 +150,27 @@ public class AuthService {
         refreshTokenService.revoke(request.refreshToken());
     }
 
+    @Transactional
+    public void verifyEmail(String token) {
+        java.util.UUID userId = emailVerificationService.verify(token);
+        AppUser user = memberRepository.findById(userId)
+                .orElseThrow(() -> new ForbiddenException("User no longer exists."));
+        user.verifyEmail();
+        memberRepository.save(user);
+        auditService.record(user.getOrganizationId(), user.getId(), user.getFullName(),
+                "Verified email address", user.getEmail());
+    }
+
+    @Transactional
+    public void resendVerification(java.util.UUID userId) {
+        AppUser user = memberRepository.findById(userId)
+                .orElseThrow(() -> new NotFoundException("User not found."));
+        if (user.isEmailVerified()) {
+            throw new ConflictException("Email is already verified.");
+        }
+        emailVerificationService.issueAndSend(user);
+    }
+
     @Transactional(readOnly = true)
     public MeResponse me(java.util.UUID userId) {
         AppUser user = memberRepository.findById(userId)
@@ -155,7 +182,8 @@ public class AuthService {
         return new MeResponse(
                 user.getId(), user.getOrganizationId(), user.getNationalId(), user.getEmployeeId(),
                 user.getFullName(), user.getEmail(), user.getPhone(), user.getDepartment(), user.getPosition(),
-                user.getStatus().name(), roleValues, user.isCommitteeChair(), user.getMonthlySalaryRwf());
+                user.getStatus().name(), roleValues, user.isCommitteeChair(), user.getMonthlySalaryRwf(),
+                user.getDateJoined(), user.isEmailVerified());
     }
 
     private AuthResponse issueTokens(AppUser user) {
@@ -170,7 +198,8 @@ public class AuthService {
                 .map(Role::toValue)
                 .toList();
         var summary = new AuthResponse.UserSummary(
-                user.getId(), user.getOrganizationId(), user.getFullName(), roleValues, user.isCommitteeChair());
+                user.getId(), user.getOrganizationId(), user.getFullName(), roleValues, user.isCommitteeChair(),
+                user.isEmailVerified());
         return new AuthResponse(accessToken, refreshToken, jwtService.accessTokenTtlSeconds(), summary);
     }
 

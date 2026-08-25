@@ -1,6 +1,7 @@
 package rw.ikiminaconnect.auth;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
@@ -17,5 +18,7 @@ public record MeResponse(
         String status,
         List<String> roles,
         boolean committeeChair,
-        BigDecimal monthlySalaryRwf) {
+        BigDecimal monthlySalaryRwf,
+        LocalDate dateJoined,
+        boolean emailVerified) {
 }

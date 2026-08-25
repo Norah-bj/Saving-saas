@@ -52,6 +52,17 @@ public class ShareHolding {
         this.updatedAt = Instant.now();
     }
 
+    public void removeShares(int shares) {
+        if (shares <= 0) {
+            throw new IllegalArgumentException("shares must be positive");
+        }
+        if (shares > this.totalShares) {
+            throw new IllegalStateException("Cannot remove more shares than currently held.");
+        }
+        this.totalShares -= shares;
+        this.updatedAt = Instant.now();
+    }
+
     public UUID getMemberId() {
         return memberId;
     }

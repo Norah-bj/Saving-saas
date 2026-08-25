@@ -15,11 +15,15 @@ tenant-scoped table (see [ARCHITECTURE.md](ARCHITECTURE.md)). Migrations via Fly
 | `V3__loans.sql` | 5 | `loans`, `loan_timeline_events`, `guarantees` |
 | `V4__disbursement_and_repayment.sql` | 9-10 | `ledger_transactions` |
 | `V5__secretary_ops_and_org_admin.sql` | 12 | `meetings`, `announcements`, `documents` |
+| `V6__backups_and_notifications.sql` | 14, 16 | `backup_records`, `notifications` |
+| `V7__exit_and_share_withdrawal_requests.sql` | 13 | `exit_requests`, `share_withdrawal_requests` |
 
 Phases 6-8 and 11 added no migration (guarantor response, committee review, and contract
 generation reused the phase-5 `loans`/`guarantees` tables; phase 11 reporting/ledger is read-only
-against existing tables). Phase 13 also added no migration — role assignment, member status, and
-organization profile/loan-policy updates all use columns that already existed from V1.
+against existing tables). Phase 13's role-assignment/member-status/org-settings part added no
+migration either — those use columns that already existed from V1; only its exit/share-withdrawal
+part (V7) needed new tables. Phase 15 (the parts built — see [FEATURES.md](FEATURES.md)) added no
+migration, reusing `organizations` and `audit_log` as-is.
 
 **Rule**: once applied, a migration file is immutable — a later phase that needs schema changes
 adds a new `V{n+1}__description.sql`, never edits an existing one.
@@ -49,6 +53,16 @@ adds a new `V{n+1}__description.sql`, never edits an existing one.
   is metadata-only — no real file storage exists behind it, matching the frontend mock exactly
   (see [KNOWN_ISSUES.md](KNOWN_ISSUES.md)). `meetings.agenda` and `meetings.attendee_ids` are
   native Postgres arrays (`text[]`/`uuid[]`), same pattern as `organizations.allowed_repayment_periods`.
+- **backup_records** — `organization_id` nullable (NULL = platform-wide, same pattern as
+  `audit_log`). Metadata only; `size_mb` is a row-count-based proxy, not a real file size — there
+  is no `pg_dump`/restore behind this table. See [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
+- **notifications** — scoped by `user_id` alone (no `organization_id` column needed — a personal
+  inbox, same "always mine" pattern as `guarantees`). Nothing currently inserts into this table
+  except direct SQL for testing; no service creates a notification yet.
+- **exit_requests** / **share_withdrawal_requests** — member-initiated, staff-decided. Approving a
+  share withdrawal writes real rows elsewhere too: decrements `share_holdings.total_shares` and
+  inserts a `WITHDRAWAL`-typed `savings_transactions` row — this table only records the
+  request/decision itself, not the resulting money movement.
 
 ## Constraints worth knowing
 
@@ -61,6 +75,8 @@ adds a new `V{n+1}__description.sql`, never edits an existing one.
 
 ## Seed / test data
 
-No seed data is scripted — all dev-database rows so far were created through real API calls
-during interactive testing sessions across phases. See [DEVELOPMENT.md](DEVELOPMENT.md) for the
-current known dev test credential and the local Postgres connection details.
+No seed data is scripted — almost all dev-database rows were created through real API calls during
+interactive testing sessions across phases. The one exception: the dev SUPER_ADMIN test user (an
+`organization_id = NULL` row) was inserted directly via SQL, since no API path can create one
+(`/auth/register` only ever creates an ORG_ADMIN + new org). See [DEVELOPMENT.md](DEVELOPMENT.md)
+for the current known dev test credentials and the local Postgres connection details.

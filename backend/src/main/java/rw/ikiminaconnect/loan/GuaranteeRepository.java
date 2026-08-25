@@ -13,6 +13,10 @@ public interface GuaranteeRepository extends JpaRepository<Guarantee, UUID> {
     List<Guarantee> findAllByOrganizationIdAndGuarantorIdOrderByRequestedDateDesc(
             UUID organizationId, UUID guarantorId);
 
+    // Exit eligibility (membership.ExitRequestService).
+    List<Guarantee> findAllByOrganizationIdAndGuarantorIdAndStatus(
+            UUID organizationId, UUID guarantorId, GuaranteeStatus status);
+
     // The guarantor-lock rule (BACKEND_CONTRACT.md): a member actively
     // guaranteeing someone else's loan cannot apply for a new loan of their
     // own until that guarantee is released.

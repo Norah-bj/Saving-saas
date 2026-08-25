@@ -86,6 +86,13 @@ public class AppUser {
     @Column(name = "password_hash", nullable = false)
     private String passwordHash;
 
+    // False only for a self-registering org-admin (POST /auth/register) until
+    // they click the link in EmailVerificationService's email. Members added
+    // by staff (MemberService.create) are marked verified immediately — the
+    // adding admin already vouches for them. See EmailVerificationFilter.
+    @Column(name = "email_verified", nullable = false)
+    private boolean emailVerified = false;
+
     @Column(name = "date_joined", nullable = false)
     private LocalDate dateJoined;
 
@@ -169,6 +176,15 @@ public class AppUser {
         this.status = MemberStatus.suspended;
     }
 
+    /** Set on approval of an exit request — see membership.ExitRequestService. Permanent; no un-exit path exists. */
+    public void exit() {
+        this.status = MemberStatus.exited;
+    }
+
+    public void verifyEmail() {
+        this.emailVerified = true;
+    }
+
     public UUID getId() {
         return id;
     }
@@ -215,6 +231,10 @@ public class AppUser {
 
     public String getPasswordHash() {
         return passwordHash;
+    }
+
+    public boolean isEmailVerified() {
+        return emailVerified;
     }
 
     public LocalDate getDateJoined() {

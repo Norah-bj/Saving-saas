@@ -9,7 +9,14 @@
   touched). On Windows, new shell calls don't reliably inherit a just-changed registry PATH — set
   `$env:JAVA_HOME`/`$env:PATH` explicitly at the top of every command that needs them rather than
   assuming persistence.
-- **Frontend**: `npm install && npm run dev`, see the root [README.md](../README.md).
+- **Frontend**: `npm install && npm run dev`, see the root [README.md](../README.md). Copy
+  `.env.example` to `.env` and set `VITE_API_URL` (defaults to `http://localhost:8080/api/v1`) —
+  needed now that the member workspace calls the real backend instead of the zustand mock; see
+  [ARCHITECTURE.md](ARCHITECTURE.md#frontendbackend-integration). To exercise the wired pages
+  locally, start the backend first (`mvn spring-boot:run` from `backend/`, wait for `Started
+  IkiminaConnectApplication`), then `npm run dev` — both servers run independently, nothing
+  auto-starts the other. The non-member workspaces don't need the backend running yet since they
+  still read from the mock.
 - **Dev test credentials** (for smoke-testing against real data in the `tcs2` org rather than a
   freshly-registered empty org) — all `DevTest123!`, all reset via a direct DB `UPDATE` because the
   original test-session passwords were never recorded (`UPDATE users SET password_hash =
@@ -17,8 +24,20 @@
   same way if one stops working, rather than guessing):
   - `admin2@tcs2.rw` — org-admin + hr + loan-committee + member, status `active`
   - `chair@tcs2.rw` — loan-committee (committee chair) + member, status `active`
-  - `plain@tcs2.rw` — member only, status `pending` (useful for testing plain-member-vs-staff
-    authorization and visibility filtering — see [BUSINESS_RULES.md](BUSINESS_RULES.md))
+  - `plain@tcs2.rw` — **secretary** + member (promoted during phase 13 role-assignment testing —
+    no longer a genuinely plain member), status `pending`. Also now holds a disbursed test loan
+    (`TC-2026-TEST-BLOCK`) and an active guarantee on `TC-2026-002`, making it a ready-made
+    "blocked from exiting" fixture — see [BUSINESS_RULES.md](BUSINESS_RULES.md).
+  - `g2@tcs2.rw` — member only, status `active` — use this one for genuinely-plain-member /
+    staff-authorization testing now that `plain@tcs2.rw` isn't plain anymore.
+  - `zero@tcs2.rw` — status `exited` (used to verify the exit-approval flow end-to-end, including
+    that login is actually blocked afterward) — **cannot log in**, kept as a record of that test,
+    don't reset its password expecting it to work.
+  - `superadmin@ikiminaconnect.rw` / `DevTest123!` — SUPER_ADMIN, `organization_id = NULL`. Not
+    reset from an existing row — this one was **inserted from scratch** via SQL, since no API path
+    creates a super-admin (`/auth/register` only creates ORG_ADMIN + a new org). If it's ever
+    deleted, recreate it the same way: insert into `users` with `organization_id = NULL`, then
+    insert `('<that user's id>', 'super-admin', false)` into `user_roles`.
 
 ## Environment variables
 

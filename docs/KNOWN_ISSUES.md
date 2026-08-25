@@ -9,9 +9,10 @@
   that hasn't been made yet.
 - **`/auth/register` cannot attach a new user to an existing organization** — it always creates a
   brand-new org + its first ORG_ADMIN. There is no invite-a-new-staff-member-to-my-org flow.
-- **No exit endpoint, and no share-withdrawal endpoint.** Exit eligibility rules are ported into
-  docs/memory but there's no `POST /members/{id}/exit` or `POST /share-withdrawals/{id}/decision`
-  yet — remaining phase-13 scope.
+- **No exit-settlement page/endpoint.** `secretary/ExitRequests.tsx` links an approved request to
+  `/members/{id}/exit-settlement` — a separate settlement-calculation feature that was never
+  requested and isn't built. Exit/share-withdrawal requests themselves (submit, decide, real share
+  and savings-balance movement on approval) are fully built — see [FEATURES.md](FEATURES.md).
 - **No committee-chair assignment endpoint.** `PUT /members/{id}/roles` (phase 13) replaces a
   member's role set but deliberately never grants chair status — it's still only settable directly
   via `UPDATE user_roles SET is_committee_chair = true` against the dev database. No frontend page
@@ -26,6 +27,44 @@
   phase 13 — just newly surfaced by it. `MemberStatus.pending` doesn't block login either (only
   `suspended`/`exited` do in `AuthService.login`), so this hasn't blocked anything functionally,
   but it means member status is not actually meaningful yet for freshly created members.
+- **No real backup mechanism, and no restore endpoint at all.** `backup_records` (phase 14) is
+  metadata tracking only — `size_mb` is a row-count-based proxy, not an actual file size, and
+  nothing performs a real `pg_dump`. This matches the frontend mock, which also never implements
+  restore (its "Restore" button only sets local component state, calling no store action). Real
+  disaster-recovery automation is future work, and restoring a shared-schema multi-tenant database
+  per-organization is a genuinely harder problem than a single-tenant `pg_dump`/`pg_restore` pair —
+  worth designing deliberately when it's actually needed, not bolted on here.
+- **Nothing creates a notification.** Phase 16 only built the inbox read side (list, mark-read,
+  mark-all-read) — same gap as the frontend mock, where `NOTIFICATIONS` is static seed data despite
+  per-type icons implying loan/meeting/announcement/savings events should push one. Wiring other
+  services (loan status changes, new meetings, new announcements, ...) to actually create
+  notifications is future work, deliberately not done here to avoid touching many already-shipped
+  services' logic without an explicit decision on which events should notify whom.
+- **Platform Super Admin (phase 15) deliberately covers only part of `super-admin/`'s 9 pages.**
+  Asked the user how to scope it given the pages span very different maturity levels; chose "build
+  only the real parts." Built: Organizations (list/status/plan), Analytics and Billing's
+  plan-display (both derive from the same `GET /organizations` response, no new endpoint needed),
+  AuditLogs. **Deliberately not built**: Monitoring (fabricated system uptime/response-time/DB-size
+  numbers with no real observability pipeline behind them), Settings (fabricated platform API
+  keys — this backend has no API-key auth mechanism, JWT-only), Support (a hardcoded ticket list
+  not even wired to the mock's own data layer, i.e. no spec exists to port). Building those three
+  for real would mean inventing entire new subsystems unrelated to anything else in this app —
+  revisit only with an explicit decision to build real observability/API-key-auth/ticketing.
+- **No SUPER_ADMIN bootstrap flow.** The only way to create a platform super-admin user today is a
+  direct SQL insert (`organization_id = NULL`, a `user_roles` row with `role = 'super-admin'`) —
+  `/auth/register` only ever creates an ORG_ADMIN + brand-new org. Fine for one dev-only test
+  account; a real platform launch needs a real way to provision the first super-admin.
+- **Email verification sends no real email yet.** `EmailService`'s only implementation
+  (`ConsoleEmailService`) logs the verification link instead of sending it — chosen deliberately so
+  this feature wasn't blocked on picking/paying for a real provider before one was needed. Before
+  any real user registers, swap in a real implementation (SMTP, SendGrid, SES, ...) and remove
+  `ConsoleEmailService`'s `@Service` annotation; nothing else needs to change, `EmailVerificationService`
+  only depends on the `EmailService` interface. See [BUSINESS_RULES.md](BUSINESS_RULES.md).
+- **Organization status doesn't gate anything.** `POST /organizations/{id}/status` (phase 15) can
+  mark an org `suspended`, but `AuthService.login` never checks the logging-in user's
+  *organization's* status, only the user's own — so a "suspended" organization's members can still
+  log in and use the API normally today. See [BUSINESS_RULES.md](BUSINESS_RULES.md). Not fixed
+  here since it touches already-shipped phase-1 auth code without being asked.
 
 ## Fixed bugs worth remembering (so the same mistake doesn't recur)
 
@@ -60,5 +99,18 @@
 
 - Row-Level Security (database-layer tenant isolation, defense-in-depth on top of the application
   layer) is designed but not implemented — see [ARCHITECTURE.md](ARCHITECTURE.md).
-- The frontend is not wired to the real backend at all yet — see [FEATURES.md](FEATURES.md).
+- The frontend is only partially wired to the real backend — the member workspace calls it now,
+  every other workspace (HR, Accountant, Secretary, Loan Committee, Org Admin, Super Admin) still
+  runs on the zustand mock. See [FEATURES.md](FEATURES.md) and
+  [ARCHITECTURE.md](ARCHITECTURE.md#frontendbackend-integration).
+- Within the now-wired member workspace, three pages are deliberately still mock-only:
+  `member/Policies.tsx` (reads `RolePolicy` content — no backend exists for this in any phase),
+  and `LoanContract.tsx`/`ExitSettlement.tsx` (the backend already generates real PDFs for these —
+  see [API.md](API.md)'s contract endpoints — but replacing the current bespoke HTML rendering with
+  a PDF embed is a real design decision, not a data-source swap, so it wasn't done as part of this
+  round of wiring).
+- No browser-automation tool was available while wiring the member workspace, so real
+  click-through testing (login, submit a savings top-up, apply for a loan, respond to a guarantee
+  request, etc.) in an actual browser has not been done by Claude and still needs a human — see
+  [TESTING.md](TESTING.md).
 - Backend is not deployed anywhere — see [DEPLOYMENT.md](DEPLOYMENT.md).

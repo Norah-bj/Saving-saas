@@ -2,12 +2,16 @@
 
 ## System shape
 
-Two independent codebases in this one repo, not yet wired together:
+Two codebases in this one repo, now **partially** wired together (member workspace only — see
+[Frontend/backend integration](#frontendbackend-integration) below):
 
 - **Frontend** (repo root `src/`): Vite + React 18 + TypeScript + React Router + Tailwind v4 +
-  shadcn/ui (base-ui flavor). Fully built and polished. Currently still runs against a zustand
-  store seeded with mock data (`src/lib/mock-data/`, `src/lib/store/data-store.ts`) — it does not
-  yet call the real backend. Deployed to Vercel (see [DEPLOYMENT.md](DEPLOYMENT.md)).
+  shadcn/ui (base-ui flavor), TanStack React Query for server state. Fully built and polished. The
+  member workspace now calls the real backend; every other workspace (HR, Accountant, Secretary,
+  Loan Committee, Org Admin, Super Admin) still runs entirely against the zustand mock store
+  (`src/lib/mock-data/`, `src/lib/store/data-store.ts`). Deployed to Vercel (see
+  [DEPLOYMENT.md](DEPLOYMENT.md)) — the deployed build still points at mock data until the backend
+  itself is deployed too.
 - **Backend** (`backend/`): Java 21 + Spring Boot 3.3.4 + PostgreSQL 17, built vertical-slice by
   vertical-slice against the frontend's existing mock behavior as the spec. Runs locally only —
   not yet deployed. See [FEATURES.md](FEATURES.md) for what's built so far.
@@ -100,6 +104,15 @@ otherwise-identical database — no entity or application-code changes required.
      lifetime). See [BUSINESS_RULES.md](BUSINESS_RULES.md).
 - `committeeChair` is a real boolean on the user's role assignment (`user_roles.is_committee_chair`),
   never inferred from the free-text `position` title string the frontend mock uses as a label.
+- **Third enforcement layer, request-wide rather than per-endpoint**: `EmailVerificationFilter`
+  runs as a servlet filter (after `JwtAuthenticationFilter`, before Spring MVC dispatch) and blocks
+  every request from an authenticated-but-unverified user except a small allowlist. Re-checks the
+  database on every request rather than trusting a JWT claim, same reasoning as committee-chair
+  above — verifying email should unblock access immediately, not after the next token refresh. See
+  [BUSINESS_RULES.md](BUSINESS_RULES.md).
+- **`email` package**: `EmailService` interface + `ConsoleEmailService` (the only implementation
+  today — logs instead of sending real mail, since no provider account/credentials exist yet).
+  Swappable behind the interface once one does — see [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
 
 ## Hyphenated-value enum pattern
 
@@ -114,3 +127,55 @@ real bug when violated — see [KNOWN_ISSUES.md](KNOWN_ISSUES.md) and
 - `@RequestParam`/`@PathVariable` bindings of these enums need an explicit `Converter` registered
   in `common/WebConfig.java` — Spring's default query-param binding calls `Enum.valueOf` directly
   and bypasses `fromValue`.
+
+## Frontend/backend integration
+
+The member workspace (`src/pages/member/*`, plus `Profile.tsx`/`Notifications.tsx`) is wired to
+the real backend; every other workspace still runs on the zustand mock store. Wiring follows this
+shape, established once and meant to be reused as later workspaces are converted:
+
+- **`src/lib/api/client.ts`** — a single shared `fetch` wrapper (`apiClient.get/post/put/patch`).
+  Attaches `Authorization: Bearer` from the auth store; on a 401 from any endpoint *except*
+  `/auth/*` itself, attempts one `/auth/refresh` and retries once before giving up and logging out
+  (a 401 from `/auth/login` itself means bad credentials, not an expired session — deliberately
+  not treated the same way). Throws a typed `ApiError` matching the backend's real `{error,
+  message, timestamp, details}` shape.
+- **`src/lib/store/auth-store.ts`** — `accessToken`/`refreshToken`/`user` (the JWT's lightweight
+  `AuthResponse.UserSummary`), persisted. Replaces the auth half of the old `session-store.ts`;
+  that file now only holds `activeRole` (which workspace the user is currently viewing) — a real
+  client-only UI concern, unrelated to authentication, kept separate on purpose.
+- **`src/lib/hooks/use-current-user.ts`** — combines the auth store's lightweight `user` with a
+  `useQuery(['me'], ...)` call to `GET /me` for the full profile (email, phone, department,
+  status, `dateJoined`, ...) that pages like `Profile.tsx` need beyond the JWT claims.
+- **One `src/lib/api/{resource}.ts` file per backend package** (`savings.ts`, `loans.ts`,
+  `guarantees.ts`, `membership.ts`, `secretary-ops.ts`, `notifications.ts`, `organization.ts`,
+  `members.ts`) — thin typed functions/React Query hooks built on `apiClient`, one file per
+  resource area mirroring the backend's own package structure.
+- **Adapter pattern, not redesign**: every converted page keeps its exact existing JSX. Where a
+  backend DTO's shape or units genuinely differ from what the existing frontend types/components
+  expect, the *API layer* adapts — not the page, not the shared component. Two real examples so
+  far (both in `src/lib/api/loans.ts`): backend interest/insurance rates are fractions (`0.05`)
+  but the frontend type/every consumer expects whole percentages (`5`); the backend's savings
+  ledger returns newest-first but every consumer (chart series, statement math) assumes
+  oldest-first. Both are corrected once, in the adapter, so shared components like
+  `LoanStagePipeline`/`LoanTimelineList` (typed against the frontend's own `Loan` type) work
+  unchanged against real data.
+- **List-endpoint vs. detail-endpoint gaps**: a couple of list endpoints (`GET /loans`) don't carry
+  every field the UI needs for a "highlighted" item (e.g. `remainingBalance` for the active-loan
+  summary card) — only the detail endpoint does. Rather than changing the list endpoint's shape,
+  the affected pages (`member/Loans.tsx`, `member/Dashboard.tsx`) fetch the one relevant item's
+  full detail separately. A pattern to repeat, not a one-off workaround.
+- **New minimal endpoint for a real access-control gap**: `GET /members/guarantor-candidates`
+  exists because the loan-application guarantor picker needs a list of fellow members, but the
+  only existing member-list endpoint (`GET /members`) is staff-only and returns sensitive fields
+  (national ID, savings balance) that shouldn't be broadly exposed. The new endpoint is
+  deliberately minimal (`{id, fullName, department}` only) and open to any authenticated member —
+  narrower access needs get a narrower endpoint, not a loosened existing one.
+- **CORS**: already configured before this integration work started (`app.cors.allowed-origins` in
+  `application.yml`, defaulting to `http://localhost:3000`) — verified working with real
+  browser-`Origin` requests, not just same-origin `curl`.
+- **No browser-automation tool exists in this environment.** Everything above was verified via real
+  HTTP round-trips (`curl` with a real `Origin` header, checked against a running backend) and a
+  clean `tsc -b`/`vite build`, plus a manual check that every converted page calls its data hooks
+  before any early `return null` (a common React crash `tsc` doesn't catch). Actually clicking
+  through the running app in a browser has not been done by Claude and still needs a human.

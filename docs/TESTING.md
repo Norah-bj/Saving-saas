@@ -60,6 +60,47 @@ the pattern used and what was actually exercised, so gaps are visible.
   actual login-time effect was checked, not just the DB row. A 409 was confirmed for an
   invalid status transition (suspending an already-`pending` member). Every mutating call checked
   against a corresponding `audit_log` row.
+- **Phases 14, 16**: backup creation's row-count-based `sizeMb` cross-checked against a hand-run
+  SQL query summing the same tables — matched exactly (103 rows / 50 = 2). Confirmed a plain
+  member gets 403 on both `GET`/`POST /backups`. Notification list/mark-read/mark-all-read tested
+  against rows seeded directly via SQL (no create endpoint exists to seed through the API — see
+  [KNOWN_ISSUES.md](KNOWN_ISSUES.md)); confirmed a different user attempting to mark someone else's
+  notification read gets 404, not 403 (so existence isn't leaked).
+- **Phase 15**: since no SUPER_ADMIN user existed anywhere, one was created via direct SQL insert
+  first (see [DEVELOPMENT.md](DEVELOPMENT.md)) — confirmed it logs in correctly with a null
+  `organizationId` in both the JWT and the login response, with no NPE anywhere in that path.
+  `GET /organizations`/`GET /audit-logs` [platform] confirmed working with real cross-org data (3
+  orgs; audit log count cross-checked against a hand-run `GROUP BY organization_id` query — matched
+  exactly after accounting for entries created mid-test). Confirmed an ORG_ADMIN (non-super-admin)
+  gets 403 on all platform endpoints, while still getting 200 on their own org via the existing
+  self-scoped `GET /organizations/{id}` — the two controllers correctly coexist on overlapping base
+  paths. Status transition 409 confirmed on a same-status no-op; a genuine `trial → active`
+  transition and a plan change both confirmed via the API response and cross-checked against the
+  resulting `audit_log` rows.
+- **Phase 13 completion (exit/share-withdrawal requests)**: full exit lifecycle tested against real
+  login behavior, not just DB state — submitted, approved, then confirmed the exited member's next
+  real login attempt is actually 403'd. Duplicate-pending-request rejection confirmed (409).
+  Ineligibility correctly blocks approval (409) — verified against a real disbursed test loan
+  (inserted via SQL) *and* a real active guarantee that already existed in the dev data from
+  earlier phase testing, both surfaced correctly by the same eligibility check. Share withdrawal:
+  insufficient-shares rejection confirmed at submission (409); approval cross-checked directly
+  against the DB — `share_holdings.total_shares` decremented exactly, and the resulting
+  `savings_transactions` row's `amount`/`balance_after` matched hand computation exactly (4 shares
+  × 5000 RWF = 20,000; balance 100,000 → 80,000). Rejection confirmed to leave shares/balance
+  untouched. Role gates re-verified with a genuinely plain-only test user after discovering the
+  original "plain" fixture had been promoted to SECRETARY by earlier phase-13 testing — see
+  [DEVELOPMENT.md](DEVELOPMENT.md).
+
+- **Email verification**: registered a new org via the real API, confirmed the response's
+  `emailVerified: false` and the console-logged verification link; confirmed `GET
+  /members`/`GET /organizations/{id}` correctly 403 `email_not_verified` for the new, unverified
+  admin while `GET /me` and `POST /auth/resend-verification` stayed reachable; confirmed a bad
+  token 403s and the real one 204s; confirmed the *same, still-valid* access token immediately
+  reached the previously-blocked endpoints right after verifying (no re-login/refresh needed) and
+  cross-checked the resulting `audit_log` row. Confirmed the migration's backfill against an
+  existing dev user (`admin2@tcs2.rw`), confirmed a staff-created member
+  (`POST /members`) is `email_verified = true` immediately via a direct `psql` read, and confirmed
+  a super-admin login is unaffected by the gate.
 
 ## Known testing gaps
 

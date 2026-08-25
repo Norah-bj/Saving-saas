@@ -47,4 +47,16 @@ public class AuthController {
     public MeResponse me(@AuthenticationPrincipal CurrentUser currentUser) {
         return authService.me(currentUser.userId());
     }
+
+    @PostMapping("/auth/verify-email")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void verifyEmail(@Valid @RequestBody VerifyEmailRequest request) {
+        authService.verifyEmail(request.token());
+    }
+
+    @PostMapping("/auth/resend-verification")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void resendVerification(@AuthenticationPrincipal CurrentUser currentUser) {
+        authService.resendVerification(currentUser.userId());
+    }
 }

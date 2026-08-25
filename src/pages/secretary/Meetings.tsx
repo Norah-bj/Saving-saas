@@ -25,8 +25,8 @@ import {
 } from "@/components/ui/form";
 import { DataTable } from "@/components/shared/data-table";
 import { ToneBadge, type Tone } from "@/components/shared/status-badge";
-import { useCurrentUser } from "@/lib/hooks/use-current-user";
-import { useDataStore } from "@/lib/store/data-store";
+import { useMeetings, useCreateMeeting, useRecordMinutes } from "@/lib/api/secretary-ops";
+import { ApiError } from "@/lib/api/client";
 import { formatDate } from "@/lib/format";
 import type { Meeting } from "@/lib/types";
 
@@ -51,10 +51,9 @@ const minutesSchema = z.object({
 type MinutesValues = z.infer<typeof minutesSchema>;
 
 export default function SecretaryMeetingsPage() {
-  const { user } = useCurrentUser();
-  const meetings = useDataStore((s) => s.meetings);
-  const createMeeting = useDataStore((s) => s.createMeeting);
-  const updateMeeting = useDataStore((s) => s.updateMeeting);
+  const { data: meetings = [] } = useMeetings();
+  const createMeeting = useCreateMeeting();
+  const recordMinutes = useRecordMinutes();
 
   const [scheduleOpen, setScheduleOpen] = React.useState(false);
   const [minutesFor, setMinutesFor] = React.useState<Meeting | null>(null);
@@ -69,14 +68,12 @@ export default function SecretaryMeetingsPage() {
     defaultValues: { minutesSummary: "" },
   });
 
-  if (!user) return null;
-
   const sorted = [...meetings].sort(
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
   );
 
   function onSchedule(values: ScheduleValues) {
-    createMeeting(
+    createMeeting.mutate(
       {
         title: values.title,
         date: values.date,
@@ -87,17 +84,26 @@ export default function SecretaryMeetingsPage() {
           .map((line) => line.trim())
           .filter(Boolean),
       },
-      user!.fullName
+      {
+        onSuccess: () => {
+          scheduleForm.reset({ title: "", date: "", time: "", location: "", agenda: "" });
+          setScheduleOpen(false);
+        },
+      }
     );
-    scheduleForm.reset({ title: "", date: "", time: "", location: "", agenda: "" });
-    setScheduleOpen(false);
   }
 
   function onRecordMinutes(values: MinutesValues) {
     if (!minutesFor) return;
-    updateMeeting(minutesFor.id, { minutesSummary: values.minutesSummary, status: "completed" });
-    minutesForm.reset({ minutesSummary: "" });
-    setMinutesFor(null);
+    recordMinutes.mutate(
+      { id: minutesFor.id, minutesSummary: values.minutesSummary },
+      {
+        onSuccess: () => {
+          minutesForm.reset({ minutesSummary: "" });
+          setMinutesFor(null);
+        },
+      }
+    );
   }
 
   return (
@@ -236,11 +242,18 @@ export default function SecretaryMeetingsPage() {
                   </FormItem>
                 )}
               />
+              {createMeeting.isError && (
+                <p className="text-sm text-destructive">
+                  {createMeeting.error instanceof ApiError ? createMeeting.error.message : "Something went wrong."}
+                </p>
+              )}
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setScheduleOpen(false)}>
                   Cancel
                 </Button>
-                <Button type="submit">Schedule Meeting</Button>
+                <Button type="submit" disabled={createMeeting.isPending}>
+                  Schedule Meeting
+                </Button>
               </DialogFooter>
             </form>
           </Form>
@@ -270,11 +283,18 @@ export default function SecretaryMeetingsPage() {
                   </FormItem>
                 )}
               />
+              {recordMinutes.isError && (
+                <p className="text-sm text-destructive">
+                  {recordMinutes.error instanceof ApiError ? recordMinutes.error.message : "Something went wrong."}
+                </p>
+              )}
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setMinutesFor(null)}>
                   Cancel
                 </Button>
-                <Button type="submit">Save Minutes &amp; Close Meeting</Button>
+                <Button type="submit" disabled={recordMinutes.isPending}>
+                  Save Minutes &amp; Close Meeting
+                </Button>
               </DialogFooter>
             </form>
           </Form>

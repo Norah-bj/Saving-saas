@@ -3,6 +3,15 @@ import type { AuthResponse } from "@/lib/store/auth-store";
 
 const BASE_URL = (import.meta.env.VITE_API_URL as string | undefined) ?? "http://localhost:8080/api/v1";
 
+/** Mirrors the backend's common.PageResponse<T> — shared by every paginated list endpoint. */
+export interface PageResponse<T> {
+  content: T[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+}
+
 export class ApiError extends Error {
   status: number;
   error: string;

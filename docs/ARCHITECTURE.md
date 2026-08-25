@@ -2,12 +2,12 @@
 
 ## System shape
 
-Two codebases in this one repo, now **partially** wired together (member workspace only — see
-[Frontend/backend integration](#frontendbackend-integration) below):
+Two codebases in this one repo, now **partially** wired together (member + secretary workspaces
+so far — see [Frontend/backend integration](#frontendbackend-integration) below):
 
 - **Frontend** (repo root `src/`): Vite + React 18 + TypeScript + React Router + Tailwind v4 +
   shadcn/ui (base-ui flavor), TanStack React Query for server state. Fully built and polished. The
-  member workspace now calls the real backend; every other workspace (HR, Accountant, Secretary,
+  member and secretary workspaces now call the real backend; every other workspace (HR, Accountant,
   Loan Committee, Org Admin, Super Admin) still runs entirely against the zustand mock store
   (`src/lib/mock-data/`, `src/lib/store/data-store.ts`). Deployed to Vercel (see
   [DEPLOYMENT.md](DEPLOYMENT.md)) — the deployed build still points at mock data until the backend
@@ -130,9 +130,10 @@ real bug when violated — see [KNOWN_ISSUES.md](KNOWN_ISSUES.md) and
 
 ## Frontend/backend integration
 
-The member workspace (`src/pages/member/*`, plus `Profile.tsx`/`Notifications.tsx`) is wired to
-the real backend; every other workspace still runs on the zustand mock store. Wiring follows this
-shape, established once and meant to be reused as later workspaces are converted:
+The member workspace (`src/pages/member/*`, plus `Profile.tsx`/`Notifications.tsx`) and the
+secretary workspace (`src/pages/secretary/*`) are wired to the real backend; every other workspace
+still runs on the zustand mock store. Wiring follows this shape, established once and meant to be
+reused as later workspaces are converted:
 
 - **`src/lib/api/client.ts`** — a single shared `fetch` wrapper (`apiClient.get/post/put/patch`).
   Attaches `Authorization: Bearer` from the auth store; on a 401 from any endpoint *except*
@@ -171,6 +172,16 @@ shape, established once and meant to be reused as later workspaces are converted
   (national ID, savings balance) that shouldn't be broadly exposed. The new endpoint is
   deliberately minimal (`{id, fullName, department}` only) and open to any authenticated member —
   narrower access needs get a narrower endpoint, not a loosened existing one.
+- **Shared `PageResponse<T>` type** (`client.ts`) mirrors the backend's `common.PageResponse<T>` —
+  every paginated list endpoint (`GET /members`, and future ones) returns the same
+  `{content, page, size, totalElements, totalPages}` shape, so one type covers all of them. Pages
+  that want "everything" rather than real pagination (matching the mock's assume-it-all-fits
+  shape) ask for one large page (`?size=500`) instead of paging through results — see
+  `useMembers()` in `members.ts` and [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
+- **`DataTable`'s per-row `cell` callbacks aren't components** — they run inline during the
+  parent's render, so a cell that needs its own data fetch (e.g. exit-eligibility per pending exit
+  request, to show a real-time "blocked" reason) must be pulled into an actual subcomponent so its
+  hook call is legal. See `secretary/ExitRequests.tsx`'s `BlockReasonCell`.
 - **CORS**: already configured before this integration work started (`app.cors.allowed-origins` in
   `application.yml`, defaulting to `http://localhost:3000`) — verified working with real
   browser-`Origin` requests, not just same-origin `curl`.

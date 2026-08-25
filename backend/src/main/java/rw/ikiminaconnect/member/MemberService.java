@@ -151,10 +151,11 @@ public class MemberService {
 
     private MemberSummary toSummary(AppUser user) {
         BigDecimal balance = savingsService.currentBalance(user.getOrganizationId(), user.getId());
+        List<String> roles = user.getRoles().stream().map(r -> r.getRole().toValue()).toList();
         return new MemberSummary(
                 user.getId(), user.getNationalId(), user.getEmployeeId(), user.getFullName(),
                 user.getDepartment(), user.getPosition(), user.getStatus().name(),
-                user.getDateJoined(), balance);
+                user.getDateJoined(), balance, roles);
     }
 
     private MemberDetail toDetail(AppUser user) {

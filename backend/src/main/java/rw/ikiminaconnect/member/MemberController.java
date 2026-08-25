@@ -1,6 +1,7 @@
 package rw.ikiminaconnect.member;
 
 import jakarta.validation.Valid;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -47,6 +48,12 @@ public class MemberController {
             @Valid @RequestBody CreateMemberRequest request) {
         return memberService.create(
                 currentUser.organizationId(), request, currentUser.userId(), currentUser.fullName());
+    }
+
+    /** Any authenticated member — deliberately open, deliberately minimal (see GuarantorCandidateDto). */
+    @GetMapping("/guarantor-candidates")
+    public List<GuarantorCandidateDto> guarantorCandidates(@AuthenticationPrincipal CurrentUser currentUser) {
+        return memberService.guarantorCandidates(currentUser.organizationId(), currentUser.userId());
     }
 
     @GetMapping("/{id}")

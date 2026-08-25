@@ -57,6 +57,70 @@ the pre-existing dev fixture logged in and used the API exactly as before).
 
 ---
 
+## 2026-08-24 — Frontend wired to the real backend: foundation + member workspace
+
+**Changed**: New frontend integration layer — `src/lib/api/client.ts` (shared `fetch` wrapper with
+401-refresh-retry), `src/lib/store/auth-store.ts` (real JWT state, replacing the auth half of
+`session-store.ts`), `src/lib/hooks/use-current-user.ts` (combines the auth store with a real
+`GET /me` query), and one `src/lib/api/{resource}.ts` file per backend package (`organization.ts`,
+`members.ts`, `savings.ts`, `loans.ts`, `guarantees.ts`, `membership.ts`, `notifications.ts`,
+`secretary-ops.ts`). Added `@tanstack/react-query`. Every member-workspace page
+(`member/Dashboard.tsx`, `Savings.tsx`, `SavingsStatement.tsx`, `Shares.tsx`, `Loans.tsx`,
+`LoanApply.tsx`, `LoanDetail.tsx`, `Guarantors.tsx`, `Meetings.tsx`, `Announcements.tsx`,
+`Documents.tsx`) plus `Profile.tsx` and `Notifications.tsx` now call the real API instead of the
+zustand mock store. `Login.tsx` rewritten (real email/password form, demo-persona picker removed).
+`Register.tsx` rewritten to submit all of `RegisterRequest`'s required fields (the old form was
+missing over half of them) and its copy corrected — it previously claimed manual review ("verified
+within one business day") when the real backend is instant self-service.
+
+**Backend changes made to support this** (own PR, stacked on the exit/share-withdrawal-requests
+PR): `GET /exit-requests` and `GET /share-withdrawals` changed from staff-only to
+`SELF_OR_STAFF` (a plain member now sees their own requests, matching the pattern already used by
+`SavingsController`/`GuaranteeController`) — `Profile.tsx` and `member/Shares.tsx` need this to
+show a member their own pending/past requests. Also: `MeResponse` gained `dateJoined`,
+`OrganizationDto` gained `shareValueRwf`/`loanInterestRate`/`loanInsuranceRate`/
+`minMonthsBeforeEligible`/`allowedRepaymentPeriods`, a new minimal `GET
+/members/guarantor-candidates` endpoint was added (open to any authenticated user, unlike the
+staff-only `GET /members`), and `ExitEligibilityDto` was restructured from plain contract-number
+strings to nested `{id, contractNumber, remainingBalance}`/`{guaranteeId, loanContractNumber,
+amountGuaranteed}` records so `Profile.tsx` can render real data, not just names. See
+[API.md](API.md).
+
+**Why**: user asked directly whether the backend and frontend were actually connected and whether
+they could test it end-to-end — the honest answer was no, the backend existed only in unmerged PRs
+and the frontend had never called it. Chose to wire the foundation plus one complete, demoable
+slice (the member workspace) first, rather than all 7 role workspaces at once; the remaining six
+follow later using the same pattern.
+
+**Adapter pattern, not redesign**: every converted page keeps its exact existing JSX — where a
+backend DTO's shape or units differ from what the existing frontend types/components expect, the
+API layer adapts, not the page. Two real examples, both in `src/lib/api/loans.ts`: backend
+interest/insurance rates are fractions (`0.05`) but the frontend expects whole percentages (`5`);
+the backend's savings ledger returns newest-first but every frontend consumer assumes oldest-first.
+Both corrected once, in the adapter. Full detail in
+[ARCHITECTURE.md](ARCHITECTURE.md#frontendbackend-integration).
+
+**Explicitly not wired this round**: `member/Policies.tsx` (no backend exists for `RolePolicy`
+content), `LoanContract.tsx`/`ExitSettlement.tsx` (real PDF generation exists server-side, but
+swapping the current HTML rendering for a PDF embed is a design decision, not a data-source swap),
+and all six non-member workspaces. See [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
+
+**Testing**: no browser-automation tool exists in this environment. Verified: backend compiles and
+runs on a local consolidated branch (`integration/frontend-wiring`, merging the previously-unmerged
+phase-11 PR into the phase-12→phase-13-completion PR chain); frontend `tsc -b`/`vite build` clean;
+every converted page's request/response shape manually cross-checked field-by-field against the
+real endpoint contracts already proven correct by this session's curl-based backend testing; CORS
+verified working with real `Origin`-header requests, not just same-origin curl. **Not verified**:
+actually clicking through the running app in a real browser — that still needs a human.
+
+**Result**: backend micro-fix as its own PR stacked on the exit/share-withdrawal-requests PR
+(low risk — widens an existing staff-only list endpoint to also allow self-access, no behavior
+change for staff callers); frontend foundation + member workspace as a separate PR based directly
+on `origin/main` (frontend files, untouched by any backend PR) — additive/new-files plus
+page-internal data-source swaps only, no shared component or route structure changed.
+
+---
+
 ## 2026-08-23 — Phase 13 completion: Exit and share-withdrawal requests
 
 **Changed**: New `membership` package (`ExitRequest`/`ShareWithdrawalRequest`,

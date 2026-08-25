@@ -99,5 +99,18 @@
 
 - Row-Level Security (database-layer tenant isolation, defense-in-depth on top of the application
   layer) is designed but not implemented — see [ARCHITECTURE.md](ARCHITECTURE.md).
-- The frontend is not wired to the real backend at all yet — see [FEATURES.md](FEATURES.md).
+- The frontend is only partially wired to the real backend — the member workspace calls it now,
+  every other workspace (HR, Accountant, Secretary, Loan Committee, Org Admin, Super Admin) still
+  runs on the zustand mock. See [FEATURES.md](FEATURES.md) and
+  [ARCHITECTURE.md](ARCHITECTURE.md#frontendbackend-integration).
+- Within the now-wired member workspace, three pages are deliberately still mock-only:
+  `member/Policies.tsx` (reads `RolePolicy` content — no backend exists for this in any phase),
+  and `LoanContract.tsx`/`ExitSettlement.tsx` (the backend already generates real PDFs for these —
+  see [API.md](API.md)'s contract endpoints — but replacing the current bespoke HTML rendering with
+  a PDF embed is a real design decision, not a data-source swap, so it wasn't done as part of this
+  round of wiring).
+- No browser-automation tool was available while wiring the member workspace, so real
+  click-through testing (login, submit a savings top-up, apply for a loan, respond to a guarantee
+  request, etc.) in an actual browser has not been done by Claude and still needs a human — see
+  [TESTING.md](TESTING.md).
 - Backend is not deployed anywhere — see [DEPLOYMENT.md](DEPLOYMENT.md).

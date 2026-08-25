@@ -9,7 +9,14 @@
   touched). On Windows, new shell calls don't reliably inherit a just-changed registry PATH — set
   `$env:JAVA_HOME`/`$env:PATH` explicitly at the top of every command that needs them rather than
   assuming persistence.
-- **Frontend**: `npm install && npm run dev`, see the root [README.md](../README.md).
+- **Frontend**: `npm install && npm run dev`, see the root [README.md](../README.md). Copy
+  `.env.example` to `.env` and set `VITE_API_URL` (defaults to `http://localhost:8080/api/v1`) —
+  needed now that the member workspace calls the real backend instead of the zustand mock; see
+  [ARCHITECTURE.md](ARCHITECTURE.md#frontendbackend-integration). To exercise the wired pages
+  locally, start the backend first (`mvn spring-boot:run` from `backend/`, wait for `Started
+  IkiminaConnectApplication`), then `npm run dev` — both servers run independently, nothing
+  auto-starts the other. The non-member workspaces don't need the backend running yet since they
+  still read from the mock.
 - **Dev test credentials** (for smoke-testing against real data in the `tcs2` org rather than a
   freshly-registered empty org) — all `DevTest123!`, all reset via a direct DB `UPDATE` because the
   original test-session passwords were never recorded (`UPDATE users SET password_hash =

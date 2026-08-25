@@ -6,6 +6,62 @@ verified.
 
 ---
 
+## 2026-08-25 — Secretary workspace wired to the real backend
+
+**Changed**: `secretary/Dashboard.tsx`, `Members.tsx`, `Suspended.tsx`, `ExitRequests.tsx`,
+`Meetings.tsx`, `Announcements.tsx`, `Documents.tsx` now call the real backend instead of the
+zustand mock — first of the six remaining workspaces (HR, Accountant, Secretary, Loan Committee,
+Org Admin, Super Admin) to be wired, following the same adapter pattern established for the member
+workspace. New frontend hooks: `useMembers`/`useCreateMember` (`src/lib/api/members.ts`),
+`useCreateMeeting`/`useRecordMinutes`/`useCreateAnnouncement`/`useCreateDocument`
+(`src/lib/api/secretary-ops.ts`), plus a shared `PageResponse<T>` type in `client.ts` since this is
+the first paginated list endpoint wired. Backend: `MemberSummary` gained a `roles` field (needed
+for the Members table's role badges — the DTO simply didn't carry it before now).
+
+**Why**: user asked to continue the workspace-by-workspace wiring effort, all six remaining
+workspaces already having their backend endpoints built across the earlier 16 phases — this is a
+"wire it up" job, not "build backend + wire" like the member workspace was. Split by workspace,
+Secretary first since it reuses the same meetings/announcements/documents/exit-request endpoints
+already proven working by the member-side wiring.
+
+**Adapter-pattern gap found, not guessed — read `ExitRequestDto`/`ExitEligibilityDto` directly**:
+`GET /exit-requests` never included a member's name (mirrors the mock's own `ExitRequest` shape,
+just `memberId`), so `ExitRequests.tsx` resolves names via the same `useMembers()` list it already
+needs for the page grid. The mock's `blockReason` helper also accessed a guarantee as
+`guarantee.loan.contractNumber` (nested); the real `ExitEligibilityDto.ActiveGuarantee` is flat —
+`guarantee.loanContractNumber` — fixed in the port.
+
+**A real Rules-of-Hooks constraint, not a shortcut**: `DataTable`'s `cell: (row) => ReactNode`
+callbacks run inline during the parent's render, not as their own components, so a per-row
+`useExitEligibility(memberId)` call (needed to show "Blocked — outstanding loan ..." next to a
+pending request) can't live directly in a `cell` function. Extracted `BlockReasonCell`/
+`ActionsForRow` as real subcomponents so the hook call is legal; React Query dedupes the two
+components' identical per-row queries automatically, so this costs nothing extra over a single
+call.
+
+**Genuinely dropped, not silently faked**: `secretary/Members.tsx`'s "pre-fill from employee
+registry" candidate picker has no backend equivalent (no endpoint exposes "payroll-imported but
+not-yet-a-member" employees) — removed rather than left pointing at nothing. Manual entry (the
+rest of the form) is fully wired, including surfacing the one-time `temporaryPassword` the backend
+returns on creation (the mock never had real auth, so it never needed to show one). See
+[KNOWN_ISSUES.md](KNOWN_ISSUES.md) for both this and the `GET /members` pagination workaround
+(`?size=500`, no true "get all" mode).
+
+**Testing**: real end-to-end curl flow against local Postgres — confirmed `MemberSummary.roles`
+returns correctly (`["hr","loan-committee","org-admin","member"]`), created a member via
+`POST /members` and confirmed the response shape matches the page's expectations, created a
+meeting/recorded its minutes/created an announcement/created a document via their real endpoints,
+and cross-checked `GET /exit-requests` plus `GET /members/{id}/exit-eligibility` against the
+existing `TC-2026-TEST-BLOCK`/`TC-2026-002` blocked-exit fixture — confirmed the exact
+`outstandingLoans`/`activeGuarantees` shape the wired `BlockReasonCell` expects. `tsc -b`, the
+stricter unused-locals check, and `vite build` all pass clean.
+
+**Not verified**: no browser-automation tool exists in this environment — the actual click-through
+(schedule a meeting, add a member, approve/reject an exit request) hasn't been done in a running
+browser and still needs a human.
+
+---
+
 ## 2026-08-24 — Email verification for self-service organization registration
 
 **Changed**: New `email` package (`EmailService` interface, `ConsoleEmailService` dev stub — logs

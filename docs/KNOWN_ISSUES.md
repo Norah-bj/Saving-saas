@@ -99,8 +99,8 @@
 
 - Row-Level Security (database-layer tenant isolation, defense-in-depth on top of the application
   layer) is designed but not implemented — see [ARCHITECTURE.md](ARCHITECTURE.md).
-- The frontend is only partially wired to the real backend — the member workspace calls it now,
-  every other workspace (HR, Accountant, Secretary, Loan Committee, Org Admin, Super Admin) still
+- The frontend is only partially wired to the real backend — member and secretary workspaces call
+  it now, every other workspace (HR, Accountant, Loan Committee, Org Admin, Super Admin) still
   runs on the zustand mock. See [FEATURES.md](FEATURES.md) and
   [ARCHITECTURE.md](ARCHITECTURE.md#frontendbackend-integration).
 - Within the now-wired member workspace, three pages are deliberately still mock-only:
@@ -109,6 +109,19 @@
   see [API.md](API.md)'s contract endpoints — but replacing the current bespoke HTML rendering with
   a PDF embed is a real design decision, not a data-source swap, so it wasn't done as part of this
   round of wiring).
+- **`secretary/Members.tsx`'s "pre-fill from employee registry" picker was dropped, not wired.**
+  The mock let a secretary pick an unregistered employee from a payroll-derived candidate list to
+  auto-fill the add-member form — no backend endpoint exposes anything like "employees imported via
+  payroll but not yet registered as members" (payroll import only records match/duplicate/
+  no-match/invalid-amount outcomes against *existing* members, nothing about employees who aren't
+  members yet). Manual entry (the rest of the form) is fully wired; the picker itself was removed
+  rather than fabricated. Revisit if/when payroll import is extended to expose that data.
+- **`GET /members` has no "get all" mode** — every staff page that needs the full member roster
+  (`secretary/Members.tsx`, `Suspended.tsx`, `Dashboard.tsx`, `ExitRequests.tsx`'s name lookup, and
+  `org-admin/Users.tsx` once wired) asks for one large page (`?size=500`) instead of paging through
+  results, matching the mock's assume-everything-fits-in-memory shape. Fine at real-world SACCO
+  membership scale; would need genuine pagination support (and paginated UI) to hold up at, say,
+  thousands of members in one organization.
 - No browser-automation tool was available while wiring the member workspace, so real
   click-through testing (login, submit a savings top-up, apply for a loan, respond to a guarantee
   request, etc.) in an actual browser has not been done by Claude and still needs a human — see

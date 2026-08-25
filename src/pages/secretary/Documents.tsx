@@ -31,8 +31,8 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { DataTable } from "@/components/shared/data-table";
-import { useCurrentUser } from "@/lib/hooks/use-current-user";
-import { useDataStore } from "@/lib/store/data-store";
+import { useDocuments, useCreateDocument } from "@/lib/api/secretary-ops";
+import { ApiError } from "@/lib/api/client";
 import { formatDate } from "@/lib/format";
 import type { DocumentCategory } from "@/lib/types";
 
@@ -60,9 +60,8 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>;
 
 export default function SecretaryDocumentsPage() {
-  const { user } = useCurrentUser();
-  const documents = useDataStore((s) => s.documents);
-  const addDocument = useDataStore((s) => s.addDocument);
+  const { data: documents = [] } = useDocuments();
+  const createDocument = useCreateDocument();
 
   const [open, setOpen] = React.useState(false);
 
@@ -71,16 +70,17 @@ export default function SecretaryDocumentsPage() {
     defaultValues: { name: "", category: "policy", fileType: "pdf", visibility: "all", sizeKb: 250 },
   });
 
-  if (!user) return null;
-
   const sorted = [...documents].sort(
     (a, b) => new Date(b.uploadedDate).getTime() - new Date(a.uploadedDate).getTime()
   );
 
   function onSubmit(values: FormValues) {
-    addDocument(values, user!.fullName);
-    form.reset({ name: "", category: "policy", fileType: "pdf", visibility: "all", sizeKb: 250 });
-    setOpen(false);
+    createDocument.mutate(values, {
+      onSuccess: () => {
+        form.reset({ name: "", category: "policy", fileType: "pdf", visibility: "all", sizeKb: 250 });
+        setOpen(false);
+      },
+    });
   }
 
   return (
@@ -247,11 +247,18 @@ export default function SecretaryDocumentsPage() {
                   )}
                 />
               </div>
+              {createDocument.isError && (
+                <p className="text-sm text-destructive">
+                  {createDocument.error instanceof ApiError ? createDocument.error.message : "Something went wrong."}
+                </p>
+              )}
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setOpen(false)}>
                   Cancel
                 </Button>
-                <Button type="submit">Upload</Button>
+                <Button type="submit" disabled={createDocument.isPending}>
+                  Upload
+                </Button>
               </DialogFooter>
             </form>
           </Form>

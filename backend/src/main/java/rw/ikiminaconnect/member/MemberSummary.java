@@ -2,6 +2,7 @@ package rw.ikiminaconnect.member;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 
 public record MemberSummary(
@@ -13,5 +14,6 @@ public record MemberSummary(
         String position,
         String status,
         LocalDate dateJoined,
-        BigDecimal savingsBalanceRwf) {
+        BigDecimal savingsBalanceRwf,
+        List<String> roles) {
 }

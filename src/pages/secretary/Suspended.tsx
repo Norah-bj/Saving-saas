@@ -3,19 +3,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DataTable } from "@/components/shared/data-table";
 import { EmptyState } from "@/components/shared/empty-state";
 import { UserX } from "lucide-react";
-import { useCurrentUser } from "@/lib/hooks/use-current-user";
-import { useDataStore } from "@/lib/store/data-store";
+import { useMembers } from "@/lib/api/members";
 import { formatDate } from "@/lib/format";
 
 export default function SecretarySuspendedMembersPage() {
-  const { user } = useCurrentUser();
-  const members = useDataStore((s) => s.members);
-
-  if (!user) return null;
-
-  const suspended = members.filter(
-    (m) => m.organizationId === user.organizationId && m.status === "suspended"
-  );
+  const { data: members = [] } = useMembers();
+  const suspended = members.filter((m) => m.status === "suspended");
 
   return (
     <div className="flex flex-col gap-6">

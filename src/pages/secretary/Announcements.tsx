@@ -32,8 +32,8 @@ import {
 } from "@/components/ui/form";
 import { ToneBadge, type Tone } from "@/components/shared/status-badge";
 import { EmptyState } from "@/components/shared/empty-state";
-import { useCurrentUser } from "@/lib/hooks/use-current-user";
-import { useDataStore } from "@/lib/store/data-store";
+import { useAnnouncements, useCreateAnnouncement } from "@/lib/api/secretary-ops";
+import { ApiError } from "@/lib/api/client";
 import { formatDate } from "@/lib/format";
 import type { AnnouncementPriority } from "@/lib/types";
 
@@ -58,9 +58,8 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>;
 
 export default function SecretaryAnnouncementsPage() {
-  const { user } = useCurrentUser();
-  const announcements = useDataStore((s) => s.announcements);
-  const createAnnouncement = useDataStore((s) => s.createAnnouncement);
+  const { data: announcements = [] } = useAnnouncements();
+  const createAnnouncement = useCreateAnnouncement();
 
   const [open, setOpen] = React.useState(false);
 
@@ -69,16 +68,17 @@ export default function SecretaryAnnouncementsPage() {
     defaultValues: { title: "", body: "", priority: "normal", audience: "all" },
   });
 
-  if (!user) return null;
-
   const sorted = [...announcements].sort(
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
   );
 
   function onSubmit(values: FormValues) {
-    createAnnouncement(values, user!.fullName);
-    form.reset({ title: "", body: "", priority: "normal", audience: "all" });
-    setOpen(false);
+    createAnnouncement.mutate(values, {
+      onSuccess: () => {
+        form.reset({ title: "", body: "", priority: "normal", audience: "all" });
+        setOpen(false);
+      },
+    });
   }
 
   return (
@@ -199,11 +199,20 @@ export default function SecretaryAnnouncementsPage() {
                   )}
                 />
               </div>
+              {createAnnouncement.isError && (
+                <p className="text-sm text-destructive">
+                  {createAnnouncement.error instanceof ApiError
+                    ? createAnnouncement.error.message
+                    : "Something went wrong."}
+                </p>
+              )}
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setOpen(false)}>
                   Cancel
                 </Button>
-                <Button type="submit">Publish Announcement</Button>
+                <Button type="submit" disabled={createAnnouncement.isPending}>
+                  Publish Announcement
+                </Button>
               </DialogFooter>
             </form>
           </Form>

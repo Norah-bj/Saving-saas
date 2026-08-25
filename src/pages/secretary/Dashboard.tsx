@@ -6,20 +6,17 @@ import { TrendLineChart } from "@/components/charts/trend-line-chart";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { useCurrentUser } from "@/lib/hooks/use-current-user";
-import { useDataStore } from "@/lib/store/data-store";
+import { useMembers } from "@/lib/api/members";
+import { useExitRequests } from "@/lib/api/membership";
+import { useMeetings, useAnnouncements } from "@/lib/api/secretary-ops";
 import { formatDate } from "@/lib/format";
 
 export default function SecretaryDashboardPage() {
-  const { user } = useCurrentUser();
-  const members = useDataStore((s) => s.members);
-  const exitRequests = useDataStore((s) => s.exitRequests);
-  const meetings = useDataStore((s) => s.meetings);
-  const announcements = useDataStore((s) => s.announcements);
+  const { data: orgMembers = [] } = useMembers();
+  const { data: exitRequests = [] } = useExitRequests();
+  const { data: meetings = [] } = useMeetings();
+  const { data: announcements = [] } = useAnnouncements();
 
-  if (!user) return null;
-
-  const orgMembers = members.filter((m) => m.organizationId === user.organizationId);
   const pendingExits = exitRequests.filter((r) => r.status === "pending");
   const suspended = orgMembers.filter((m) => m.status === "suspended");
   const upcomingMeetings = meetings.filter((m) => m.status === "upcoming");

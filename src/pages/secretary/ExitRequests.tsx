@@ -6,37 +6,103 @@ import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/shared/data-table";
 import { RequestStatusBadge } from "@/components/shared/status-badge";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
-import { useCurrentUser } from "@/lib/hooks/use-current-user";
-import { useDataStore } from "@/lib/store/data-store";
+import { useExitRequests, useDecideExitRequest, useExitEligibility } from "@/lib/api/membership";
+import { useMembers, type MemberSummaryDto } from "@/lib/api/members";
+import { ApiError } from "@/lib/api/client";
 import { formatDate } from "@/lib/format";
 import type { ExitRequest } from "@/lib/types";
 
+/** Own component so useExitEligibility (a hook) can be called once per pending row without violating the Rules of Hooks. */
+function BlockReasonCell({ memberId, status }: { memberId: string; status: ExitRequest["status"] }) {
+  const { data: eligibility } = useExitEligibility(status === "pending" ? memberId : undefined);
+
+  if (status !== "pending") return <RequestStatusBadge status={status} />;
+  if (!eligibility || eligibility.eligible) return <RequestStatusBadge status={status} />;
+
+  const loan = eligibility.outstandingLoans[0];
+  const guarantee = eligibility.activeGuarantees[0];
+  const reason = loan
+    ? `Outstanding loan ${loan.contractNumber}`
+    : guarantee
+      ? `Guaranteeing loan ${guarantee.loanContractNumber}`
+      : "Not eligible";
+
+  return (
+    <span className="flex items-center gap-1 text-xs text-amber-700 dark:text-amber-400">
+      <ShieldAlert className="size-3.5 shrink-0" /> Blocked — {reason}
+    </span>
+  );
+}
+
+function ActionsCell({
+  request,
+  blocked,
+  onDecide,
+}: {
+  request: ExitRequest;
+  blocked: boolean;
+  onDecide: (decision: "approve" | "reject") => void;
+}) {
+  if (request.status === "pending") {
+    return (
+      <div className="flex gap-2">
+        {!blocked && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="text-emerald-600 dark:text-emerald-400"
+            onClick={() => onDecide("approve")}
+          >
+            <Check className="size-3.5" /> Approve
+          </Button>
+        )}
+        <Button size="sm" variant="outline" className="text-destructive" onClick={() => onDecide("reject")}>
+          <X className="size-3.5" /> Reject
+        </Button>
+      </div>
+    );
+  }
+  if (request.status === "approved") {
+    return (
+      <Button size="sm" variant="outline" render={<Link to={`/members/${request.memberId}/exit-settlement`} />}>
+        <FileText className="size-3.5" /> View Settlement
+      </Button>
+    );
+  }
+  return <span className="text-xs text-muted-foreground">No action needed</span>;
+}
+
+/** Blocked status re-fetched here too (not just displayed) so Approve can be hidden without a second network round trip's delay mattering. */
+function ActionsForRow({
+  request,
+  onDecide,
+}: {
+  request: ExitRequest;
+  onDecide: (decision: "approve" | "reject") => void;
+}) {
+  const { data: eligibility } = useExitEligibility(request.status === "pending" ? request.memberId : undefined);
+  const blocked = request.status === "pending" && !!eligibility && !eligibility.eligible;
+  return <ActionsCell request={request} blocked={blocked} onDecide={onDecide} />;
+}
+
 export default function SecretaryExitRequestsPage() {
-  const { user } = useCurrentUser();
-  const members = useDataStore((s) => s.members);
-  const exitRequests = useDataStore((s) => s.exitRequests);
-  const exitEligibility = useDataStore((s) => s.exitEligibility);
-  const decideExitRequest = useDataStore((s) => s.decideExitRequest);
+  const { data: members = [] } = useMembers();
+  const { data: exitRequests = [] } = useExitRequests();
+  const decideExitRequest = useDecideExitRequest();
 
   const [pendingAction, setPendingAction] = React.useState<{
     request: ExitRequest;
     decision: "approve" | "reject";
   } | null>(null);
 
-  if (!user) return null;
+  const memberById = React.useMemo(() => {
+    const map = new Map<string, MemberSummaryDto>();
+    for (const m of members) map.set(m.id, m);
+    return map;
+  }, [members]);
 
-  const memberName = (id: string) => members.find((m) => m.id === id)?.fullName ?? "Unknown Member";
-  const memberEmployeeId = (id: string) => members.find((m) => m.id === id)?.employeeId ?? "—";
-
-  function blockReason(memberId: string): string | null {
-    const eligibility = exitEligibility(memberId);
-    if (eligibility.eligible) return null;
-    const loan = eligibility.outstandingLoans[0];
-    if (loan) return `Outstanding loan ${loan.contractNumber}`;
-    const guarantee = eligibility.activeGuarantees[0];
-    if (guarantee) return `Guaranteeing loan ${guarantee.loan.contractNumber}`;
-    return "Not eligible";
-  }
+  const memberName = (id: string) => memberById.get(id)?.fullName ?? "Unknown Member";
+  const memberEmployeeId = (id: string) => memberById.get(id)?.employeeId ?? "—";
 
   const sorted = [...exitRequests].sort(
     (a, b) => new Date(b.requestedDate).getTime() - new Date(a.requestedDate).getTime()
@@ -51,6 +117,14 @@ export default function SecretaryExitRequestsPage() {
         </p>
       </div>
 
+      {decideExitRequest.isError && (
+        <p className="text-sm text-destructive">
+          {decideExitRequest.error instanceof ApiError
+            ? decideExitRequest.error.message
+            : "Something went wrong. Please try again."}
+        </p>
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle className="text-sm font-medium">All Requests ({sorted.length})</CardTitle>
@@ -64,17 +138,7 @@ export default function SecretaryExitRequestsPage() {
               { header: "Requested", cell: (r) => formatDate(r.requestedDate) },
               {
                 header: "Status",
-                cell: (r) => {
-                  if (r.status !== "pending") return <RequestStatusBadge status={r.status} />;
-                  const reason = blockReason(r.memberId);
-                  return reason ? (
-                    <span className="flex items-center gap-1 text-xs text-amber-700 dark:text-amber-400">
-                      <ShieldAlert className="size-3.5 shrink-0" /> Blocked — {reason}
-                    </span>
-                  ) : (
-                    <RequestStatusBadge status={r.status} />
-                  );
-                },
+                cell: (r) => <BlockReasonCell memberId={r.memberId} status={r.status} />,
               },
               {
                 header: "Decided",
@@ -89,41 +153,12 @@ export default function SecretaryExitRequestsPage() {
               },
               {
                 header: "Actions",
-                cell: (r) => {
-                  if (r.status === "pending") {
-                    const blocked = !!blockReason(r.memberId);
-                    return (
-                      <div className="flex gap-2">
-                        {!blocked && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-emerald-600 dark:text-emerald-400"
-                            onClick={() => setPendingAction({ request: r, decision: "approve" })}
-                          >
-                            <Check className="size-3.5" /> Approve
-                          </Button>
-                        )}
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="text-destructive"
-                          onClick={() => setPendingAction({ request: r, decision: "reject" })}
-                        >
-                          <X className="size-3.5" /> Reject
-                        </Button>
-                      </div>
-                    );
-                  }
-                  if (r.status === "approved") {
-                    return (
-                      <Button size="sm" variant="outline" render={<Link to={`/members/${r.memberId}/exit-settlement`} />}>
-                        <FileText className="size-3.5" /> View Settlement
-                      </Button>
-                    );
-                  }
-                  return <span className="text-xs text-muted-foreground">No action needed</span>;
-                },
+                cell: (r) => (
+                  <ActionsForRow
+                    request={r}
+                    onDecide={(decision) => setPendingAction({ request: r, decision })}
+                  />
+                ),
               },
             ]}
             rows={sorted}
@@ -150,7 +185,7 @@ export default function SecretaryExitRequestsPage() {
         tone={pendingAction?.decision === "reject" ? "destructive" : "default"}
         onConfirm={() => {
           if (!pendingAction) return;
-          decideExitRequest(pendingAction.request.id, pendingAction.decision, user.fullName);
+          decideExitRequest.mutate({ id: pendingAction.request.id, decision: pendingAction.decision });
         }}
       />
     </div>

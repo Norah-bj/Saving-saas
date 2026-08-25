@@ -24,9 +24,13 @@ real HTTP calls (curl) against real dev data, cross-checked against hand-run SQL
 inspection, and merged to `main` via reviewed PR. See [TESTING.md](TESTING.md) for what was
 actually exercised per phase, and [CHANGELOG.md](CHANGELOG.md) for the dated history.
 
-**The frontend is not yet wired to the real backend** — every page above still runs on the
-zustand mock store. Wiring is expected to happen once the roadmap's backend phases are complete
-enough to cover a given page's needs (see the per-page notes in [API.md](API.md)).
+**Frontend integration has started**: the member workspace (dashboard, savings, shares, loans,
+guarantors, meetings, announcements, documents, notifications, profile) now calls the real
+backend. Every other workspace (HR, Accountant, Secretary, Loan Committee, Org Admin, Super Admin)
+still runs entirely on the zustand mock store. Wiring is expected to continue workspace by
+workspace, same pattern — see [ARCHITECTURE.md](ARCHITECTURE.md#frontendbackend-integration) for
+how it's structured and [KNOWN_ISSUES.md](KNOWN_ISSUES.md) for what's explicitly still mock-only
+within the member workspace itself (`Policies.tsx`, `LoanContract.tsx`, `ExitSettlement.tsx`).
 
 **Phase 13 note**: role assignment (`org-admin/Users.tsx`), member suspend/activate
 (`org-admin/Moderation.tsx`), org profile/branding (`org-admin/Settings.tsx`), loan policy

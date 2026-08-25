@@ -3,12 +3,16 @@ import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/shared/empty-state";
 import { useCurrentUser } from "@/lib/hooks/use-current-user";
-import { useDataStore } from "@/lib/store/data-store";
+import {
+  useNotifications,
+  useMarkNotificationRead,
+  useMarkAllNotificationsRead,
+  type NotificationDto,
+} from "@/lib/api/notifications";
 import { formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import type { AppNotification } from "@/lib/types";
 
-const TYPE_ICON: Record<AppNotification["type"], LucideIcon> = {
+const TYPE_ICON: Record<NotificationDto["type"], LucideIcon> = {
   loan: HandCoins,
   meeting: CalendarDays,
   announcement: Megaphone,
@@ -18,16 +22,14 @@ const TYPE_ICON: Record<AppNotification["type"], LucideIcon> = {
 
 export default function MemberNotificationsPage() {
   const { user } = useCurrentUser();
-  const notifications = useDataStore((s) => s.notifications);
-  const markNotificationRead = useDataStore((s) => s.markNotificationRead);
-  const markAllNotificationsRead = useDataStore((s) => s.markAllNotificationsRead);
+  const { data: notifications = [] } = useNotifications();
+  const markRead = useMarkNotificationRead();
+  const markAllRead = useMarkAllNotificationsRead();
 
   if (!user) return null;
 
-  const myNotifications = notifications
-    .filter((n) => n.userId === user.id)
-    .sort((a, b) => (a.date > b.date ? -1 : 1));
-  const unreadCount = myNotifications.filter((n) => !n.read).length;
+  const sorted = [...notifications].sort((a, b) => (a.date > b.date ? -1 : 1));
+  const unreadCount = sorted.filter((n) => !n.read).length;
 
   return (
     <div className="flex flex-col gap-6">
@@ -38,21 +40,21 @@ export default function MemberNotificationsPage() {
             {unreadCount > 0 ? `You have ${unreadCount} unread notification${unreadCount > 1 ? "s" : ""}.` : "You're all caught up."}
           </p>
         </div>
-        <Button variant="outline" size="sm" disabled={unreadCount === 0} onClick={() => markAllNotificationsRead(user.id)}>
+        <Button variant="outline" size="sm" disabled={unreadCount === 0} onClick={() => markAllRead.mutate()}>
           Mark all as read
         </Button>
       </div>
 
-      {myNotifications.length === 0 ? (
+      {sorted.length === 0 ? (
         <EmptyState icon={Bell} title="No notifications yet" />
       ) : (
         <div className="flex flex-col gap-2">
-          {myNotifications.map((n) => {
+          {sorted.map((n) => {
             const Icon = TYPE_ICON[n.type];
             return (
               <button
                 key={n.id}
-                onClick={() => markNotificationRead(n.id)}
+                onClick={() => markRead.mutate(n.id)}
                 className={cn(
                   "flex items-start gap-3 rounded-lg border p-3 text-left transition-colors hover:bg-accent/40",
                   !n.read && "border-l-4 border-l-primary bg-primary/5"

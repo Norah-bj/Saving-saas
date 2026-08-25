@@ -5,16 +5,18 @@ import { Button } from "@/components/ui/button";
 import { LoanStatusBadge } from "@/components/shared/status-badge";
 import { LoanStagePipeline, LoanTimelineList } from "@/components/shared/loan-timeline";
 import { EmptyState } from "@/components/shared/empty-state";
-import { useDataStore } from "@/lib/store/data-store";
+import { useLoanDetail } from "@/lib/api/loans";
+import { useGuarantorCandidates } from "@/lib/api/members";
 import { formatDate, formatRwf } from "@/lib/format";
 
 const CONTRACT_VISIBLE_STATUSES = ["contract-generated", "disbursed", "repaying", "completed"];
 
 export default function MemberLoanDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const loans = useDataStore((s) => s.loans);
-  const members = useDataStore((s) => s.members);
-  const loan = loans.find((l) => l.id === id);
+  const { data: loan, isLoading } = useLoanDetail(id);
+  const { data: candidates = [] } = useGuarantorCandidates();
+
+  if (isLoading) return null;
 
   if (!loan) {
     return (
@@ -31,7 +33,7 @@ export default function MemberLoanDetailPage() {
     );
   }
 
-  const guarantors = members.filter((m) => loan.guarantorIds.includes(m.id));
+  const guarantors = candidates.filter((m) => loan.guarantorIds.includes(m.id));
 
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6">

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/shared/data-table";
 import { EmptyState } from "@/components/shared/empty-state";
-import { useDataStore } from "@/lib/store/data-store";
+import { useDocuments } from "@/lib/api/secretary-ops";
 import { formatDate } from "@/lib/format";
 import type { DocumentCategory, DocumentItem } from "@/lib/types";
 
@@ -37,10 +37,12 @@ function downloadDocument(doc: DocumentItem) {
 }
 
 export default function MemberDocumentsPage() {
-  const documents = useDataStore((s) => s.documents);
+  const { data: documents = [] } = useDocuments();
   const [category, setCategory] = React.useState<DocumentCategory | "all">("all");
 
-  const visible = documents.filter((d) => d.visibility === "all");
+  // No further filtering needed here — the backend already scopes this
+  // response to visibility: "all" for a plain member (see BUSINESS_RULES.md).
+  const visible = documents;
   const filtered = category === "all" ? visible : visible.filter((d) => d.category === category);
 
   return (

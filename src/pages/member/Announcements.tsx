@@ -2,7 +2,7 @@ import { Megaphone } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ToneBadge, type Tone } from "@/components/shared/status-badge";
-import { useDataStore } from "@/lib/store/data-store";
+import { useAnnouncements } from "@/lib/api/secretary-ops";
 import { formatDate } from "@/lib/format";
 import type { AnnouncementPriority } from "@/lib/types";
 
@@ -19,7 +19,7 @@ const PRIORITY_LABEL: Record<AnnouncementPriority, string> = {
 };
 
 export default function MemberAnnouncementsPage() {
-  const announcements = useDataStore((s) => s.announcements);
+  const { data: announcements = [] } = useAnnouncements();
   const sorted = [...announcements].sort((a, b) => (a.date > b.date ? -1 : 1));
 
   return (

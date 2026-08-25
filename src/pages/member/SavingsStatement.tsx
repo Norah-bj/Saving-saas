@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/select";
 import { DataTable } from "@/components/shared/data-table";
 import { useCurrentUser } from "@/lib/hooks/use-current-user";
-import { useDataStore } from "@/lib/store/data-store";
+import { useSavingsLedger } from "@/lib/api/savings";
 import { formatDate, formatRwf } from "@/lib/format";
 import type { SavingsTxType } from "@/lib/types";
 
@@ -27,12 +27,11 @@ const TYPE_LABEL: Record<SavingsTxType, string> = {
 
 export default function SavingsStatementPage() {
   const { user } = useCurrentUser();
-  const savingsLedger = useDataStore((s) => s.savingsLedger);
+  const { ledger, currentBalance } = useSavingsLedger(user?.id);
   const [yearFilter, setYearFilter] = React.useState<string>("all");
   const [monthFilter, setMonthFilter] = React.useState<string>("all");
 
   if (!user) return null;
-  const ledger = savingsLedger[user.id] ?? [];
 
   const years = Array.from(
     new Set(ledger.map((tx) => String(new Date(tx.date).getFullYear())))
@@ -50,7 +49,6 @@ export default function SavingsStatementPage() {
     : ledger.length
       ? ledger[ledger.length - 1].balanceAfter
       : 0;
-  const currentBalance = ledger.length ? ledger[ledger.length - 1].balanceAfter : 0;
   const totalIn = filtered
     .filter((t) => t.type !== "loan-repayment")
     .reduce((sum, t) => sum + t.amount, 0);

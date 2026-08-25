@@ -18,7 +18,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useCurrentUser } from "@/lib/hooks/use-current-user";
-import { useDataStore } from "@/lib/store/data-store";
+import { useSavingsLedger } from "@/lib/api/savings";
+import { useMemberDetail } from "@/lib/api/members";
+import { useOrganization } from "@/lib/api/organization";
+import { useMyLoans, useLoanDetail } from "@/lib/api/loans";
+import { useMeetings, useAnnouncements } from "@/lib/api/secretary-ops";
 import { formatDate, formatRwf } from "@/lib/format";
 import { monthlySeriesFromLedger } from "@/lib/chart-utils";
 
@@ -28,22 +32,20 @@ export default function MemberDashboardPage() {
   const navigate = useNavigate();
   const [period, setPeriod] = React.useState("6M");
   const { user } = useCurrentUser();
-  const savingsLedger = useDataStore((s) => s.savingsLedger);
-  const shareHoldings = useDataStore((s) => s.shareHoldings);
-  const loans = useDataStore((s) => s.loans);
-  const meetings = useDataStore((s) => s.meetings);
-  const announcements = useDataStore((s) => s.announcements);
+  const { ledger, currentBalance: balance } = useSavingsLedger(user?.id);
+  const { data: memberDetail } = useMemberDetail(user?.id);
+  const { data: organization } = useOrganization();
+  const { data: myLoans = [] } = useMyLoans();
+  const { data: meetings = [] } = useMeetings();
+  const { data: announcements = [] } = useAnnouncements();
+
+  const activeLoanSummary = myLoans.find((l) => ["disbursed", "repaying"].includes(l.status));
+  const { data: activeLoan } = useLoanDetail(activeLoanSummary?.id);
 
   if (!user) return null;
 
-  const ledger = savingsLedger[user.id] ?? [];
-  const balance = ledger.length ? ledger[ledger.length - 1].balanceAfter : 0;
-  const shares = shareHoldings[user.id] ?? { totalShares: 0, shareValue: 5000 };
-  const shareValue = shares.totalShares * shares.shareValue;
-  const myLoans = loans.filter((l) => l.memberId === user.id);
-  const activeLoan = myLoans.find((l) =>
-    ["disbursed", "repaying"].includes(l.status)
-  );
+  const totalShares = memberDetail?.totalShares ?? 0;
+  const shareValue = totalShares * (organization?.shareValueRwf ?? 5000);
   const nextDeduction = Math.round(user.monthlySalary * 0.1);
 
   const series = monthlySeriesFromLedger(ledger, PERIOD_MONTHS[period]);
@@ -88,7 +90,7 @@ export default function MemberDashboardPage() {
         />
         <StatCard
           label="Total Shares"
-          value={`${shares.totalShares} shares`}
+          value={`${totalShares} shares`}
           icon={Landmark}
           description={formatRwf(shareValue)}
         />

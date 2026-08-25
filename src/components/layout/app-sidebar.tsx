@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { WorkspaceSwitcher } from "@/components/layout/workspace-switcher";
 import { useCurrentUser } from "@/lib/hooks/use-current-user";
+import { useAuthStore } from "@/lib/store/auth-store";
 import { useSessionStore } from "@/lib/store/session-store";
 import { NAV_CONFIG } from "@/lib/nav-config";
 import { ROLE_LABEL } from "@/lib/types";
@@ -30,7 +31,8 @@ export function AppSidebar() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const { user, activeRole } = useCurrentUser();
-  const logout = useSessionStore((s) => s.logout);
+  const logout = useAuthStore((s) => s.logout);
+  const clearRole = useSessionStore((s) => s.clearRole);
 
   if (!user || !activeRole) return null;
   const groups = NAV_CONFIG[activeRole];
@@ -101,6 +103,7 @@ export function AppSidebar() {
                   variant="destructive"
                   onClick={() => {
                     logout();
+                    clearRole();
                     navigate("/login");
                   }}
                   className="gap-2"

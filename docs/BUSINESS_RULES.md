@@ -150,6 +150,38 @@ using the API. Not fixed here since it touches already-shipped phase-1 auth code
 asked — flagged in [KNOWN_ISSUES.md](KNOWN_ISSUES.md) as a real gap for whenever organization
 suspension needs to be a real enforcement mechanism rather than just a status label.
 
+## Email verification gates sensitive access (added beyond the frontend mock — the mock has no auth backend at all)
+
+Self-service organization registration (`POST /auth/register`) stays **instant** — no manual
+review, the registering admin's organization/tenant and account are created and usable right away.
+This was an explicit product decision: don't make platform scaling depend on someone manually
+approving every signup, but also don't let a brand-new, unverified organization touch sensitive
+member/financial data before the registering email address is actually confirmed to belong to
+them.
+
+- New self-registered admins start `email_verified = false`. `AuthService.register` immediately
+  issues a single-use, hashed, 24-hour token (`EmailVerificationService`, same
+  opaque-random-token/SHA-256-hash pattern as refresh tokens) and sends it via `EmailService` — see
+  [ARCHITECTURE.md](ARCHITECTURE.md) for why the only implementation today is a dev-only console
+  stub, not a real mail provider.
+- `EmailVerificationFilter` blocks every request from an authenticated-but-unverified user except
+  a small allowlist: `/auth/**` (so `resend-verification` and `verify-email` themselves stay
+  reachable) and `GET /me` (so the frontend can show the user their own unverified state without
+  being locked out of literally everything). Everything else — member data, savings, loans,
+  organization settings, all of it — returns `403 {"error": "email_not_verified"}` until verified.
+- Deliberately re-checks the database on every request rather than trusting a JWT claim, so
+  clicking the verification link unblocks access immediately — not after the next 15-minute token
+  refresh. Same reasoning already applied to committee-chair status (see the loan approval workflow
+  section above).
+- **Members added by staff (`POST /members`) are marked verified immediately**, never gated. The
+  distinction that matters here is *self-service organization registration* (an unknown party
+  claiming an identity, needs proof of email ownership) vs. *member enrollment* (an already
+  authenticated staff member is vouching for someone they've added) — those are different trust
+  situations, not the same rule applied twice. Platform super-admins (provisioned only via direct
+  SQL, never through self-service) are exempt from the gate outright for the same reason.
+- Existing users as of this migration were backfilled to `email_verified = true` — nobody already
+  using the system before this feature shipped is retroactively locked out.
+
 ## Revenue recognition (interest income / insurance fees) — undecided
 
 There is currently **no rule at all** for *when* interest income or insurance fee revenue should

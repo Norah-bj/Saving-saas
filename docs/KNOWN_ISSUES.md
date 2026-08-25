@@ -54,6 +54,12 @@
   direct SQL insert (`organization_id = NULL`, a `user_roles` row with `role = 'super-admin'`) —
   `/auth/register` only ever creates an ORG_ADMIN + brand-new org. Fine for one dev-only test
   account; a real platform launch needs a real way to provision the first super-admin.
+- **Email verification sends no real email yet.** `EmailService`'s only implementation
+  (`ConsoleEmailService`) logs the verification link instead of sending it — chosen deliberately so
+  this feature wasn't blocked on picking/paying for a real provider before one was needed. Before
+  any real user registers, swap in a real implementation (SMTP, SendGrid, SES, ...) and remove
+  `ConsoleEmailService`'s `@Service` annotation; nothing else needs to change, `EmailVerificationService`
+  only depends on the `EmailService` interface. See [BUSINESS_RULES.md](BUSINESS_RULES.md).
 - **Organization status doesn't gate anything.** `POST /organizations/{id}/status` (phase 15) can
   mark an org `suspended`, but `AuthService.login` never checks the logging-in user's
   *organization's* status, only the user's own — so a "suspended" organization's members can still

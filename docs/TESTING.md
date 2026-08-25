@@ -91,6 +91,17 @@ the pattern used and what was actually exercised, so gaps are visible.
   original "plain" fixture had been promoted to SECRETARY by earlier phase-13 testing — see
   [DEVELOPMENT.md](DEVELOPMENT.md).
 
+- **Email verification**: registered a new org via the real API, confirmed the response's
+  `emailVerified: false` and the console-logged verification link; confirmed `GET
+  /members`/`GET /organizations/{id}` correctly 403 `email_not_verified` for the new, unverified
+  admin while `GET /me` and `POST /auth/resend-verification` stayed reachable; confirmed a bad
+  token 403s and the real one 204s; confirmed the *same, still-valid* access token immediately
+  reached the previously-blocked endpoints right after verifying (no re-login/refresh needed) and
+  cross-checked the resulting `audit_log` row. Confirmed the migration's backfill against an
+  existing dev user (`admin2@tcs2.rw`), confirmed a staff-created member
+  (`POST /members`) is `email_verified = true` immediately via a direct `psql` read, and confirmed
+  a super-admin login is unaffected by the gate.
+
 ## Known testing gaps
 
 - No automated/CI test suite — every verification above is manual and was not re-run after later

@@ -99,6 +99,10 @@ public class MemberService {
                 passwordEncoder.encode(temporaryPassword),
                 request.monthlySalaryRwf() == null ? BigDecimal.ZERO : request.monthlySalaryRwf());
         member.addRole(Role.MEMBER, false);
+        // Staff-added, not self-registered — the adding admin already vouches
+        // for this person's identity, so there's no email-ownership gap to
+        // close here (unlike POST /auth/register). See EmailVerificationFilter.
+        member.verifyEmail();
         member = memberRepository.save(member);
 
         shareHoldingRepository.save(new ShareHolding(member.getId(), organizationId));

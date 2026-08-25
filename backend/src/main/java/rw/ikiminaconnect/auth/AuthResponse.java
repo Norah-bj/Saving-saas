@@ -14,6 +14,7 @@ public record AuthResponse(
             UUID organizationId,
             String fullName,
             List<String> roles,
-            boolean committeeChair) {
+            boolean committeeChair,
+            boolean emailVerified) {
     }
 }

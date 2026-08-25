@@ -29,6 +29,11 @@ public interface MemberRepository extends JpaRepository<AppUser, UUID> {
 
     long countByOrganizationId(UUID organizationId);
 
+    // Used by EmailVerificationFilter on every gated request — a plain
+    // existence check avoids loading the full AppUser (roles collection etc.)
+    // just to read one boolean.
+    boolean existsByIdAndEmailVerifiedTrue(UUID id);
+
     // Guarantor candidate picker (member/LoanApply.tsx) — any authenticated
     // member can call this, unlike the full GET /members list, so it must
     // never return anything sensitive (national ID, savings balance, ...).

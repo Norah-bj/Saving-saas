@@ -28,17 +28,20 @@ actually exercised per phase, and [CHANGELOG.md](CHANGELOG.md) for the dated his
 guarantors, meetings, announcements, documents, notifications, profile), secretary (dashboard,
 members, exit requests, suspended members, meetings, announcements, documents), loan committee
 (dashboard, pending applications, application review/decision, decision history, reports, loan
-policy), and now accountant (dashboard, transactions, member statements, loan disbursement,
-reports, Excel payroll import, exports) call the real backend. Every other workspace (HR, Org
-Admin, Super Admin) still runs entirely on the zustand mock store. Wiring continues workspace by
-workspace, same pattern — see [ARCHITECTURE.md](ARCHITECTURE.md#frontendbackend-integration) for
+policy), accountant (dashboard, transactions, member statements, loan disbursement, reports, Excel
+payroll import, exports), and now HR (dashboard, salary deduction upload, payroll reports) call the
+real backend. Every other workspace (Org Admin, Super Admin) still runs entirely on the zustand
+mock store. Wiring continues workspace by workspace, same pattern — see
+[ARCHITECTURE.md](ARCHITECTURE.md#frontendbackend-integration) for
 how it's structured and [KNOWN_ISSUES.md](KNOWN_ISSUES.md) for what's explicitly still mock-only
 within the wired workspaces (`member/Policies.tsx`, `LoanContract.tsx`, `ExitSettlement.tsx`,
 `secretary/Members.tsx`'s "pre-fill from employee registry" picker,
-`loan-committee/Policy.tsx`'s reference-policy list). `accountant/Import.tsx` is fully wired but
-its UX changed from the mock's two-step client-parse-then-confirm to a one-step upload, since the
-real backend validates the file atomically server-side with no non-committing preview — see
-[KNOWN_ISSUES.md](KNOWN_ISSUES.md).
+`loan-committee/Policy.tsx`'s reference-policy list). `accountant/Import.tsx` and `hr/Upload.tsx`
+are both fully wired but their UX changed from the mock's two-step client-parse-then-confirm to a
+one-step upload, since the real backend validates the file atomically server-side with no
+non-committing preview — see [KNOWN_ISSUES.md](KNOWN_ISSUES.md). Wiring HR also surfaced a real
+pre-existing gap: `GET /members` (list) never included HR in its role check even though `GET
+/members/{id}` (detail) always did — fixed as part of this phase.
 
 **Phase 13 note**: role assignment (`org-admin/Users.tsx`), member suspend/activate
 (`org-admin/Moderation.tsx`), org profile/branding (`org-admin/Settings.tsx`), loan policy

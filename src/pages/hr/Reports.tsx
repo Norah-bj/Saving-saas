@@ -2,18 +2,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartCard } from "@/components/shared/chart-card";
 import { TrendLineChart } from "@/components/charts/trend-line-chart";
 import { DataTable } from "@/components/shared/data-table";
-import { useCurrentUser } from "@/lib/hooks/use-current-user";
-import { useDataStore } from "@/lib/store/data-store";
+import { useMembers } from "@/lib/api/members";
+import { usePayrollImports } from "@/lib/api/payroll";
 import { formatDate, formatRwf } from "@/lib/format";
 
 export default function HrPayrollReportsPage() {
-  const { user } = useCurrentUser();
-  const members = useDataStore((s) => s.members);
-  const payrollImports = useDataStore((s) => s.payrollImports);
+  const { data: orgMembers = [] } = useMembers();
+  const { data: payrollImports = [] } = usePayrollImports();
 
-  if (!user) return null;
-
-  const orgMembers = members.filter((m) => m.organizationId === user.organizationId);
   const sortedImports = [...payrollImports].sort(
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
   );
@@ -29,7 +25,7 @@ export default function HrPayrollReportsPage() {
     .sort((a, b) => a.fullName.localeCompare(b.fullName))
     .map((m) => ({
       ...m,
-      expectedDeduction: Math.round(m.monthlySalary * 0.1),
+      expectedDeduction: Math.round(m.monthlySalaryRwf * 0.1),
     }));
 
   const totalExpected = deductionRows.reduce((sum, m) => sum + m.expectedDeduction, 0);
@@ -87,7 +83,7 @@ export default function HrPayrollReportsPage() {
               { header: "Member", cell: (r) => r.fullName },
               { header: "Employee ID", cell: (r) => r.employeeId },
               { header: "Department", cell: (r) => r.department },
-              { header: "Monthly Salary", cell: (r) => formatRwf(r.monthlySalary) },
+              { header: "Monthly Salary", cell: (r) => formatRwf(r.monthlySalaryRwf) },
               {
                 header: "Expected Deduction (10%)",
                 cell: (r) => <span className="font-medium">{formatRwf(r.expectedDeduction)}</span>,

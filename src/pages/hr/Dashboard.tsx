@@ -6,19 +6,15 @@ import { BarComparisonChart } from "@/components/charts/bar-comparison-chart";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DataTable } from "@/components/shared/data-table";
-import { useCurrentUser } from "@/lib/hooks/use-current-user";
-import { useDataStore } from "@/lib/store/data-store";
+import { useMembers } from "@/lib/api/members";
+import { usePayrollImports } from "@/lib/api/payroll";
 import { formatDate, formatRwf } from "@/lib/format";
 
 export default function HrDashboardPage() {
-  const { user } = useCurrentUser();
-  const members = useDataStore((s) => s.members);
-  const payrollImports = useDataStore((s) => s.payrollImports);
+  const { data: orgMembers = [] } = useMembers();
+  const { data: payrollImports = [] } = usePayrollImports();
 
-  if (!user) return null;
-
-  const orgMembers = members.filter((m) => m.organizationId === user.organizationId);
-  const totalPayroll = orgMembers.reduce((sum, m) => sum + m.monthlySalary, 0);
+  const totalPayroll = orgMembers.reduce((sum, m) => sum + m.monthlySalaryRwf, 0);
   const sortedImports = [...payrollImports].sort(
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
   );

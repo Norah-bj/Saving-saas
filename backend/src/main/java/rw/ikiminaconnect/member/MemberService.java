@@ -155,7 +155,7 @@ public class MemberService {
         return new MemberSummary(
                 user.getId(), user.getNationalId(), user.getEmployeeId(), user.getFullName(),
                 user.getDepartment(), user.getPosition(), user.getStatus().name(),
-                user.getDateJoined(), balance, roles);
+                user.getDateJoined(), balance, roles, user.getMonthlySalaryRwf());
     }
 
     private MemberDetail toDetail(AppUser user) {

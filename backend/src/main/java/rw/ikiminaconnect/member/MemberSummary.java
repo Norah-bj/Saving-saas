@@ -15,5 +15,6 @@ public record MemberSummary(
         String status,
         LocalDate dateJoined,
         BigDecimal savingsBalanceRwf,
-        List<String> roles) {
+        List<String> roles,
+        BigDecimal monthlySalaryRwf) {
 }

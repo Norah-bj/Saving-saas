@@ -94,13 +94,20 @@
 5. A single named `@FilterDef` (e.g. `organizationFilter`) cannot be declared on more than one
    `@Entity` class, even identically — Hibernate 6 throws at startup. Declare it exactly once, in
    `tenant/package-info.java`; entities only add `@Filter(name = ..., condition = ...)`.
+6. **A role granted access to a detail endpoint isn't automatically granted access to the
+   corresponding list endpoint — check both when adding a new consumer of either.** `GET
+   /members/{id}` allowed `HR` from the start; `GET /members` never did, purely because nothing
+   needed it until HR's own dashboard/reports pages were wired (phase 4/11's frontend work, this
+   session). HR could look up one member by ID but not list the roster at all. Fixed by widening
+   the list endpoint's `@PreAuthorize` to match. Worth checking for the same split anywhere a role
+   is added to one of a resource's endpoints but not audited against its siblings.
 
 ## Not a bug, just not done yet
 
 - Row-Level Security (database-layer tenant isolation, defense-in-depth on top of the application
   layer) is designed but not implemented — see [ARCHITECTURE.md](ARCHITECTURE.md).
 - The frontend is only partially wired to the real backend — member, secretary, loan committee,
-  and accountant workspaces call it now, every other workspace (HR, Org Admin, Super Admin) still
+  accountant, and HR workspaces call it now, every other workspace (Org Admin, Super Admin) still
   runs on the zustand mock. See [FEATURES.md](FEATURES.md) and
   [ARCHITECTURE.md](ARCHITECTURE.md#frontendbackend-integration).
 - Within the now-wired member workspace, three pages are deliberately still mock-only:
@@ -127,13 +134,14 @@
   wired to `PATCH /organizations/{id}/loan-policy`; the read-only "constitution and guarantor rule"
   reference text below it has no backend anywhere in the roadmap — same gap as
   `member/Policies.tsx`, kept rather than faked.
-- **`accountant/Import.tsx`'s upload flow changed shape, not just data source.** The mock parsed
-  the `.xlsx` client-side and showed an editable preview before a separate "Import" click; the real
-  backend (`POST /payroll/import`) parses and validates the actual file server-side in one atomic
-  call, with no non-committing preview endpoint. Wired as upload-then-show-real-result instead —
-  the download-template button (still a pure client-side convenience) and Import History table are
-  otherwise unchanged. Revisit only if a genuine "preview without committing" need shows up; adding
-  one just to match the old UX isn't worth a new endpoint on its own.
+- **`accountant/Import.tsx` and `hr/Upload.tsx`'s upload flow changed shape, not just data
+  source.** The mock parsed the `.xlsx` client-side and showed an editable preview before a
+  separate "Import" click; the real backend (`POST /payroll/import`) parses and validates the
+  actual file server-side in one atomic call, with no non-committing preview endpoint. Both pages
+  are wired as upload-then-show-real-result instead — the download-template button (still a pure
+  client-side convenience) and Import/Upload History table are otherwise unchanged. Revisit only if
+  a genuine "preview without committing" need shows up; adding one just to match the old UX isn't
+  worth a new endpoint on its own.
 - No browser-automation tool was available while wiring the member workspace, so real
   click-through testing (login, submit a savings top-up, apply for a loan, respond to a guarantee
   request, etc.) in an actual browser has not been done by Claude and still needs a human — see

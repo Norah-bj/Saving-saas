@@ -26,15 +26,19 @@ actually exercised per phase, and [CHANGELOG.md](CHANGELOG.md) for the dated his
 
 **Frontend integration is workspace-by-workspace**: member (dashboard, savings, shares, loans,
 guarantors, meetings, announcements, documents, notifications, profile), secretary (dashboard,
-members, exit requests, suspended members, meetings, announcements, documents), and now loan
-committee (dashboard, pending applications, application review/decision, decision history,
-reports, loan policy) call the real backend. Every other workspace (HR, Accountant, Org Admin,
-Super Admin) still runs entirely on the zustand mock store. Wiring continues workspace by
+members, exit requests, suspended members, meetings, announcements, documents), loan committee
+(dashboard, pending applications, application review/decision, decision history, reports, loan
+policy), and now accountant (dashboard, transactions, member statements, loan disbursement,
+reports, Excel payroll import, exports) call the real backend. Every other workspace (HR, Org
+Admin, Super Admin) still runs entirely on the zustand mock store. Wiring continues workspace by
 workspace, same pattern — see [ARCHITECTURE.md](ARCHITECTURE.md#frontendbackend-integration) for
 how it's structured and [KNOWN_ISSUES.md](KNOWN_ISSUES.md) for what's explicitly still mock-only
 within the wired workspaces (`member/Policies.tsx`, `LoanContract.tsx`, `ExitSettlement.tsx`,
 `secretary/Members.tsx`'s "pre-fill from employee registry" picker,
-`loan-committee/Policy.tsx`'s reference-policy list).
+`loan-committee/Policy.tsx`'s reference-policy list). `accountant/Import.tsx` is fully wired but
+its UX changed from the mock's two-step client-parse-then-confirm to a one-step upload, since the
+real backend validates the file atomically server-side with no non-committing preview — see
+[KNOWN_ISSUES.md](KNOWN_ISSUES.md).
 
 **Phase 13 note**: role assignment (`org-admin/Users.tsx`), member suspend/activate
 (`org-admin/Moderation.tsx`), org profile/branding (`org-admin/Settings.tsx`), loan policy

@@ -11,7 +11,8 @@ import {
 } from "@/components/ui/select";
 import { DataTable } from "@/components/shared/data-table";
 import { EmptyState } from "@/components/shared/empty-state";
-import { useDataStore } from "@/lib/store/data-store";
+import { useMembers } from "@/lib/api/members";
+import { useSavingsLedger } from "@/lib/api/savings";
 import { formatDate, formatRwf } from "@/lib/format";
 import type { SavingsTxType } from "@/lib/types";
 
@@ -25,22 +26,16 @@ const TYPE_LABEL: Record<SavingsTxType, string> = {
 };
 
 export default function AccountantStatementsPage() {
-  const organization = useDataStore((s) => s.organization);
-  const members = useDataStore((s) => s.members);
-  const savingsLedger = useDataStore((s) => s.savingsLedger);
+  const { data: members = [] } = useMembers();
   const [memberId, setMemberId] = React.useState<string | null>(null);
+  const { ledger, currentBalance } = useSavingsLedger(memberId ?? undefined);
 
-  const orgMembers = members
-    .filter((m) => m.organizationId === organization.id)
-    .sort((a, b) => a.fullName.localeCompare(b.fullName));
-
-  const ledger = memberId ? savingsLedger[memberId] ?? [] : [];
+  const orgMembers = [...members].sort((a, b) => a.fullName.localeCompare(b.fullName));
   const member = orgMembers.find((m) => m.id === memberId);
 
   const openingBalance = ledger.length
     ? ledger[0].balanceAfter - (ledger[0].type === "loan-repayment" ? 0 : ledger[0].amount)
     : 0;
-  const currentBalance = ledger.length ? ledger[ledger.length - 1].balanceAfter : 0;
 
   return (
     <div className="flex flex-col gap-6">

@@ -6,6 +6,52 @@ verified.
 
 ---
 
+## 2026-08-26 — Accountant workspace wired to the real backend
+
+**Changed**: `accountant/Dashboard.tsx`, `Transactions.tsx`, `Statements.tsx`, `Disbursement.tsx`,
+`Reports.tsx`, `Import.tsx`, `Exports.tsx` now call the real backend — third of the six remaining
+workspaces, and the first with **zero backend changes needed beyond one DTO extension** (every
+endpoint's field names already matched what the pages needed, since the accountant reporting
+endpoints were originally built by porting this exact client-side aggregation logic in phase 11).
+New frontend files: `src/lib/api/ledger.ts` (`useLedger`, filterable, adapts `occurredOn` -> `date`),
+`src/lib/api/reporting.ts` (`useAccountantDashboard`, `useFinancialReport`), `src/lib/api/payroll.ts`
+(`useImportPayroll`, `usePayrollImports`). `loans.ts` gained `useGenerateContract`, `useDisburse`,
+`useRecordRepayment`. `client.ts` gained multipart/`FormData` support (skips JSON-stringifying and
+lets `fetch` set its own boundary) — the first upload endpoint this frontend has wired.
+
+**One backend DTO extension, found while wiring, not guessed**: `LoanSummaryDto` was missing
+`remainingBalance`/`monthlyInstallment`. `Disbursement.tsx`'s "Active Loans — Repayments" table
+needs both for *every* currently disbursed/repaying loan, not just one highlighted item like the
+member dashboard's existing list-vs-detail workaround — so extending the list DTO was the right
+fix here, not a per-row detail fetch. Added both, sourced directly from the `Loan` entity's already
+-tracked columns.
+
+**`accountant/Import.tsx` genuinely couldn't keep its existing two-step UX**: the mock parsed the
+`.xlsx` client-side (via the `xlsx` library) into a preview table, then a separate "Import" click
+ran client-side validation against it. The real backend has no non-committing preview — `POST
+/payroll/import` parses and validates the actual file server-side (Apache POI, phase 4) and returns
+the full result in one atomic call. Rewired to upload-then-show-result in one step; the download-
+template button and Import History table are otherwise unchanged. See
+[KNOWN_ISSUES.md](KNOWN_ISSUES.md).
+
+**Testing**: real end-to-end curl flow against local Postgres — confirmed `GET
+/reports/accountant-dashboard` and `GET /reports/financial` return the exact pre-aggregated shape
+the dashboard/reports pages expect (server-side month-bucketing already matched the mock's
+client-side math from phase 11's original testing); confirmed `GET /ledger` and the extended `GET
+/loans` fields; **uploaded a real generated `.xlsx` covering all four payroll outcomes** (matched,
+duplicate, employee not found, invalid amount) via real multipart `curl`, cross-checked the
+resulting `savings_transactions` row directly against `psql` (`15,000 RWF salary-deduction`,
+correct running balance, source correctly stamped with the uploaded filename); confirmed `GET
+/payroll/imports` lists it; chained `generate-contract` → `disburse` → `record-repayment` on a real
+loan and confirmed each real status transition and timeline entry. `tsc -b`, the stricter
+unused-locals check, and `vite build` all pass clean.
+
+**Not verified**: no browser-automation tool exists in this environment — the actual click-through
+(selecting a real file in a browser file picker, watching the upload progress) hasn't been done in
+a running browser and still needs a human.
+
+---
+
 ## 2026-08-26 — Loan Committee workspace wired to the real backend
 
 **Changed**: `loan-committee/Dashboard.tsx`, `Pending.tsx`, `PendingDetail.tsx`, `Decisions.tsx`,

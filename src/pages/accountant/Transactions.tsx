@@ -9,7 +9,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { DataTable } from "@/components/shared/data-table";
-import { useDataStore } from "@/lib/store/data-store";
+import { useLedger } from "@/lib/api/ledger";
+import { useMembers } from "@/lib/api/members";
 import { formatDate, formatRwf } from "@/lib/format";
 import type { LedgerTransaction } from "@/lib/types";
 
@@ -35,18 +36,15 @@ const METHOD_LABEL: Record<LedgerMethod, string> = {
 };
 
 export default function AccountantTransactionsPage() {
-  const ledgerTransactions = useDataStore((s) => s.ledgerTransactions);
-  const members = useDataStore((s) => s.members);
   const [typeFilter, setTypeFilter] = React.useState("all");
   const [methodFilter, setMethodFilter] = React.useState("all");
-
-  const sorted = [...ledgerTransactions].sort((a, b) => (a.date < b.date ? 1 : -1));
-
-  const filtered = sorted.filter((t) => {
-    if (typeFilter !== "all" && t.type !== typeFilter) return false;
-    if (methodFilter !== "all" && t.method !== methodFilter) return false;
-    return true;
+  const { data: ledgerTransactions = [] } = useLedger({
+    type: typeFilter === "all" ? undefined : typeFilter,
+    method: methodFilter === "all" ? undefined : methodFilter,
   });
+  const { data: members = [] } = useMembers();
+
+  const filtered = [...ledgerTransactions].sort((a, b) => (a.date < b.date ? 1 : -1));
 
   return (
     <div className="flex flex-col gap-6">

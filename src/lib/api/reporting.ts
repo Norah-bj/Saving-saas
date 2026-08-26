@@ -23,6 +23,8 @@ interface AccountantDashboardDto {
   totalInterestIncome: number;
   savingsGrowth: MonthPointDto[];
   cashFlow: CashFlowPointDto[];
+  /** org-admin/Dashboard.tsx's "Total Shares Value" only — unused by accountant/Dashboard.tsx. */
+  totalSharesValueRwf: number;
 }
 
 export function useAccountantDashboard() {

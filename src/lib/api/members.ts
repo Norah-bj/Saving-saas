@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
 import { useAuthStore } from "@/lib/store/auth-store";
 import type { PageResponse } from "@/lib/api/client";
+import type { Role, MemberStatus } from "@/lib/types";
 
 /** Mirrors the backend's member.MemberDetail. */
 export interface MemberDetailDto {
@@ -108,5 +109,31 @@ export function useGuarantorCandidates() {
     queryKey: ["guarantor-candidates"],
     queryFn: () => apiClient.get<GuarantorCandidateDto[]>("/members/guarantor-candidates"),
     enabled: !!accessToken,
+  });
+}
+
+/** ORG_ADMIN only — replaces the member's full role set (MEMBER is always kept server-side even if omitted). */
+export function useUpdateMemberRoles() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ memberId, roles }: { memberId: string; roles: Role[] }) =>
+      apiClient.put<MemberDetailDto>(`/members/${memberId}/roles`, { roles }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["members"] });
+      queryClient.invalidateQueries({ queryKey: ["member-detail"] });
+    },
+  });
+}
+
+/** ORG_ADMIN only. Only active<->suspended is a valid transition — the backend 409s anything else. */
+export function useUpdateMemberStatus() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ memberId, status }: { memberId: string; status: MemberStatus }) =>
+      apiClient.post<MemberDetailDto>(`/members/${memberId}/status`, { status }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["members"] });
+      queryClient.invalidateQueries({ queryKey: ["member-detail"] });
+    },
   });
 }

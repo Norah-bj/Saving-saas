@@ -4,19 +4,21 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/shared/data-table";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
-import { useDataStore } from "@/lib/store/data-store";
+import { useOrganization } from "@/lib/api/organization";
+import { useBackups, useCreateBackup } from "@/lib/api/backups";
+import { ApiError } from "@/lib/api/client";
 import { formatDate } from "@/lib/format";
 import type { BackupRecord } from "@/lib/types";
 
 export default function OrgAdminBackupsPage() {
-  const organization = useDataStore((s) => s.organization);
-  const backups = useDataStore((s) => s.backups);
-  const createBackup = useDataStore((s) => s.createBackup);
-
-  const orgBackups = backups.filter((b) => b.organizationId === organization.id);
+  const { data: organization } = useOrganization();
+  const { data: orgBackups = [] } = useBackups();
+  const createBackup = useCreateBackup();
 
   const [restoreTarget, setRestoreTarget] = React.useState<BackupRecord | null>(null);
   const [restoredIds, setRestoredIds] = React.useState<string[]>([]);
+
+  if (!organization) return null;
 
   return (
     <div className="flex flex-col gap-6">
@@ -28,11 +30,18 @@ export default function OrgAdminBackupsPage() {
           </p>
         </div>
         <Button
-          onClick={() => createBackup("Manual backup — Organization Admin", organization.id)}
+          onClick={() => createBackup.mutate("Manual backup — Organization Admin")}
+          disabled={createBackup.isPending}
         >
           <DatabaseBackup className="size-4" /> Create Manual Backup
         </Button>
       </div>
+
+      {createBackup.isError && (
+        <p className="text-sm text-destructive">
+          {createBackup.error instanceof ApiError ? createBackup.error.message : "Something went wrong."}
+        </p>
+      )}
 
       <Card>
         <CardHeader>

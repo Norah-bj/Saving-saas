@@ -6,6 +6,52 @@ verified.
 
 ---
 
+## 2026-08-26 — Org Admin workspace wired to the real backend
+
+**Changed**: `org-admin/Dashboard.tsx`, `Users.tsx`, `Moderation.tsx`, `Settings.tsx`,
+`Backups.tsx`, `Reports.tsx` now call the real backend — fifth of the six remaining workspaces.
+New frontend files: `src/lib/api/backups.ts` (`useBackups`, `useCreateBackup`), `audit.ts`
+(`useOrgAuditLog`). `members.ts` gained `useUpdateMemberRoles`/`useUpdateMemberStatus`,
+`organization.ts` gained `useUpdateOrganizationProfile`. Backend: `AccountantDashboardDto` gained
+`totalSharesValueRwf`, `AuditLogController` widened to allow ORG_ADMIN (self-scoped only).
+
+**A real, deliberate security-relevant widening, not just a new field**: `GET /audit-logs` was
+SUPER_ADMIN-only; `org-admin/Dashboard.tsx`'s "Recent Activity" card needs an org's own trail.
+Rather than a blanket widen, the controller now forces an ORG_ADMIN caller to their own
+organization server-side regardless of any `organizationId` query param they pass — verified
+directly: passing a different org's UUID as the caller returned the caller's own org's entries
+anyway, not the requested one. SUPER_ADMIN's existing platform-wide behavior (including the
+`?organizationId=` narrowing param) is unchanged.
+
+**One backend DTO extension, reusing an existing shared endpoint rather than adding a new one**:
+`org-admin/Dashboard.tsx` needs a "Total Shares Value" stat that `accountant/Dashboard.tsx` (which
+already calls the same `GET /reports/accountant-dashboard`) has no equivalent for. Added
+`totalSharesValueRwf` to the shared `AccountantDashboardDto` — computed server-side via one new
+aggregate query (`SUM(total_shares)` per org) rather than fetching every member's share-holding row
+individually, then multiplied by the org's own `share_value_rwf`. `accountant/Dashboard.tsx` simply
+doesn't read the new field.
+
+**Backups' "Restore" stays exactly as fake as the mock's** — `GET`/`POST /backups` are wired for
+real; the Restore button remains local-only UI state, matching the backend's own real limitation
+(no `pg_dump`/restore automation exists — see [KNOWN_ISSUES.md](KNOWN_ISSUES.md)), not a
+regression introduced by this wiring pass.
+
+**Testing**: real end-to-end curl flow against local Postgres. Confirmed `totalSharesValueRwf`
+present and correct on `GET /reports/accountant-dashboard`. Specifically verified the audit-log
+security fix: as an ORG_ADMIN, a request with no `organizationId` param returned only that caller's
+80 own-org entries, and a request that explicitly passed a different (fabricated) org's UUID as the
+param *still* returned only the caller's own org's entries — confirming the server-side override,
+not just the happy path. Exercised `PUT /members/{id}/roles`, `POST /members/{id}/status`
+(suspend→activate), `PATCH /organizations/{id}/profile`, and `GET`/`POST /backups` against real
+dev fixtures, reverting every test mutation immediately afterward (role grant, suspension, org
+profile name) so the fixtures' documented state stayed accurate. `tsc -b`, the stricter
+unused-locals check, and `vite build` all pass clean.
+
+**Not verified**: no browser-automation tool exists in this environment — the actual click-through
+hasn't been done in a running browser and still needs a human.
+
+---
+
 ## 2026-08-26 — HR workspace wired to the real backend
 
 **Changed**: `hr/Dashboard.tsx`, `Upload.tsx`, `Reports.tsx` now call the real backend — fourth of

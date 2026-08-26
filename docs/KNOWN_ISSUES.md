@@ -101,14 +101,22 @@
    session). HR could look up one member by ID but not list the roster at all. Fixed by widening
    the list endpoint's `@PreAuthorize` to match. Worth checking for the same split anywhere a role
    is added to one of a resource's endpoints but not audited against its siblings.
+7. **Widening a platform-only endpoint's role check must force the new role's query scope
+   server-side, never trust a filter param it could also set.** `GET /audit-logs` was
+   SUPER_ADMIN-only with an optional `?organizationId=` narrowing param. Adding ORG_ADMIN for
+   `org-admin/Dashboard.tsx` without also overriding that param server-side would have let an
+   org-admin request another tenant's audit trail just by passing its UUID. Fixed by ignoring the
+   param entirely for a non-super-admin caller and always using their own
+   `currentUser.organizationId()` — see [ARCHITECTURE.md](ARCHITECTURE.md#frontendbackend-integration)
+   for the general pattern. Verified directly, not assumed: passing a fabricated org UUID as an
+   ORG_ADMIN still returned only the caller's own org's rows.
 
 ## Not a bug, just not done yet
 
 - Row-Level Security (database-layer tenant isolation, defense-in-depth on top of the application
   layer) is designed but not implemented — see [ARCHITECTURE.md](ARCHITECTURE.md).
-- The frontend is only partially wired to the real backend — member, secretary, loan committee,
-  accountant, and HR workspaces call it now, every other workspace (Org Admin, Super Admin) still
-  runs on the zustand mock. See [FEATURES.md](FEATURES.md) and
+- The frontend is only partially wired to the real backend — every workspace except Super Admin
+  calls it now. See [FEATURES.md](FEATURES.md) and
   [ARCHITECTURE.md](ARCHITECTURE.md#frontendbackend-integration).
 - Within the now-wired member workspace, three pages are deliberately still mock-only:
   `member/Policies.tsx` (reads `RolePolicy` content — no backend exists for this in any phase),

@@ -63,3 +63,27 @@ export function useUpdateLoanPolicy() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["organization", organizationId] }),
   });
 }
+
+export interface UpdateOrganizationProfileInput {
+  name: string;
+  shortName: string;
+  district: string;
+  sector: string;
+  address: string;
+  contactEmail: string;
+  contactPhone: string;
+  logoInitials: string;
+  brandColor: string;
+  stampLabel: string;
+}
+
+/** ORG_ADMIN only. Branding/contact fields — deliberately separate from loan policy, see docs/API.md. */
+export function useUpdateOrganizationProfile() {
+  const organizationId = useAuthStore((s) => s.user?.organizationId);
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: UpdateOrganizationProfileInput) =>
+      apiClient.patch<OrganizationDto>(`/organizations/${organizationId}/profile`, input),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["organization", organizationId] }),
+  });
+}

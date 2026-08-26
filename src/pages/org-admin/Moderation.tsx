@@ -5,21 +5,18 @@ import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/shared/data-table";
 import { MemberStatusBadge } from "@/components/shared/status-badge";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
-import { useCurrentUser } from "@/lib/hooks/use-current-user";
-import { useDataStore } from "@/lib/store/data-store";
-import type { AppUser } from "@/lib/types";
+import { useOrganization } from "@/lib/api/organization";
+import { useMembers, useUpdateMemberStatus, type MemberSummaryDto } from "@/lib/api/members";
+import { ApiError } from "@/lib/api/client";
 
 export default function OrgAdminModerationPage() {
-  const { user } = useCurrentUser();
-  const organization = useDataStore((s) => s.organization);
-  const members = useDataStore((s) => s.members);
-  const setMemberStatus = useDataStore((s) => s.setMemberStatus);
+  const { data: organization } = useOrganization();
+  const { data: orgMembers = [] } = useMembers();
+  const updateStatus = useUpdateMemberStatus();
 
-  const orgMembers = members.filter((m) => m.organizationId === organization.id);
+  const [suspendTarget, setSuspendTarget] = React.useState<MemberSummaryDto | null>(null);
 
-  const [suspendTarget, setSuspendTarget] = React.useState<AppUser | null>(null);
-
-  const actorName = user?.fullName ?? "Organization Admin";
+  if (!organization) return null;
 
   return (
     <div className="flex flex-col gap-6">
@@ -29,6 +26,12 @@ export default function OrgAdminModerationPage() {
           Control member access to {organization.shortName} without deleting their records.
         </p>
       </div>
+
+      {updateStatus.isError && (
+        <p className="text-sm text-destructive">
+          {updateStatus.error instanceof ApiError ? updateStatus.error.message : "Something went wrong."}
+        </p>
+      )}
 
       <Card>
         <CardHeader>
@@ -40,7 +43,7 @@ export default function OrgAdminModerationPage() {
               { header: "Name", cell: (r) => r.fullName },
               { header: "Employee ID", cell: (r) => r.employeeId },
               { header: "Department", cell: (r) => r.department },
-              { header: "Status", cell: (r) => <MemberStatusBadge status={r.status} /> },
+              { header: "Status", cell: (r) => <MemberStatusBadge status={r.status as never} /> },
               {
                 header: "",
                 headClassName: "w-px",
@@ -53,7 +56,7 @@ export default function OrgAdminModerationPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setMemberStatus(r.id, "active", actorName)}
+                      onClick={() => updateStatus.mutate({ memberId: r.id, status: "active" })}
                     >
                       <UserCheck className="size-3.5" /> Activate
                     </Button>
@@ -81,7 +84,7 @@ export default function OrgAdminModerationPage() {
         confirmLabel="Suspend member"
         tone="destructive"
         onConfirm={() => {
-          if (suspendTarget) setMemberStatus(suspendTarget.id, "suspended", actorName);
+          if (suspendTarget) updateStatus.mutate({ memberId: suspendTarget.id, status: "suspended" });
         }}
       />
     </div>

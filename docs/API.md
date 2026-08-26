@@ -83,10 +83,10 @@ super-admins, who are never gated) — an authenticated-but-unverified caller ge
 
 ## Reporting — `ReportingController` (ACCOUNTANT, ORG_ADMIN)
 
-| Method | Path |
-|---|---|
-| GET | `/reports/accountant-dashboard` |
-| GET | `/reports/financial` |
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/reports/accountant-dashboard` | `AccountantDashboardDto` includes `totalSharesValueRwf` (`totalShares × organizations.share_value_rwf`, summed org-wide) — added for `org-admin/Dashboard.tsx`'s "Total Shares Value" stat; `accountant/Dashboard.tsx` has no shares stat and simply doesn't use the field. |
+| GET | `/reports/financial` | |
 
 ## Meetings — `MeetingController`
 
@@ -135,11 +135,11 @@ Separate controller/base path from `OrganizationController` (`/organizations` vs
 `/organizations/{id}`, no `#id == my org` check) — a platform view has no self-scoping to enforce,
 so it doesn't share the self-scoped controller's `@PreAuthorize` shape.
 
-## Platform audit log — `AuditLogController` (SUPER_ADMIN only)
+## Audit log — `AuditLogController` (SUPER_ADMIN, ORG_ADMIN)
 
 | Method | Path | Notes |
 |---|---|---|
-| GET | `/audit-logs` | Every audit entry, every org, plus platform-level (`organizationId: null`) rows. Optional `?organizationId={uuid}` narrows to one org. |
+| GET | `/audit-logs` | SUPER_ADMIN sees every audit entry across every org, plus platform-level (`organizationId: null`) rows, and may narrow to one org with `?organizationId={uuid}`. ORG_ADMIN is always forced to their own org server-side regardless of that query param — an org-admin can never see another tenant's trail or platform-level rows. Used by `org-admin/Dashboard.tsx`'s "Recent Activity". |
 
 ## Backups — `BackupController` (ORG_ADMIN, SUPER_ADMIN)
 

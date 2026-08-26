@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
 import { useAuthStore } from "@/lib/store/auth-store";
 
@@ -38,5 +38,28 @@ export function useOrganization() {
     queryKey: ["organization", organizationId],
     queryFn: () => apiClient.get<OrganizationDto>(`/organizations/${organizationId}`),
     enabled: !!organizationId,
+  });
+}
+
+export interface UpdateLoanPolicyInput {
+  /** Whole percentages (e.g. 5, not 0.05) — converted to a fraction before the request goes out. */
+  loanInterestRate: number;
+  loanInsuranceRate: number;
+  minMonthsBeforeEligible: number;
+  allowedRepaymentPeriods: number[];
+}
+
+export function useUpdateLoanPolicy() {
+  const organizationId = useAuthStore((s) => s.user?.organizationId);
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: UpdateLoanPolicyInput) =>
+      apiClient.patch<OrganizationDto>(`/organizations/${organizationId}/loan-policy`, {
+        loanInterestRate: input.loanInterestRate / 100,
+        loanInsuranceRate: input.loanInsuranceRate / 100,
+        minMonthsBeforeEligible: input.minMonthsBeforeEligible,
+        allowedRepaymentPeriods: input.allowedRepaymentPeriods,
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["organization", organizationId] }),
   });
 }

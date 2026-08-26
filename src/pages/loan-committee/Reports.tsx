@@ -2,12 +2,12 @@ import { Wallet, Coins } from "lucide-react";
 import { StatCard } from "@/components/shared/stat-card";
 import { ChartCard } from "@/components/shared/chart-card";
 import { BarComparisonChart } from "@/components/charts/bar-comparison-chart";
-import { useDataStore } from "@/lib/store/data-store";
+import { useLoans } from "@/lib/api/loans";
 import { formatRwf } from "@/lib/format";
 import { riskBand } from "@/lib/loan-calculator";
 
 export default function LoanCommitteeReportsPage() {
-  const loans = useDataStore((s) => s.loans);
+  const { data: loans = [] } = useLoans();
 
   const totalPortfolioValue = loans.reduce((sum, l) => sum + l.amount, 0);
   const averageLoanSize = loans.length ? Math.round(totalPortfolioValue / loans.length) : 0;

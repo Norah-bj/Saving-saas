@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, CheckCircle2, XCircle, PlayCircle, SearchX, FileText } from "lucide-react";
+import { ArrowLeft, CheckCircle2, XCircle, PlayCircle, SearchX, FileText, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -9,10 +9,12 @@ import { LoanStatusBadge, GuaranteeStatusBadge, ToneBadge } from "@/components/s
 import { LoanStagePipeline, LoanTimelineList } from "@/components/shared/loan-timeline";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { EmptyState } from "@/components/shared/empty-state";
-import { useCurrentUser } from "@/lib/hooks/use-current-user";
-import { useDataStore } from "@/lib/store/data-store";
+import { useAuthStore } from "@/lib/store/auth-store";
+import { useLoanDetail, useStartReview, useCommitteeDecision } from "@/lib/api/loans";
+import { useMemberDetail, useMembers } from "@/lib/api/members";
+import { ApiError } from "@/lib/api/client";
 import { riskBand } from "@/lib/loan-calculator";
-import { monthsBetween, MOCK_TODAY } from "@/lib/mock-data";
+import { monthsBetween } from "@/lib/mock-data";
 import { formatRwf } from "@/lib/format";
 import { LOAN_STATUS_ORDER } from "@/lib/types";
 
@@ -21,21 +23,20 @@ const CONTRACT_VISIBLE_STATUSES = LOAN_STATUS_ORDER.slice(LOAN_STATUS_ORDER.inde
 export default function LoanReviewDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user } = useCurrentUser();
-  const loans = useDataStore((s) => s.loans);
-  const members = useDataStore((s) => s.members);
-  const guarantees = useDataStore((s) => s.guarantees);
-  const savingsBalance = useDataStore((s) => s.savingsBalance);
-  const startLoanReview = useDataStore((s) => s.startLoanReview);
-  const committeeDecision = useDataStore((s) => s.committeeDecision);
+  const committeeChair = useAuthStore((s) => s.user?.committeeChair ?? false);
+  const { data: loan, guaranteeStatus, isLoading } = useLoanDetail(id);
+  const { data: member } = useMemberDetail(loan?.memberId);
+  const { data: members = [] } = useMembers();
+  const startReview = useStartReview();
+  const committeeDecision = useCommitteeDecision();
 
   const [notes, setNotes] = React.useState("");
   const [confirmApprove, setConfirmApprove] = React.useState(false);
   const [confirmReject, setConfirmReject] = React.useState(false);
 
-  const loan = loans.find((l) => l.id === id);
+  if (isLoading) return null;
 
-  if (!loan) {
+  if (!loan || !member) {
     return (
       <EmptyState
         icon={SearchX}
@@ -50,14 +51,18 @@ export default function LoanReviewDetailPage() {
     );
   }
 
-  const member = members.find((m) => m.id === loan.memberId)!;
-  const guarantee = guarantees.find((g) => g.loanId === loan.id);
-  const savings = savingsBalance(member.id);
-  const tenureMonths = monthsBetween(member.dateJoined, MOCK_TODAY);
-  const dsr = member.monthlySalary > 0 ? loan.monthlyInstallment / member.monthlySalary : 1;
+  const guarantorId = loan.guarantorIds[0];
+  const guarantorName = members.find((m) => m.id === guarantorId)?.fullName ?? "—";
+  const savings = member.savingsBalanceRwf;
+  const tenureMonths = monthsBetween(member.dateJoined, new Date().toISOString());
+  const dsr = member.monthlySalaryRwf > 0 ? loan.monthlyInstallment / member.monthlySalaryRwf : 1;
   const band = riskBand(loan.riskScore);
 
-  const actorName = user?.fullName ?? "Loan Committee";
+  // The backend enforces this for real (403 on decide) — the frontend mock
+  // never did, every loan-committee user saw the same buttons regardless of
+  // chair status. Shown here so a non-chair member sees why, rather than
+  // discovering it only after a rejected request.
+  const chairOnly = loan.status === "committee-review" && loan.insuranceRequired && !committeeChair;
 
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6">
@@ -69,7 +74,7 @@ export default function LoanReviewDetailPage() {
           <div>
             <h1 className="text-lg font-semibold tracking-tight">{loan.contractNumber}</h1>
             <p className="text-sm text-muted-foreground">
-              {member.fullName} · {member.department} · {formatRwf(member.monthlySalary)}/month
+              {member.fullName} · {member.department} · {formatRwf(member.monthlySalaryRwf)}/month
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -102,12 +107,10 @@ export default function LoanReviewDetailPage() {
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-xs font-medium text-muted-foreground">Guarantor Analysis</CardTitle></CardHeader>
           <CardContent className="space-y-1.5">
-            {guarantee ? (
+            {guaranteeStatus ? (
               <>
-                <p className="text-sm font-medium">
-                  {members.find((m) => m.id === guarantee.guarantorId)?.fullName}
-                </p>
-                <GuaranteeStatusBadge status={guarantee.status} />
+                <p className="text-sm font-medium">{guarantorName}</p>
+                <GuaranteeStatusBadge status={guaranteeStatus} />
               </>
             ) : (
               <p className="text-sm text-muted-foreground">No guarantor required</p>
@@ -119,7 +122,7 @@ export default function LoanReviewDetailPage() {
           <CardContent className="space-y-1.5">
             <p className="text-lg font-semibold">{(dsr * 100).toFixed(0)}%</p>
             <p className="text-xs text-muted-foreground">
-              {formatRwf(loan.monthlyInstallment)} installment vs {formatRwf(member.monthlySalary)} salary
+              {formatRwf(loan.monthlyInstallment)} installment vs {formatRwf(member.monthlySalaryRwf)} salary
             </p>
           </CardContent>
         </Card>
@@ -174,9 +177,15 @@ export default function LoanReviewDetailPage() {
               to {loan.insuranceRequired ? "the guarantor" : "the Loan Committee"}.
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <Button onClick={() => startLoanReview(loan.id, actorName)}>
-              <PlayCircle className="size-4" /> Start Review
+          <CardContent className="flex flex-col gap-3">
+            {startReview.isError && (
+              <p className="text-sm text-destructive">
+                {startReview.error instanceof ApiError ? startReview.error.message : "Something went wrong."}
+              </p>
+            )}
+            <Button onClick={() => startReview.mutate(loan.id)} disabled={startReview.isPending}>
+              {startReview.isPending ? <Loader2 className="size-4 animate-spin" /> : <PlayCircle className="size-4" />}
+              Start Review
             </Button>
           </CardContent>
         </Card>
@@ -185,16 +194,22 @@ export default function LoanReviewDetailPage() {
       {loan.status === "guarantor-approval" && (
         <Card>
           <CardContent className="pt-6 text-sm text-muted-foreground">
-            Awaiting guarantor response from{" "}
-            <span className="font-medium text-foreground">
-              {members.find((m) => m.id === guarantee?.guarantorId)?.fullName}
-            </span>
-            . This application will move to Committee Review automatically once the guarantor accepts.
+            Awaiting guarantor response from <span className="font-medium text-foreground">{guarantorName}</span>.
+            This application will move to Committee Review automatically once the guarantor accepts.
           </CardContent>
         </Card>
       )}
 
-      {loan.status === "committee-review" && (
+      {loan.status === "committee-review" && chairOnly && (
+        <Card>
+          <CardContent className="pt-6 text-sm text-muted-foreground">
+            This loan required a guarantor, so only the Loan Committee Chair can make the final
+            decision.
+          </CardContent>
+        </Card>
+      )}
+
+      {loan.status === "committee-review" && !chairOnly && (
         <Card>
           <CardHeader>
             <CardTitle className="text-sm font-medium">Committee Decision</CardTitle>
@@ -207,6 +222,11 @@ export default function LoanReviewDetailPage() {
               onChange={(e) => setNotes(e.target.value)}
               rows={3}
             />
+            {committeeDecision.isError && (
+              <p className="text-sm text-destructive">
+                {committeeDecision.error instanceof ApiError ? committeeDecision.error.message : "Something went wrong."}
+              </p>
+            )}
             <div className="flex gap-2">
               <Button onClick={() => setConfirmApprove(true)} className="gap-1.5">
                 <CheckCircle2 className="size-4" /> Approve
@@ -233,8 +253,10 @@ export default function LoanReviewDetailPage() {
         description={`${member.fullName} will be notified and a contract can then be generated.`}
         confirmLabel="Approve loan"
         onConfirm={() => {
-          committeeDecision(loan.id, "approve", actorName, notes || undefined);
-          navigate("/loan-committee/pending");
+          committeeDecision.mutate(
+            { loanId: loan.id, approve: true, notes: notes || undefined },
+            { onSuccess: () => navigate("/loan-committee/pending") }
+          );
         }}
       />
       <ConfirmDialog
@@ -245,8 +267,10 @@ export default function LoanReviewDetailPage() {
         confirmLabel="Reject loan"
         tone="destructive"
         onConfirm={() => {
-          committeeDecision(loan.id, "reject", actorName, notes || undefined);
-          navigate("/loan-committee/pending");
+          committeeDecision.mutate(
+            { loanId: loan.id, approve: false, notes: notes || undefined },
+            { onSuccess: () => navigate("/loan-committee/pending") }
+          );
         }}
       />
     </div>

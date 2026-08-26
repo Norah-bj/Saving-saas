@@ -22,13 +22,13 @@ public class LoanDetailAssembler {
     }
 
     public LoanDetailDto toDetail(Loan loan) {
-        List<UUID> guarantorIds = guaranteeRepository.findAllByLoanId(loan.getId()).stream()
-                .map(Guarantee::getGuarantorId)
-                .toList();
+        List<Guarantee> guarantees = guaranteeRepository.findAllByLoanId(loan.getId());
+        List<UUID> guarantorIds = guarantees.stream().map(Guarantee::getGuarantorId).toList();
+        GuaranteeStatus guaranteeStatus = guarantees.isEmpty() ? null : guarantees.get(0).getStatus();
         List<LoanTimelineEventDto> timeline = timelineRepository.findAllByLoanIdOrderByCreatedAtAsc(loan.getId())
                 .stream()
                 .map(LoanTimelineEventDto::from)
                 .toList();
-        return LoanDetailDto.from(loan, guarantorIds, timeline);
+        return LoanDetailDto.from(loan, guarantorIds, guaranteeStatus, timeline);
     }
 }

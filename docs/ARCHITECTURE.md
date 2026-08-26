@@ -2,14 +2,15 @@
 
 ## System shape
 
-Two codebases in this one repo, now **partially** wired together (member + secretary workspaces
-so far — see [Frontend/backend integration](#frontendbackend-integration) below):
+Two codebases in this one repo, now **partially** wired together (member, secretary, and loan
+committee workspaces so far — see [Frontend/backend integration](#frontendbackend-integration)
+below):
 
 - **Frontend** (repo root `src/`): Vite + React 18 + TypeScript + React Router + Tailwind v4 +
   shadcn/ui (base-ui flavor), TanStack React Query for server state. Fully built and polished. The
-  member and secretary workspaces now call the real backend; every other workspace (HR, Accountant,
-  Loan Committee, Org Admin, Super Admin) still runs entirely against the zustand mock store
-  (`src/lib/mock-data/`, `src/lib/store/data-store.ts`). Deployed to Vercel (see
+  member, secretary, and loan committee workspaces now call the real backend; every other
+  workspace (HR, Accountant, Org Admin, Super Admin) still runs entirely against the zustand mock
+  store (`src/lib/mock-data/`, `src/lib/store/data-store.ts`). Deployed to Vercel (see
   [DEPLOYMENT.md](DEPLOYMENT.md)) — the deployed build still points at mock data until the backend
   itself is deployed too.
 - **Backend** (`backend/`): Java 21 + Spring Boot 3.3.4 + PostgreSQL 17, built vertical-slice by
@@ -130,10 +131,11 @@ real bug when violated — see [KNOWN_ISSUES.md](KNOWN_ISSUES.md) and
 
 ## Frontend/backend integration
 
-The member workspace (`src/pages/member/*`, plus `Profile.tsx`/`Notifications.tsx`) and the
-secretary workspace (`src/pages/secretary/*`) are wired to the real backend; every other workspace
-still runs on the zustand mock store. Wiring follows this shape, established once and meant to be
-reused as later workspaces are converted:
+The member workspace (`src/pages/member/*`, plus `Profile.tsx`/`Notifications.tsx`), the secretary
+workspace (`src/pages/secretary/*`), and the loan committee workspace
+(`src/pages/loan-committee/*`) are wired to the real backend; every other workspace still runs on
+the zustand mock store. Wiring follows this shape, established once and meant to be reused as
+later workspaces are converted:
 
 - **`src/lib/api/client.ts`** — a single shared `fetch` wrapper (`apiClient.get/post/put/patch`).
   Attaches `Authorization: Bearer` from the auth store; on a 401 from any endpoint *except*
@@ -182,6 +184,14 @@ reused as later workspaces are converted:
   parent's render, so a cell that needs its own data fetch (e.g. exit-eligibility per pending exit
   request, to show a real-time "blocked" reason) must be pulled into an actual subcomponent so its
   hook call is legal. See `secretary/ExitRequests.tsx`'s `BlockReasonCell`.
+- **JWT-derived flags shown in the UI are informational only, never the actual gate**: real
+  server-side authorization the frontend can usefully preview (e.g. `committeeChair`, used by
+  `loan-committee/PendingDetail.tsx` to show "only the Chair can decide this" instead of Approve/
+  Reject buttons that would 403) is read from the auth store's lightweight JWT claim purely to
+  decide what to *render*. The enforcement itself always stays server-side, re-checked fresh from
+  the database on every request — the same rule already established for backend business logic
+  (see the loan approval workflow in [BUSINESS_RULES.md](BUSINESS_RULES.md)), just extended to how
+  the frontend uses that same claim.
 - **CORS**: already configured before this integration work started (`app.cors.allowed-origins` in
   `application.yml`, defaulting to `http://localhost:3000`) — verified working with real
   browser-`Origin` requests, not just same-origin `curl`.

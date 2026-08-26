@@ -6,6 +6,62 @@ verified.
 
 ---
 
+## 2026-08-26 — Loan Committee workspace wired to the real backend
+
+**Changed**: `loan-committee/Dashboard.tsx`, `Pending.tsx`, `PendingDetail.tsx`, `Decisions.tsx`,
+`Reports.tsx`, `Policy.tsx` now call the real backend — second of the six remaining workspaces.
+New `src/lib/api/loans.ts` additions: `useLoans` (staff-wide list — same `GET /loans` endpoint as
+member-side `useMyLoans`, already auto-scoped to "every org loan" for a staff caller),
+`useStartReview`, `useCommitteeDecision`. New `organization.ts` addition: `useUpdateLoanPolicy`
+(handles the whole-percentage ↔ fraction conversion at the boundary, same unit issue documented
+throughout this project). Backend: `LoanSummaryDto` gained `decidedDate`, `LoanDetailDto` gained
+`guaranteeStatus`.
+
+**Why**: continuing the workspace-by-workspace wiring effort — every endpoint this phase needed
+already existed from earlier roadmap phases.
+
+**A real backend enforcement the frontend mock never had, now visible for the first time**:
+`LoanReviewService.decide()` has always 403'd a non-chair Loan Committee member deciding a
+guaranteed loan (phase 7, committee-chair-only rule) — but nothing in the frontend ever exercised
+that path, since every page ran on mock data with no server round-trip. `PendingDetail.tsx` now
+checks the caller's own `committeeChair` flag (from the JWT, informational only) and swaps the
+Approve/Reject card for an explanatory message when a non-chair member views a guaranteed loan
+awaiting decision — so the restriction is discovered as a clear message, not a raw 403 after
+clicking. The actual enforcement stays entirely server-side, re-checked fresh from the database
+exactly as before; the frontend flag only decides what to *show*, never what's *allowed*.
+
+**Two real DTO gaps found by reading the actual backend, not guessed**:
+1. `LoanSummaryDto` (the list endpoint) never carried a decision date, so `Dashboard.tsx`'s
+   "approved/rejected this month" buckets and `Decisions.tsx`'s sort-by-decision-date had nothing
+   to compute from. Added `decidedDate`, sourced from the existing `approvedDate` column for
+   approvals and from `Loan.updatedAt` (already set precisely at rejection time by
+   `rejectByCommittee`/`rejectByGuarantorDecline`) for rejections — there's no dedicated
+   rejected-date column, so this is a documented approximation, not a new tracked field.
+2. `LoanDetailDto` carried `guarantorIds` (just UUIDs) but nothing about *whether* the guarantor
+   had responded — `PendingDetail.tsx`'s "Guarantor Analysis" card needs the accept/decline status.
+   `GET /guarantees` couldn't answer this: it's deliberately a personal "my requests as guarantor"
+   inbox, not usable by a committee member looking at someone else's loan. Added `guaranteeStatus`
+   to `LoanDetailDto` instead of a new endpoint — the assembler already had the guarantee row in
+   hand (it was extracting the guarantor ID from it either way, just discarding the status).
+
+**Testing**: real end-to-end curl flow against local Postgres — confirmed `decidedDate` on both an
+approved-then-completed loan and a rejected one; confirmed `guaranteeStatus: "accepted"` on the
+existing guaranteed committee-review fixture (`TC-2026-002`); confirmed the chair-only enforcement
+directly — a non-chair committee member's decision attempt correctly 403'd with the existing
+message, then the chair fixture's decision on the *same* loan correctly succeeded; confirmed
+`start-review` moves a submitted loan to committee-review; confirmed the loan-policy PATCH persists
+and reverted it back to the fixture's original rates afterward. `tsc -b`, the stricter
+unused-locals check, and `vite build` all pass clean.
+
+**Not wired, deliberately**: `loan-committee/Policy.tsx`'s read-only "reference policies" list
+(constitution/guarantor-rule text) stays on mock data — no backend has ever existed for this
+content, same gap as `member/Policies.tsx`.
+
+**Not verified**: no browser-automation tool exists in this environment — the actual click-through
+hasn't been done in a running browser and still needs a human.
+
+---
+
 ## 2026-08-25 — Secretary workspace wired to the real backend
 
 **Changed**: `secretary/Dashboard.tsx`, `Members.tsx`, `Suspended.tsx`, `ExitRequests.tsx`,

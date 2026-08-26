@@ -4,9 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DataTable } from "@/components/shared/data-table";
 import { EmptyState } from "@/components/shared/empty-state";
 import { LoanStatusBadge } from "@/components/shared/status-badge";
-import { useDataStore } from "@/lib/store/data-store";
+import { useLoans, type LoanSummary } from "@/lib/api/loans";
+import { useMembers } from "@/lib/api/members";
 import { formatDate, formatRwf } from "@/lib/format";
-import type { Loan, LoanStatus } from "@/lib/types";
+import type { LoanStatus } from "@/lib/types";
 
 const DECIDED_STATUSES: LoanStatus[] = [
   "approved",
@@ -17,19 +18,14 @@ const DECIDED_STATUSES: LoanStatus[] = [
   "rejected",
 ];
 
-function decisionDate(loan: Loan) {
-  if (loan.status === "rejected") {
-    return (
-      [...loan.timeline].reverse().find((t) => t.stage === "rejected")?.date ?? loan.appliedDate
-    );
-  }
-  return loan.approvedDate ?? loan.appliedDate;
+function decisionDate(loan: LoanSummary) {
+  return loan.decidedDate ?? loan.appliedDate;
 }
 
 export default function LoanCommitteeDecisionsPage() {
   const navigate = useNavigate();
-  const loans = useDataStore((s) => s.loans);
-  const members = useDataStore((s) => s.members);
+  const { data: loans = [] } = useLoans();
+  const { data: members = [] } = useMembers();
 
   const decided = loans
     .filter((l) => DECIDED_STATUSES.includes(l.status))

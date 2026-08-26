@@ -194,6 +194,10 @@ public class Loan {
         return committeeNotes;
     }
 
+    public Instant getUpdatedAt() {
+        return updatedAt;
+    }
+
     /** Guarantor accepted — forwarded to committee review (data-store.ts's respondGuarantee). */
     public void forwardToCommitteeReview() {
         this.status = LoanStatus.COMMITTEE_REVIEW;

@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { EmptyState } from "@/components/shared/empty-state";
 import { BookOpen } from "lucide-react";
-import { useCurrentUser } from "@/lib/hooks/use-current-user";
+import { useOrganization, useUpdateLoanPolicy } from "@/lib/api/organization";
+import { ApiError } from "@/lib/api/client";
 import { useDataStore } from "@/lib/store/data-store";
 import { formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -15,44 +16,55 @@ import { cn } from "@/lib/utils";
 const PERIOD_CANDIDATES = [3, 6, 8, 12, 18, 24, 36];
 
 export default function LoanCommitteePolicyPage() {
-  const { user } = useCurrentUser();
-  const organization = useDataStore((s) => s.organization);
-  const updateOrganization = useDataStore((s) => s.updateOrganization);
+  const { data: organization } = useOrganization();
+  const updateLoanPolicy = useUpdateLoanPolicy();
+  // The reference-policy list below has no backend equivalent anywhere in
+  // the roadmap (same gap as member/Policies.tsx) — kept on mock data
+  // deliberately, not faked. See docs/KNOWN_ISSUES.md.
   const policies = useDataStore((s) => s.policies);
 
-  const [form, setForm] = React.useState({
-    loanInterestRate: organization.loanInterestRate,
-    loanInsuranceRate: organization.loanInsuranceRate,
-    minMonthsBeforeEligible: organization.minMonthsBeforeEligible,
-    allowedRepaymentPeriods: organization.allowedRepaymentPeriods,
-  });
-  const [saved, setSaved] = React.useState(false);
+  const [form, setForm] = React.useState<{
+    loanInterestRate: number;
+    loanInsuranceRate: number;
+    minMonthsBeforeEligible: number;
+    allowedRepaymentPeriods: number[];
+  } | null>(null);
 
-  const actorName = user?.fullName ?? "Loan Committee";
+  const active = form ?? (organization
+    ? {
+        loanInterestRate: organization.loanInterestRate * 100,
+        loanInsuranceRate: organization.loanInsuranceRate * 100,
+        minMonthsBeforeEligible: organization.minMonthsBeforeEligible,
+        allowedRepaymentPeriods: organization.allowedRepaymentPeriods,
+      }
+    : null);
 
-  function set<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
-    setForm((prev) => ({ ...prev, [key]: value }));
-    setSaved(false);
+  function set<K extends keyof NonNullable<typeof active>>(key: K, value: NonNullable<typeof active>[K]) {
+    if (!active) return;
+    setForm({ ...active, [key]: value });
+    updateLoanPolicy.reset();
   }
 
   function togglePeriod(period: number) {
+    if (!active) return;
     set(
       "allowedRepaymentPeriods",
-      form.allowedRepaymentPeriods.includes(period)
-        ? form.allowedRepaymentPeriods.filter((p) => p !== period)
-        : [...form.allowedRepaymentPeriods, period].sort((a, b) => a - b)
+      active.allowedRepaymentPeriods.includes(period)
+        ? active.allowedRepaymentPeriods.filter((p) => p !== period)
+        : [...active.allowedRepaymentPeriods, period].sort((a, b) => a - b)
     );
   }
 
   function handleSave() {
-    if (form.allowedRepaymentPeriods.length === 0) return;
-    updateOrganization(form, actorName);
-    setSaved(true);
+    if (!active || active.allowedRepaymentPeriods.length === 0) return;
+    updateLoanPolicy.mutate(active, { onSuccess: () => setForm(null) });
   }
 
   const relevant = policies
     .filter((p) => p.category === "loan" || p.category === "guarantor")
     .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1));
+
+  if (!active || !organization) return null;
 
   return (
     <div className="flex flex-col gap-6">
@@ -81,7 +93,7 @@ export default function LoanCommitteePolicyPage() {
                 type="number"
                 min={0}
                 step={0.5}
-                value={form.loanInterestRate}
+                value={active.loanInterestRate}
                 onChange={(e) => set("loanInterestRate", e.target.valueAsNumber || 0)}
               />
             </div>
@@ -92,7 +104,7 @@ export default function LoanCommitteePolicyPage() {
                 type="number"
                 min={0}
                 step={0.5}
-                value={form.loanInsuranceRate}
+                value={active.loanInsuranceRate}
                 onChange={(e) => set("loanInsuranceRate", e.target.valueAsNumber || 0)}
               />
               <p className="text-xs text-muted-foreground">
@@ -106,7 +118,7 @@ export default function LoanCommitteePolicyPage() {
                 type="number"
                 min={0}
                 step={1}
-                value={form.minMonthsBeforeEligible}
+                value={active.minMonthsBeforeEligible}
                 onChange={(e) => set("minMonthsBeforeEligible", e.target.valueAsNumber || 0)}
               />
             </div>
@@ -116,7 +128,7 @@ export default function LoanCommitteePolicyPage() {
             <Label>Allowed Repayment Periods (months)</Label>
             <div className="flex flex-wrap gap-1.5">
               {PERIOD_CANDIDATES.map((period) => {
-                const selected = form.allowedRepaymentPeriods.includes(period);
+                const selected = active.allowedRepaymentPeriods.includes(period);
                 return (
                   <button
                     key={period}
@@ -134,16 +146,24 @@ export default function LoanCommitteePolicyPage() {
                 );
               })}
             </div>
-            {form.allowedRepaymentPeriods.length === 0 && (
+            {active.allowedRepaymentPeriods.length === 0 && (
               <p className="text-xs text-destructive">Select at least one repayment period.</p>
             )}
           </div>
 
+          {updateLoanPolicy.isError && (
+            <p className="text-sm text-destructive">
+              {updateLoanPolicy.error instanceof ApiError ? updateLoanPolicy.error.message : "Something went wrong."}
+            </p>
+          )}
           <div className="flex items-center gap-3 pt-1">
-            <Button onClick={handleSave} disabled={form.allowedRepaymentPeriods.length === 0}>
+            <Button
+              onClick={handleSave}
+              disabled={active.allowedRepaymentPeriods.length === 0 || updateLoanPolicy.isPending}
+            >
               <Save className="size-4" /> Save Changes
             </Button>
-            {saved && (
+            {updateLoanPolicy.isSuccess && (
               <span className="flex items-center gap-1 text-sm text-emerald-600 dark:text-emerald-400">
                 <CheckCircle2 className="size-4" /> Saved
               </span>

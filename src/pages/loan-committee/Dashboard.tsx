@@ -7,10 +7,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { LoanStatusBadge } from "@/components/shared/status-badge";
 import { EmptyState } from "@/components/shared/empty-state";
-import { useDataStore } from "@/lib/store/data-store";
+import { useLoans, type LoanSummary } from "@/lib/api/loans";
+import { useMembers } from "@/lib/api/members";
 import { formatDate, formatRwf } from "@/lib/format";
-import { MOCK_TODAY } from "@/lib/mock-data";
-import type { Loan, LoanStatus } from "@/lib/types";
+import type { LoanStatus } from "@/lib/types";
 
 const PENDING_STATUSES: LoanStatus[] = [
   "submitted",
@@ -32,26 +32,22 @@ function monthKey(iso: string) {
   return `${d.getFullYear()}-${String(d.getMonth()).padStart(2, "0")}`;
 }
 
-function rejectedDate(loan: Loan) {
-  return [...loan.timeline].reverse().find((t) => t.stage === "rejected")?.date ?? loan.appliedDate;
-}
-
-function decisionDate(loan: Loan) {
-  return loan.status === "rejected" ? rejectedDate(loan) : loan.approvedDate ?? loan.appliedDate;
+function decisionDate(loan: LoanSummary) {
+  return loan.decidedDate ?? loan.appliedDate;
 }
 
 export default function LoanCommitteeDashboardPage() {
-  const loans = useDataStore((s) => s.loans);
-  const members = useDataStore((s) => s.members);
+  const { data: loans = [] } = useLoans();
+  const { data: members = [] } = useMembers();
 
-  const currentMonthKey = monthKey(MOCK_TODAY);
+  const currentMonthKey = monthKey(new Date().toISOString());
 
   const pendingCount = loans.filter((l) => PENDING_STATUSES.includes(l.status)).length;
   const approvedThisMonth = loans.filter(
-    (l) => l.approvedDate && monthKey(l.approvedDate) === currentMonthKey
+    (l) => l.decidedDate && APPROVED_LIKE.includes(l.status) && monthKey(l.decidedDate) === currentMonthKey
   ).length;
   const rejectedThisMonth = loans.filter(
-    (l) => l.status === "rejected" && monthKey(rejectedDate(l)) === currentMonthKey
+    (l) => l.status === "rejected" && l.decidedDate && monthKey(l.decidedDate) === currentMonthKey
   ).length;
   const averageRiskScore = loans.length
     ? Math.round(loans.reduce((sum, l) => sum + l.riskScore, 0) / loans.length)
@@ -86,13 +82,13 @@ export default function LoanCommitteeDashboardPage() {
           label="Approved This Month"
           value={String(approvedThisMonth)}
           icon={CheckCircle2}
-          description={new Date(MOCK_TODAY).toLocaleDateString("en-RW", { month: "long" })}
+          description={new Date().toLocaleDateString("en-RW", { month: "long" })}
         />
         <StatCard
           label="Rejected This Month"
           value={String(rejectedThisMonth)}
           icon={XCircle}
-          description={new Date(MOCK_TODAY).toLocaleDateString("en-RW", { month: "long" })}
+          description={new Date().toLocaleDateString("en-RW", { month: "long" })}
         />
         <StatCard
           label="Average Risk Score"

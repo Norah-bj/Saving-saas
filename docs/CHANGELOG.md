@@ -6,6 +6,38 @@ verified.
 
 ---
 
+## 2026-08-26 — HR workspace wired to the real backend
+
+**Changed**: `hr/Dashboard.tsx`, `Upload.tsx`, `Reports.tsx` now call the real backend — fourth of
+the six remaining workspaces, and the smallest (3 pages). `Upload.tsx` reuses the exact
+`useImportPayroll`/`usePayrollImports` hooks built for `accountant/Import.tsx` in the previous
+phase — same backend endpoint, same real multipart upload, no new frontend API surface needed
+beyond the two pages themselves.
+
+**A real, pre-existing role-check gap found while wiring, not introduced by it**: `GET
+/members/{id}` (detail) has allowed HR since it was first built, but `GET /members` (list) never
+did — only `SECRETARY`/`ORG_ADMIN`. HR's Dashboard ("Total Monthly Payroll", sum of every member's
+salary) and Reports ("Expected Monthly Deduction" per member) both need the full roster, and
+HR would have gotten a 403 on the very first request. Widened `GET /members`'s `@PreAuthorize` to
+match the detail endpoint's role set. Also added `monthlySalaryRwf` to `MemberSummary` — it was
+only ever on `MemberDetail` before, and HR needs it for every member in the list, not one at a
+time. No new privacy exposure: the same staff roles that could already read one member's salary via
+the detail endpoint can now read it in bulk, not a wider audience.
+
+**Testing**: real end-to-end curl flow against local Postgres. Specifically isolated the role-check
+fix rather than testing it incidentally: temporarily granted the dev fixture `g2@tcs2.rw`
+(otherwise member-only, the project's designated "genuinely plain member" test account) the `hr`
+role, confirmed `GET /members` returned `200` with `monthlySalaryRwf` present on every row, then
+removed the temporary grant immediately afterward so the fixture's documented role stayed accurate
+for future testing. `POST /payroll/import` itself was already thoroughly verified in the previous
+phase (same endpoint, same code path, no role-specific branching) — not re-tested here. `tsc -b`,
+the stricter unused-locals check, and `vite build` all pass clean.
+
+**Not verified**: no browser-automation tool exists in this environment — the actual click-through
+hasn't been done in a running browser and still needs a human.
+
+---
+
 ## 2026-08-26 — Accountant workspace wired to the real backend
 
 **Changed**: `accountant/Dashboard.tsx`, `Transactions.tsx`, `Statements.tsx`, `Disbursement.tsx`,

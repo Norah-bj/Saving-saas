@@ -3,13 +3,13 @@
 ## System shape
 
 Two codebases in this one repo, now **partially** wired together (member, secretary, loan
-committee, and accountant workspaces so far — see
+committee, accountant, and HR workspaces so far — see
 [Frontend/backend integration](#frontendbackend-integration) below):
 
 - **Frontend** (repo root `src/`): Vite + React 18 + TypeScript + React Router + Tailwind v4 +
   shadcn/ui (base-ui flavor), TanStack React Query for server state. Fully built and polished. The
-  member, secretary, loan committee, and accountant workspaces now call the real backend; every
-  other workspace (HR, Org Admin, Super Admin) still runs entirely against the zustand mock store
+  member, secretary, loan committee, accountant, and HR workspaces now call the real backend; every
+  other workspace (Org Admin, Super Admin) still runs entirely against the zustand mock store
   (`src/lib/mock-data/`, `src/lib/store/data-store.ts`). Deployed to Vercel (see
   [DEPLOYMENT.md](DEPLOYMENT.md)) — the deployed build still points at mock data until the backend
   itself is deployed too.
@@ -133,9 +133,9 @@ real bug when violated — see [KNOWN_ISSUES.md](KNOWN_ISSUES.md) and
 
 The member workspace (`src/pages/member/*`, plus `Profile.tsx`/`Notifications.tsx`), the secretary
 workspace (`src/pages/secretary/*`), the loan committee workspace (`src/pages/loan-committee/*`),
-and the accountant workspace (`src/pages/accountant/*`) are wired to the real backend; every other
-workspace still runs on the zustand mock store. Wiring follows this shape, established once and
-meant to be reused as later workspaces are converted:
+the accountant workspace (`src/pages/accountant/*`), and the HR workspace (`src/pages/hr/*`) are
+wired to the real backend; every other workspace still runs on the zustand mock store. Wiring
+follows this shape, established once and meant to be reused as later workspaces are converted:
 
 - **`src/lib/api/client.ts`** — a single shared `fetch` wrapper (`apiClient.get/post/put/patch`).
   Attaches `Authorization: Bearer` from the auth store; on a 401 from any endpoint *except*

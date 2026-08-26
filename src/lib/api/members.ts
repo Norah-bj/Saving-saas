@@ -55,6 +55,7 @@ export interface MemberSummaryDto {
   dateJoined: string;
   savingsBalanceRwf: number;
   roles: string[];
+  monthlySalaryRwf: number;
 }
 
 /**

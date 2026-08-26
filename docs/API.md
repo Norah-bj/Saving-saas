@@ -29,7 +29,7 @@ super-admins, who are never gated) — an authenticated-but-unverified caller ge
 
 | Method | Path | Role |
 |---|---|---|
-| GET | `/members` | SECRETARY, ORG_ADMIN. Paginated (`?search=`, standard `page`/`size`) — no "get all" mode; large-fetch callers pass a high `size`. `MemberSummary` includes `roles`. |
+| GET | `/members` | SECRETARY, ORG_ADMIN, HR. Paginated (`?search=`, standard `page`/`size`) — no "get all" mode; large-fetch callers pass a high `size`. `MemberSummary` includes `roles`, `monthlySalaryRwf`. HR was added alongside SECRETARY/ORG_ADMIN — it already had `GET /members/{id}` access but not the list, an inconsistency from before HR's own dashboard/reports pages needed a roster at all. |
 | POST | `/members` | SECRETARY, ORG_ADMIN |
 | GET | `/members/{id}` | self, or SECRETARY/ACCOUNTANT/ORG_ADMIN |
 | GET | `/members/guarantor-candidates` | any authenticated user. Deliberately minimal — `{id, fullName, department}` only, excludes the caller. Added for the frontend's loan-application guarantor picker, which needs a member list but shouldn't get the staff-only `GET /members`'s sensitive fields (national ID, savings balance). |

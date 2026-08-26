@@ -3,10 +3,9 @@ import { ChartCard } from "@/components/shared/chart-card";
 import { DataTable } from "@/components/shared/data-table";
 import { DonutChart } from "@/components/charts/donut-chart";
 import { BarComparisonChart } from "@/components/charts/bar-comparison-chart";
-import { useDataStore } from "@/lib/store/data-store";
+import { useFinancialReport } from "@/lib/api/reporting";
 import { formatRwf } from "@/lib/format";
-import { MOCK_TODAY } from "@/lib/mock-data";
-import { LOAN_STATUS_LABEL, LOAN_STATUS_ORDER, type LoanStatus } from "@/lib/types";
+import { LOAN_STATUS_LABEL, type LoanStatus } from "@/lib/types";
 
 const STATUS_COLORS: Record<LoanStatus, string> = {
   submitted: "var(--chart-1)",
@@ -21,78 +20,27 @@ const STATUS_COLORS: Record<LoanStatus, string> = {
   completed: "var(--chart-5)",
 };
 
-function monthKey(iso: string) {
-  const d = new Date(iso);
-  return `${d.getFullYear()}-${String(d.getMonth()).padStart(2, "0")}`;
-}
-
-function lastMonths(count: number) {
-  const today = new Date(MOCK_TODAY);
-  const months: { key: string; label: string }[] = [];
-  for (let i = count - 1; i >= 0; i--) {
-    const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
-    months.push({
-      key: `${d.getFullYear()}-${String(d.getMonth()).padStart(2, "0")}`,
-      label: d.toLocaleDateString("en-RW", { month: "short", year: "2-digit" }),
-    });
-  }
-  return months;
-}
-
 export default function AccountantReportsPage() {
-  const organization = useDataStore((s) => s.organization);
-  const members = useDataStore((s) => s.members);
-  const loans = useDataStore((s) => s.loans);
-  const savingsBalance = useDataStore((s) => s.savingsBalance);
-  const savingsLedger = useDataStore((s) => s.savingsLedger);
-  const ledgerTransactions = useDataStore((s) => s.ledgerTransactions);
+  const { data } = useFinancialReport();
 
-  const orgMembers = members.filter((m) => m.organizationId === organization.id);
+  if (!data) return null;
 
-  const totalSavings = orgMembers.reduce((sum, m) => sum + savingsBalance(m.id), 0);
-  const totalLoanPortfolio = loans
-    .filter((l) => l.status === "disbursed" || l.status === "repaying")
-    .reduce((sum, l) => sum + l.remainingBalance, 0);
-  const totalInterestIncome = ledgerTransactions
-    .filter((t) => t.type === "interest-income")
-    .reduce((sum, t) => sum + t.amount, 0);
-  const totalInsuranceCollected = ledgerTransactions
-    .filter((t) => t.type === "insurance-fee")
-    .reduce((sum, t) => sum + t.amount, 0);
-
-  const portfolioByStatus = LOAN_STATUS_ORDER.map((status) => ({
-    key: status,
-    label: LOAN_STATUS_LABEL[status],
-    value: loans.filter((l) => l.status === status).length,
-    color: STATUS_COLORS[status],
-  })).filter((d) => d.value > 0);
-
-  const months = lastMonths(8);
-  const interestTrend = months.map((m) => ({
-    month: m.label,
-    interest: ledgerTransactions
-      .filter((t) => t.type === "interest-income" && monthKey(t.date) === m.key)
-      .reduce((sum, t) => sum + t.amount, 0),
+  const portfolioByStatus = data.portfolioByStatus.map((s) => ({
+    key: s.status,
+    label: LOAN_STATUS_LABEL[s.status as LoanStatus],
+    value: s.count,
+    color: STATUS_COLORS[s.status as LoanStatus],
   }));
+  const totalLoans = data.portfolioByStatus.reduce((sum, s) => sum + s.count, 0);
 
-  const contributionsTrend = months.map((m) => {
-    const total = orgMembers.reduce((sum, member) => {
-      const ledger = savingsLedger[member.id] ?? [];
-      return (
-        sum +
-        ledger
-          .filter((tx) => tx.type !== "loan-repayment" && monthKey(tx.date) === m.key)
-          .reduce((s, tx) => s + tx.amount, 0)
-      );
-    }, 0);
-    return { month: m.label, contributions: total };
-  });
+  const interestTrend = data.interestTrend.map((p) => ({ month: p.month, interest: p.value }));
+  const contributionsTrend = data.contributionsTrend.map((p) => ({ month: p.month, contributions: p.value }));
 
   const metrics = [
-    { label: "Total Org Savings", value: totalSavings },
-    { label: "Total Loan Portfolio", value: totalLoanPortfolio },
-    { label: "Total Interest Income", value: totalInterestIncome },
-    { label: "Total Insurance Collected", value: totalInsuranceCollected },
+    { label: "Total Org Savings", value: data.totalSavings },
+    { label: "Total Loan Portfolio", value: data.totalLoanPortfolio },
+    { label: "Total Interest Income", value: data.totalInterestIncome },
+    { label: "Total Insurance Collected", value: data.totalInsuranceCollected },
   ];
 
   return (
@@ -108,7 +56,7 @@ export default function AccountantReportsPage() {
         <ChartCard title="Loan Portfolio by Status" description="All loans, grouped by current status">
           <DonutChart
             data={portfolioByStatus}
-            centerValue={String(loans.length)}
+            centerValue={String(totalLoans)}
             centerLabel="Total Loans"
           />
         </ChartCard>

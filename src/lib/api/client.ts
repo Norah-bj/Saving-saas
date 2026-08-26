@@ -58,7 +58,11 @@ async function request<T>(path: string, options: RequestOptions = {}, isRetry = 
   const { accessToken } = useAuthStore.getState();
   const headers: Record<string, string> = { ...(options.headers as Record<string, string> | undefined) };
   let body: BodyInit | undefined;
-  if (options.body !== undefined) {
+  if (options.body instanceof FormData) {
+    // Leave Content-Type unset — fetch fills in the multipart boundary
+    // itself; setting it manually would drop the boundary parameter.
+    body = options.body;
+  } else if (options.body !== undefined) {
     headers["Content-Type"] = "application/json";
     body = JSON.stringify(options.body);
   }

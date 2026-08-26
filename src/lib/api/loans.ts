@@ -89,6 +89,8 @@ interface LoanSummaryDto {
   riskScore: number;
   riskBand: string;
   decidedDate: string | null;
+  remainingBalance: number;
+  monthlyInstallment: number;
 }
 
 interface LoanListResponse {
@@ -133,6 +135,8 @@ export interface LoanSummary {
   riskScore: number;
   /** Approval date for approved-or-later loans; an updatedAt-derived approximation for rejected ones; null while undecided. */
   decidedDate: string | null;
+  remainingBalance: number;
+  monthlyInstallment: number;
 }
 
 /**
@@ -160,6 +164,8 @@ export function useLoans() {
     appliedDate: dto.appliedDate,
     riskScore: dto.riskScore,
     decidedDate: dto.decidedDate,
+    remainingBalance: dto.remainingBalance,
+    monthlyInstallment: dto.monthlyInstallment,
   }));
 
   return { ...query, data: loans };
@@ -217,4 +223,27 @@ export function useApplyLoan() {
     mutationFn: async (input: ApplyLoanInput) => adaptLoan(await apiClient.post<LoanDetailDto>("/loans", input)),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["loans"] }),
   });
+}
+
+function useLoanActionMutation(action: "generate-contract" | "disburse" | "record-repayment") {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (loanId: string) => adaptLoan(await apiClient.post<LoanDetailDto>(`/loans/${loanId}/${action}`)),
+    onSuccess: (_data, loanId) => {
+      queryClient.invalidateQueries({ queryKey: ["loans"] });
+      queryClient.invalidateQueries({ queryKey: ["loan", loanId] });
+    },
+  });
+}
+
+export function useGenerateContract() {
+  return useLoanActionMutation("generate-contract");
+}
+
+export function useDisburse() {
+  return useLoanActionMutation("disburse");
+}
+
+export function useRecordRepayment() {
+  return useLoanActionMutation("record-repayment");
 }

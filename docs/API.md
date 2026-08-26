@@ -59,7 +59,7 @@ super-admins, who are never gated) — an authenticated-but-unverified caller ge
 |---|---|---|
 | POST | `/loans/calculate` | any authenticated user |
 | POST | `/loans` (apply) | any authenticated user |
-| GET | `/loans` | any authenticated user (scoped server-side — staff see every org loan, a plain member sees only their own). `LoanSummaryDto` includes `decidedDate`: the approval date for approved-or-later loans, an `updatedAt`-derived approximation for rejected ones (no dedicated rejected-date column), `null` while undecided. |
+| GET | `/loans` | any authenticated user (scoped server-side — staff see every org loan, a plain member sees only their own). `LoanSummaryDto` includes `decidedDate`: the approval date for approved-or-later loans, an `updatedAt`-derived approximation for rejected ones (no dedicated rejected-date column), `null` while undecided. Also includes `remainingBalance`/`monthlyInstallment` so a list of *every* active loan (not just one highlighted item) can render without a per-row detail fetch — see `accountant/Disbursement.tsx`. |
 | GET | `/loans/{id}` | any authenticated user (scoped server-side). `LoanDetailDto` includes `guaranteeStatus` (the single guarantor's `pending`/`accepted`/`rejected`/`released`, or `null` if none required) — added since `GET /guarantees` is deliberately a personal "my requests as guarantor" inbox, unusable by staff reviewing someone else's loan. |
 | POST | `/loans/{id}/start-review` | LOAN_COMMITTEE |
 | POST | `/loans/{id}/committee-decision` | LOAN_COMMITTEE (chair-only for guaranteed loans — see [BUSINESS_RULES.md](BUSINESS_RULES.md)) |

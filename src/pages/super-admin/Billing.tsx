@@ -3,8 +3,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { StatCard } from "@/components/shared/stat-card";
 import { DataTable } from "@/components/shared/data-table";
-import { useCurrentUser } from "@/lib/hooks/use-current-user";
-import { useDataStore } from "@/lib/store/data-store";
+import { usePlatformOrganizations, useUpdatePlatformOrganizationPlan } from "@/lib/api/platform-organizations";
+import { ApiError } from "@/lib/api/client";
 import { formatRwf, formatNumber } from "@/lib/format";
 import { SUBSCRIPTION_PLANS } from "@/lib/mock-data";
 import type { Organization } from "@/lib/types";
@@ -18,11 +18,9 @@ function planIdToKey(planId: string): Organization["plan"] {
 }
 
 export default function SuperAdminBillingPage() {
-  const { user } = useCurrentUser();
-  const organizations = useDataStore((s) => s.organizations);
-  const setOrganizationPlan = useDataStore((s) => s.setOrganizationPlan);
+  const { data: organizations = [] } = usePlatformOrganizations();
+  const updatePlan = useUpdatePlatformOrganizationPlan();
 
-  const actorName = user?.fullName ?? "Super Admin";
   const totalMrr = organizations.reduce((sum, o) => sum + planPrice(o.plan), 0);
 
   return (
@@ -33,6 +31,12 @@ export default function SuperAdminBillingPage() {
           Plan tiers available on the platform and each organization&apos;s current subscription.
         </p>
       </div>
+
+      {updatePlan.isError && (
+        <p className="text-sm text-destructive">
+          {updatePlan.error instanceof ApiError ? updatePlan.error.message : "Something went wrong."}
+        </p>
+      )}
 
       <StatCard
         label="Total Monthly Recurring Revenue"
@@ -79,7 +83,9 @@ export default function SuperAdminBillingPage() {
                 cell: (r) => (
                   <Select
                     value={r.plan}
-                    onValueChange={(v) => setOrganizationPlan(r.id, (v ?? r.plan) as Organization["plan"], actorName)}
+                    onValueChange={(v) =>
+                      updatePlan.mutate({ organizationId: r.id, plan: (v ?? r.plan) as Organization["plan"] })
+                    }
                   >
                     <SelectTrigger size="sm">
                       <SelectValue />

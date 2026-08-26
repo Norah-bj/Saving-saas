@@ -5,8 +5,8 @@ import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/shared/data-table";
 import { ToneBadge, type Tone } from "@/components/shared/status-badge";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
-import { useCurrentUser } from "@/lib/hooks/use-current-user";
-import { useDataStore } from "@/lib/store/data-store";
+import { usePlatformOrganizations, useUpdatePlatformOrganizationStatus } from "@/lib/api/platform-organizations";
+import { ApiError } from "@/lib/api/client";
 import { formatDate, formatNumber } from "@/lib/format";
 import type { Organization } from "@/lib/types";
 
@@ -35,13 +35,11 @@ const STATUS_LABEL: Record<Organization["status"], string> = {
 };
 
 export default function SuperAdminOrganizationsPage() {
-  const { user } = useCurrentUser();
-  const organizations = useDataStore((s) => s.organizations);
-  const setOrganizationStatus = useDataStore((s) => s.setOrganizationStatus);
+  const { data: organizations = [] } = usePlatformOrganizations();
+  const updateStatus = useUpdatePlatformOrganizationStatus();
 
   const [target, setTarget] = React.useState<Organization | null>(null);
 
-  const actorName = user?.fullName ?? "Super Admin";
   const nextStatus: Organization["status"] | null = target
     ? target.status === "suspended"
       ? "active"
@@ -56,6 +54,12 @@ export default function SuperAdminOrganizationsPage() {
           Every cooperative running on IkiminaConnect, their plan and current status.
         </p>
       </div>
+
+      {updateStatus.isError && (
+        <p className="text-sm text-destructive">
+          {updateStatus.error instanceof ApiError ? updateStatus.error.message : "Something went wrong."}
+        </p>
+      )}
 
       <Card>
         <CardHeader>
@@ -108,7 +112,7 @@ export default function SuperAdminOrganizationsPage() {
         confirmLabel={nextStatus === "active" ? "Activate organization" : "Suspend organization"}
         tone={nextStatus === "active" ? "default" : "destructive"}
         onConfirm={() => {
-          if (target && nextStatus) setOrganizationStatus(target.id, nextStatus, actorName);
+          if (target && nextStatus) updateStatus.mutate({ organizationId: target.id, status: nextStatus });
         }}
       />
     </div>

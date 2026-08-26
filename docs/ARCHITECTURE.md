@@ -2,15 +2,17 @@
 
 ## System shape
 
-Two codebases in this one repo, now **partially** wired together (every workspace except Super
-Admin so far — see [Frontend/backend integration](#frontendbackend-integration) below):
+Two codebases in this one repo, now wired together — every role workspace calls the real backend
+(see [Frontend/backend integration](#frontendbackend-integration) below):
 
 - **Frontend** (repo root `src/`): Vite + React 18 + TypeScript + React Router + Tailwind v4 +
-  shadcn/ui (base-ui flavor), TanStack React Query for server state. Fully built and polished.
-  Member, secretary, loan committee, accountant, HR, and org admin all call the real backend now;
-  only Super Admin still runs entirely against the zustand mock store (`src/lib/mock-data/`,
-  `src/lib/store/data-store.ts`). Deployed to Vercel (see [DEPLOYMENT.md](DEPLOYMENT.md)) — the
-  deployed build still points at mock data until the backend itself is deployed too.
+  shadcn/ui (base-ui flavor), TanStack React Query for server state. Fully built and polished. All
+  six role workspaces (member, secretary, loan committee, accountant, HR, org admin, super admin)
+  call the real backend now, though a handful of individual pages within them deliberately still
+  read from the zustand mock store (`src/lib/mock-data/`, `src/lib/store/data-store.ts`) — see
+  [FEATURES.md](FEATURES.md) and [KNOWN_ISSUES.md](KNOWN_ISSUES.md) for exactly which ones and why.
+  Deployed to Vercel (see [DEPLOYMENT.md](DEPLOYMENT.md)) — the deployed build still points at mock
+  data until the backend itself is deployed too.
 - **Backend** (`backend/`): Java 21 + Spring Boot 3.3.4 + PostgreSQL 17, built vertical-slice by
   vertical-slice against the frontend's existing mock behavior as the spec. Runs locally only —
   not yet deployed. See [FEATURES.md](FEATURES.md) for what's built so far.
@@ -129,12 +131,13 @@ real bug when violated — see [KNOWN_ISSUES.md](KNOWN_ISSUES.md) and
 
 ## Frontend/backend integration
 
-The member workspace (`src/pages/member/*`, plus `Profile.tsx`/`Notifications.tsx`), the secretary
-workspace (`src/pages/secretary/*`), the loan committee workspace (`src/pages/loan-committee/*`),
-the accountant workspace (`src/pages/accountant/*`), the HR workspace (`src/pages/hr/*`), and the
-org admin workspace (`src/pages/org-admin/*`) are wired to the real backend; only Super Admin still
-runs on the zustand mock store. Wiring follows this shape, established once and meant to be reused
-as the last workspace is converted:
+Every role workspace — member (`src/pages/member/*`, plus `Profile.tsx`/`Notifications.tsx`),
+secretary, loan committee, accountant, HR, org admin, and super admin (`src/pages/super-admin/*`,
+5 of its 9 pages — `Monitoring.tsx`/`Settings.tsx`/`Support.tsx` were deliberately excluded, see
+[KNOWN_ISSUES.md](KNOWN_ISSUES.md)) — is wired to the real backend. A handful of individual pages
+within otherwise-wired workspaces still read the zustand mock store on purpose (no backend exists
+for that specific content) — see [FEATURES.md](FEATURES.md) for the current per-page list. This
+section describes the shape every workspace's wiring followed:
 
 - **`src/lib/api/client.ts`** — a single shared `fetch` wrapper (`apiClient.get/post/put/patch`).
   Attaches `Authorization: Bearer` from the auth store; on a 401 from any endpoint *except*
@@ -205,6 +208,15 @@ as the last workspace is converted:
   `LoanController.list()`'s staff-vs-self `effectiveFilter` — a role gets *broader access*, but the
   actual scope it's allowed to query is still decided server-side, never by echoing back whatever
   the request asked for.
+- **A per-row aggregate needed by a platform-wide list gets one grouped query, not a loop of
+  single-row queries.** `super-admin/Organizations.tsx`/`Analytics.tsx` need every organization's
+  member count; the existing `countByOrganizationId(id)` is correct but scoped to one org, so
+  calling it once per org in `GET /organizations` [platform] would be a real N+1 (fine for 5 dev
+  orgs, a genuine problem at real platform scale). Added
+  `MemberRepository.countAllGroupedByOrganization()` — one `GROUP BY` query returning every org's
+  count at once — used only by the platform list endpoint; every single-org endpoint keeps using
+  the original method, unaffected. General rule: a list endpoint's per-row aggregate is a signal to
+  reach for a bulk query, not to reuse the detail endpoint's single-row one in a loop.
 - **CORS**: already configured before this integration work started (`app.cors.allowed-origins` in
   `application.yml`, defaulting to `http://localhost:3000`) — verified working with real
   browser-`Origin` requests, not just same-origin `curl`.

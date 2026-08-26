@@ -38,3 +38,30 @@ export function useOrgAuditLog() {
 
   return { ...query, data: entries };
 }
+
+/**
+ * SUPER_ADMIN only — every audit entry across every org, plus platform-level
+ * (`organizationId: null`) rows. `super-admin/AuditLogs.tsx` filters by org
+ * client-side over this full list, same as the mock always did.
+ */
+export function usePlatformAuditLog() {
+  const accessToken = useAuthStore((s) => s.accessToken);
+  const query = useQuery({
+    queryKey: ["audit-log", "platform"],
+    queryFn: () => apiClient.get<AuditLogDto[]>("/audit-logs"),
+    enabled: !!accessToken,
+  });
+
+  const entries: AuditLogEntry[] | undefined = query.data?.map((dto) => ({
+    id: dto.id,
+    actor: dto.actorName,
+    action: dto.action,
+    target: dto.target,
+    date: dto.occurredAt,
+    // The mock uses the literal "platform" sentinel for platform-level rows;
+    // the backend returns a real null.
+    organizationId: dto.organizationId ?? "platform",
+  }));
+
+  return { ...query, data: entries };
+}

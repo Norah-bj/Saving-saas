@@ -30,8 +30,12 @@ public class MemberController {
         this.memberService = memberService;
     }
 
+    // HR added alongside SECRETARY/ORG_ADMIN — matches GET /members/{id}'s role
+    // set below (which already included HR); the list endpoint had simply
+    // never been revisited since phase 1-3, before the HR payroll dashboard/
+    // reports pages (phase 4/11) needed a member roster at all.
     @GetMapping
-    @PreAuthorize("hasAnyRole('SECRETARY','ORG_ADMIN')")
+    @PreAuthorize("hasAnyRole('SECRETARY','ORG_ADMIN','HR')")
     public PageResponse<MemberSummary> list(
             @AuthenticationPrincipal CurrentUser currentUser,
             @RequestParam(required = false) String search,

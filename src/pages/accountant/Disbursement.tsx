@@ -7,21 +7,19 @@ import { DataTable } from "@/components/shared/data-table";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { LoanStatusBadge } from "@/components/shared/status-badge";
-import { useCurrentUser } from "@/lib/hooks/use-current-user";
-import { useDataStore } from "@/lib/store/data-store";
+import { useLoans, useGenerateContract, useDisburse, useRecordRepayment } from "@/lib/api/loans";
+import { useMembers } from "@/lib/api/members";
+import { ApiError } from "@/lib/api/client";
 import { formatRwf } from "@/lib/format";
 
 export default function LoanDisbursementPage() {
-  const { user } = useCurrentUser();
-  const loans = useDataStore((s) => s.loans);
-  const members = useDataStore((s) => s.members);
-  const generateContract = useDataStore((s) => s.generateContract);
-  const disburseLoan = useDataStore((s) => s.disburseLoan);
-  const recordRepayment = useDataStore((s) => s.recordRepayment);
+  const { data: loans = [] } = useLoans();
+  const { data: members = [] } = useMembers();
+  const generateContract = useGenerateContract();
+  const disburse = useDisburse();
+  const recordRepayment = useRecordRepayment();
 
   const [confirmDisburseId, setConfirmDisburseId] = React.useState<string | null>(null);
-
-  const actorName = user?.fullName ?? "Accountant";
 
   const readyForContract = loans.filter((l) => l.status === "approved");
   const readyToDisburse = loans.filter((l) => l.status === "contract-generated");
@@ -38,6 +36,14 @@ export default function LoanDisbursementPage() {
           Generate loan contracts, disburse approved funds, and record ongoing repayments.
         </p>
       </div>
+
+      {(generateContract.isError || disburse.isError || recordRepayment.isError) && (
+        <p className="text-sm text-destructive">
+          {[generateContract, disburse, recordRepayment]
+            .map((m) => (m.error instanceof ApiError ? m.error.message : null))
+            .find(Boolean) ?? "Something went wrong."}
+        </p>
+      )}
 
       <Card>
         <CardHeader>
@@ -60,7 +66,7 @@ export default function LoanDisbursementPage() {
                       <Button variant="outline" size="sm" render={<Link to={`/loans/${r.id}/contract`} />}>
                         <Eye className="size-3.5" /> Preview
                       </Button>
-                      <Button size="sm" onClick={() => generateContract(r.id, actorName)}>
+                      <Button size="sm" onClick={() => generateContract.mutate(r.id)}>
                         <FileSignature className="size-3.5" /> Generate Contract
                       </Button>
                     </div>
@@ -128,7 +134,7 @@ export default function LoanDisbursementPage() {
                 {
                   header: "Action",
                   cell: (r) => (
-                    <Button size="sm" variant="outline" onClick={() => recordRepayment(r.id, actorName)}>
+                    <Button size="sm" variant="outline" onClick={() => recordRepayment.mutate(r.id)}>
                       Record Next Repayment
                     </Button>
                   ),
@@ -152,7 +158,7 @@ export default function LoanDisbursementPage() {
         }
         confirmLabel="Disburse Funds"
         onConfirm={() => {
-          if (confirmDisburseId) disburseLoan(confirmDisburseId, actorName);
+          if (confirmDisburseId) disburse.mutate(confirmDisburseId);
         }}
       />
     </div>

@@ -2,17 +2,15 @@
 
 ## System shape
 
-Two codebases in this one repo, now **partially** wired together (member, secretary, and loan
-committee workspaces so far — see [Frontend/backend integration](#frontendbackend-integration)
-below):
+Two codebases in this one repo, now **partially** wired together (every workspace except Super
+Admin so far — see [Frontend/backend integration](#frontendbackend-integration) below):
 
 - **Frontend** (repo root `src/`): Vite + React 18 + TypeScript + React Router + Tailwind v4 +
-  shadcn/ui (base-ui flavor), TanStack React Query for server state. Fully built and polished. The
-  member, secretary, and loan committee workspaces now call the real backend; every other
-  workspace (HR, Accountant, Org Admin, Super Admin) still runs entirely against the zustand mock
-  store (`src/lib/mock-data/`, `src/lib/store/data-store.ts`). Deployed to Vercel (see
-  [DEPLOYMENT.md](DEPLOYMENT.md)) — the deployed build still points at mock data until the backend
-  itself is deployed too.
+  shadcn/ui (base-ui flavor), TanStack React Query for server state. Fully built and polished.
+  Member, secretary, loan committee, accountant, HR, and org admin all call the real backend now;
+  only Super Admin still runs entirely against the zustand mock store (`src/lib/mock-data/`,
+  `src/lib/store/data-store.ts`). Deployed to Vercel (see [DEPLOYMENT.md](DEPLOYMENT.md)) — the
+  deployed build still points at mock data until the backend itself is deployed too.
 - **Backend** (`backend/`): Java 21 + Spring Boot 3.3.4 + PostgreSQL 17, built vertical-slice by
   vertical-slice against the frontend's existing mock behavior as the spec. Runs locally only —
   not yet deployed. See [FEATURES.md](FEATURES.md) for what's built so far.
@@ -132,17 +130,22 @@ real bug when violated — see [KNOWN_ISSUES.md](KNOWN_ISSUES.md) and
 ## Frontend/backend integration
 
 The member workspace (`src/pages/member/*`, plus `Profile.tsx`/`Notifications.tsx`), the secretary
-workspace (`src/pages/secretary/*`), and the loan committee workspace
-(`src/pages/loan-committee/*`) are wired to the real backend; every other workspace still runs on
-the zustand mock store. Wiring follows this shape, established once and meant to be reused as
-later workspaces are converted:
+workspace (`src/pages/secretary/*`), the loan committee workspace (`src/pages/loan-committee/*`),
+the accountant workspace (`src/pages/accountant/*`), the HR workspace (`src/pages/hr/*`), and the
+org admin workspace (`src/pages/org-admin/*`) are wired to the real backend; only Super Admin still
+runs on the zustand mock store. Wiring follows this shape, established once and meant to be reused
+as the last workspace is converted:
 
 - **`src/lib/api/client.ts`** — a single shared `fetch` wrapper (`apiClient.get/post/put/patch`).
   Attaches `Authorization: Bearer` from the auth store; on a 401 from any endpoint *except*
   `/auth/*` itself, attempts one `/auth/refresh` and retries once before giving up and logging out
   (a 401 from `/auth/login` itself means bad credentials, not an expired session — deliberately
   not treated the same way). Throws a typed `ApiError` matching the backend's real `{error,
-  message, timestamp, details}` shape.
+  message, timestamp, details}` shape. Also handles file uploads: when the request body is a
+  `FormData` instance, it's passed straight to `fetch` without JSON-stringifying and without
+  setting `Content-Type` — `fetch` fills in the correct `multipart/form-data` boundary itself, and
+  setting the header manually would drop it. First (and so far only) consumer:
+  `payroll.ts`'s `useImportPayroll`.
 - **`src/lib/store/auth-store.ts`** — `accessToken`/`refreshToken`/`user` (the JWT's lightweight
   `AuthResponse.UserSummary`), persisted. Replaces the auth half of the old `session-store.ts`;
   that file now only holds `activeRole` (which workspace the user is currently viewing) — a real
@@ -192,6 +195,16 @@ later workspaces are converted:
   the database on every request — the same rule already established for backend business logic
   (see the loan approval workflow in [BUSINESS_RULES.md](BUSINESS_RULES.md)), just extended to how
   the frontend uses that same claim.
+- **Widening a platform-only endpoint to a tenant role means forcing the scope server-side, not
+  trusting the caller's own filter param.** `GET /audit-logs` was SUPER_ADMIN-only, taking an
+  optional `organizationId` query param to narrow the platform-wide view. Adding ORG_ADMIN access
+  (for `org-admin/Dashboard.tsx`'s "Recent Activity") didn't mean just allowing the role through —
+  the controller now ignores whatever `organizationId` an ORG_ADMIN caller passes and always uses
+  `currentUser.organizationId()` instead, so an org-admin can never see another tenant's log by
+  passing its ID. SUPER_ADMIN's existing param-driven behavior is untouched. The same shape as
+  `LoanController.list()`'s staff-vs-self `effectiveFilter` — a role gets *broader access*, but the
+  actual scope it's allowed to query is still decided server-side, never by echoing back whatever
+  the request asked for.
 - **CORS**: already configured before this integration work started (`app.cors.allowed-origins` in
   `application.yml`, defaulting to `http://localhost:3000`) — verified working with real
   browser-`Origin` requests, not just same-origin `curl`.

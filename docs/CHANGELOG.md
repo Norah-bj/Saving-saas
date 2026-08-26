@@ -6,6 +6,130 @@ verified.
 
 ---
 
+## 2026-08-26 — Org Admin workspace wired to the real backend
+
+**Changed**: `org-admin/Dashboard.tsx`, `Users.tsx`, `Moderation.tsx`, `Settings.tsx`,
+`Backups.tsx`, `Reports.tsx` now call the real backend — fifth of the six remaining workspaces.
+New frontend files: `src/lib/api/backups.ts` (`useBackups`, `useCreateBackup`), `audit.ts`
+(`useOrgAuditLog`). `members.ts` gained `useUpdateMemberRoles`/`useUpdateMemberStatus`,
+`organization.ts` gained `useUpdateOrganizationProfile`. Backend: `AccountantDashboardDto` gained
+`totalSharesValueRwf`, `AuditLogController` widened to allow ORG_ADMIN (self-scoped only).
+
+**A real, deliberate security-relevant widening, not just a new field**: `GET /audit-logs` was
+SUPER_ADMIN-only; `org-admin/Dashboard.tsx`'s "Recent Activity" card needs an org's own trail.
+Rather than a blanket widen, the controller now forces an ORG_ADMIN caller to their own
+organization server-side regardless of any `organizationId` query param they pass — verified
+directly: passing a different org's UUID as the caller returned the caller's own org's entries
+anyway, not the requested one. SUPER_ADMIN's existing platform-wide behavior (including the
+`?organizationId=` narrowing param) is unchanged.
+
+**One backend DTO extension, reusing an existing shared endpoint rather than adding a new one**:
+`org-admin/Dashboard.tsx` needs a "Total Shares Value" stat that `accountant/Dashboard.tsx` (which
+already calls the same `GET /reports/accountant-dashboard`) has no equivalent for. Added
+`totalSharesValueRwf` to the shared `AccountantDashboardDto` — computed server-side via one new
+aggregate query (`SUM(total_shares)` per org) rather than fetching every member's share-holding row
+individually, then multiplied by the org's own `share_value_rwf`. `accountant/Dashboard.tsx` simply
+doesn't read the new field.
+
+**Backups' "Restore" stays exactly as fake as the mock's** — `GET`/`POST /backups` are wired for
+real; the Restore button remains local-only UI state, matching the backend's own real limitation
+(no `pg_dump`/restore automation exists — see [KNOWN_ISSUES.md](KNOWN_ISSUES.md)), not a
+regression introduced by this wiring pass.
+
+**Testing**: real end-to-end curl flow against local Postgres. Confirmed `totalSharesValueRwf`
+present and correct on `GET /reports/accountant-dashboard`. Specifically verified the audit-log
+security fix: as an ORG_ADMIN, a request with no `organizationId` param returned only that caller's
+80 own-org entries, and a request that explicitly passed a different (fabricated) org's UUID as the
+param *still* returned only the caller's own org's entries — confirming the server-side override,
+not just the happy path. Exercised `PUT /members/{id}/roles`, `POST /members/{id}/status`
+(suspend→activate), `PATCH /organizations/{id}/profile`, and `GET`/`POST /backups` against real
+dev fixtures, reverting every test mutation immediately afterward (role grant, suspension, org
+profile name) so the fixtures' documented state stayed accurate. `tsc -b`, the stricter
+unused-locals check, and `vite build` all pass clean.
+
+**Not verified**: no browser-automation tool exists in this environment — the actual click-through
+hasn't been done in a running browser and still needs a human.
+
+---
+
+## 2026-08-26 — HR workspace wired to the real backend
+
+**Changed**: `hr/Dashboard.tsx`, `Upload.tsx`, `Reports.tsx` now call the real backend — fourth of
+the six remaining workspaces, and the smallest (3 pages). `Upload.tsx` reuses the exact
+`useImportPayroll`/`usePayrollImports` hooks built for `accountant/Import.tsx` in the previous
+phase — same backend endpoint, same real multipart upload, no new frontend API surface needed
+beyond the two pages themselves.
+
+**A real, pre-existing role-check gap found while wiring, not introduced by it**: `GET
+/members/{id}` (detail) has allowed HR since it was first built, but `GET /members` (list) never
+did — only `SECRETARY`/`ORG_ADMIN`. HR's Dashboard ("Total Monthly Payroll", sum of every member's
+salary) and Reports ("Expected Monthly Deduction" per member) both need the full roster, and
+HR would have gotten a 403 on the very first request. Widened `GET /members`'s `@PreAuthorize` to
+match the detail endpoint's role set. Also added `monthlySalaryRwf` to `MemberSummary` — it was
+only ever on `MemberDetail` before, and HR needs it for every member in the list, not one at a
+time. No new privacy exposure: the same staff roles that could already read one member's salary via
+the detail endpoint can now read it in bulk, not a wider audience.
+
+**Testing**: real end-to-end curl flow against local Postgres. Specifically isolated the role-check
+fix rather than testing it incidentally: temporarily granted the dev fixture `g2@tcs2.rw`
+(otherwise member-only, the project's designated "genuinely plain member" test account) the `hr`
+role, confirmed `GET /members` returned `200` with `monthlySalaryRwf` present on every row, then
+removed the temporary grant immediately afterward so the fixture's documented role stayed accurate
+for future testing. `POST /payroll/import` itself was already thoroughly verified in the previous
+phase (same endpoint, same code path, no role-specific branching) — not re-tested here. `tsc -b`,
+the stricter unused-locals check, and `vite build` all pass clean.
+
+**Not verified**: no browser-automation tool exists in this environment — the actual click-through
+hasn't been done in a running browser and still needs a human.
+
+---
+
+## 2026-08-26 — Accountant workspace wired to the real backend
+
+**Changed**: `accountant/Dashboard.tsx`, `Transactions.tsx`, `Statements.tsx`, `Disbursement.tsx`,
+`Reports.tsx`, `Import.tsx`, `Exports.tsx` now call the real backend — third of the six remaining
+workspaces, and the first with **zero backend changes needed beyond one DTO extension** (every
+endpoint's field names already matched what the pages needed, since the accountant reporting
+endpoints were originally built by porting this exact client-side aggregation logic in phase 11).
+New frontend files: `src/lib/api/ledger.ts` (`useLedger`, filterable, adapts `occurredOn` -> `date`),
+`src/lib/api/reporting.ts` (`useAccountantDashboard`, `useFinancialReport`), `src/lib/api/payroll.ts`
+(`useImportPayroll`, `usePayrollImports`). `loans.ts` gained `useGenerateContract`, `useDisburse`,
+`useRecordRepayment`. `client.ts` gained multipart/`FormData` support (skips JSON-stringifying and
+lets `fetch` set its own boundary) — the first upload endpoint this frontend has wired.
+
+**One backend DTO extension, found while wiring, not guessed**: `LoanSummaryDto` was missing
+`remainingBalance`/`monthlyInstallment`. `Disbursement.tsx`'s "Active Loans — Repayments" table
+needs both for *every* currently disbursed/repaying loan, not just one highlighted item like the
+member dashboard's existing list-vs-detail workaround — so extending the list DTO was the right
+fix here, not a per-row detail fetch. Added both, sourced directly from the `Loan` entity's already
+-tracked columns.
+
+**`accountant/Import.tsx` genuinely couldn't keep its existing two-step UX**: the mock parsed the
+`.xlsx` client-side (via the `xlsx` library) into a preview table, then a separate "Import" click
+ran client-side validation against it. The real backend has no non-committing preview — `POST
+/payroll/import` parses and validates the actual file server-side (Apache POI, phase 4) and returns
+the full result in one atomic call. Rewired to upload-then-show-result in one step; the download-
+template button and Import History table are otherwise unchanged. See
+[KNOWN_ISSUES.md](KNOWN_ISSUES.md).
+
+**Testing**: real end-to-end curl flow against local Postgres — confirmed `GET
+/reports/accountant-dashboard` and `GET /reports/financial` return the exact pre-aggregated shape
+the dashboard/reports pages expect (server-side month-bucketing already matched the mock's
+client-side math from phase 11's original testing); confirmed `GET /ledger` and the extended `GET
+/loans` fields; **uploaded a real generated `.xlsx` covering all four payroll outcomes** (matched,
+duplicate, employee not found, invalid amount) via real multipart `curl`, cross-checked the
+resulting `savings_transactions` row directly against `psql` (`15,000 RWF salary-deduction`,
+correct running balance, source correctly stamped with the uploaded filename); confirmed `GET
+/payroll/imports` lists it; chained `generate-contract` → `disburse` → `record-repayment` on a real
+loan and confirmed each real status transition and timeline entry. `tsc -b`, the stricter
+unused-locals check, and `vite build` all pass clean.
+
+**Not verified**: no browser-automation tool exists in this environment — the actual click-through
+(selecting a real file in a browser file picker, watching the upload progress) hasn't been done in
+a running browser and still needs a human.
+
+---
+
 ## 2026-08-26 — Loan Committee workspace wired to the real backend
 
 **Changed**: `loan-committee/Dashboard.tsx`, `Pending.tsx`, `PendingDetail.tsx`, `Decisions.tsx`,

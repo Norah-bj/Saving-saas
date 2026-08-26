@@ -3,42 +3,18 @@ import { StatCard } from "@/components/shared/stat-card";
 import { ChartCard } from "@/components/shared/chart-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TrendLineChart } from "@/components/charts/trend-line-chart";
-import { useDataStore } from "@/lib/store/data-store";
+import { useOrganization } from "@/lib/api/organization";
+import { useMembers } from "@/lib/api/members";
+import { useLoans } from "@/lib/api/loans";
+import { useAccountantDashboard } from "@/lib/api/reporting";
+import { useOrgAuditLog } from "@/lib/api/audit";
 import { formatDate, formatRwf } from "@/lib/format";
-import { MOCK_TODAY } from "@/lib/mock-data";
-import type { SavingsTransaction } from "@/lib/types";
-
-function orgSavingsSeries(
-  memberIds: string[],
-  savingsLedger: Record<string, SavingsTransaction[]>,
-  months = 8
-) {
-  const today = new Date(MOCK_TODAY);
-  const series: { month: string; balance: number }[] = [];
-  for (let i = months - 1; i >= 0; i--) {
-    const monthStart = new Date(today.getFullYear(), today.getMonth() - i, 1);
-    const cutoff = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0);
-    const label = monthStart.toLocaleDateString("en-RW", { month: "short", year: "2-digit" });
-    let total = 0;
-    for (const id of memberIds) {
-      const ledger = savingsLedger[id] ?? [];
-      let balance = 0;
-      for (const tx of ledger) {
-        if (new Date(tx.date) <= cutoff) balance = tx.balanceAfter;
-        else break;
-      }
-      total += balance;
-    }
-    series.push({ month: label, balance: total });
-  }
-  return series;
-}
 
 function membershipGrowthByYear(dateJoinedList: string[]) {
   if (dateJoinedList.length === 0) return [];
   const years = dateJoinedList.map((d) => new Date(d).getFullYear());
   const minYear = Math.min(...years);
-  const maxYear = new Date(MOCK_TODAY).getFullYear();
+  const maxYear = new Date().getFullYear();
   const result: { year: string; members: number }[] = [];
   let cumulative = 0;
   for (let y = minYear; y <= maxYear; y++) {
@@ -49,36 +25,18 @@ function membershipGrowthByYear(dateJoinedList: string[]) {
 }
 
 export default function OrgAdminDashboardPage() {
-  const organization = useDataStore((s) => s.organization);
-  const members = useDataStore((s) => s.members);
-  const savingsLedger = useDataStore((s) => s.savingsLedger);
-  const shareHoldings = useDataStore((s) => s.shareHoldings);
-  const loans = useDataStore((s) => s.loans);
-  const auditLogs = useDataStore((s) => s.auditLogs);
+  const { data: organization } = useOrganization();
+  const { data: orgMembers = [] } = useMembers();
+  const { data: loans = [] } = useLoans();
+  const { data: dashboard } = useAccountantDashboard();
+  const { data: recentActivity = [] } = useOrgAuditLog();
 
-  const orgMembers = members.filter((m) => m.organizationId === organization.id);
-  const memberIds = orgMembers.map((m) => m.id);
+  if (!organization || !dashboard) return null;
 
-  const totalSavings = memberIds.reduce((sum, id) => {
-    const ledger = savingsLedger[id] ?? [];
-    return sum + (ledger.length ? ledger[ledger.length - 1].balanceAfter : 0);
-  }, 0);
+  const activeLoans = loans.filter((l) => l.status === "disbursed" || l.status === "repaying").length;
 
-  const activeLoans = loans.filter(
-    (l) => memberIds.includes(l.memberId) && (l.status === "disbursed" || l.status === "repaying")
-  ).length;
-
-  const totalSharesValue = memberIds.reduce((sum, id) => {
-    const holding = shareHoldings[id];
-    return sum + (holding ? holding.totalShares * holding.shareValue : 0);
-  }, 0);
-
-  const savingsSeries = orgSavingsSeries(memberIds, savingsLedger, 8);
+  const savingsSeries = dashboard.savingsGrowth.map((p) => ({ month: p.month, balance: p.value }));
   const membershipSeries = membershipGrowthByYear(orgMembers.map((m) => m.dateJoined));
-
-  const recentActivity = auditLogs
-    .filter((a) => a.organizationId === organization.id)
-    .slice(0, 5);
 
   return (
     <div className="flex flex-col gap-6">
@@ -98,7 +56,7 @@ export default function OrgAdminDashboardPage() {
         />
         <StatCard
           label="Total Savings"
-          value={formatRwf(totalSavings)}
+          value={formatRwf(dashboard.totalOrgSavings)}
           icon={PiggyBank}
           description="Aggregate member balances"
         />
@@ -110,7 +68,7 @@ export default function OrgAdminDashboardPage() {
         />
         <StatCard
           label="Total Shares Value"
-          value={formatRwf(totalSharesValue)}
+          value={formatRwf(dashboard.totalSharesValueRwf)}
           icon={Landmark}
           description="Across all members"
         />
@@ -143,7 +101,7 @@ export default function OrgAdminDashboardPage() {
           {recentActivity.length === 0 && (
             <p className="text-sm text-muted-foreground">No recent activity.</p>
           )}
-          {recentActivity.map((a) => (
+          {recentActivity.slice(0, 5).map((a) => (
             <div key={a.id} className="flex items-center justify-between gap-3 rounded-lg border p-3">
               <div>
                 <p className="text-sm font-medium">{a.action}</p>

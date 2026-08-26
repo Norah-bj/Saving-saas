@@ -2,9 +2,11 @@ import * as XLSX from "xlsx";
 import { Users, HandCoins, Receipt, FileSpreadsheet, Download } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useDataStore } from "@/lib/store/data-store";
+import { useMembers } from "@/lib/api/members";
+import { useLoans } from "@/lib/api/loans";
+import { useLedger } from "@/lib/api/ledger";
+import { usePayrollImports } from "@/lib/api/payroll";
 import { formatDate, formatRwf } from "@/lib/format";
-import { MOCK_TODAY } from "@/lib/mock-data";
 import { LOAN_STATUS_LABEL } from "@/lib/types";
 
 function monthKey(iso: string) {
@@ -20,15 +22,12 @@ function exportSheet(rows: Record<string, unknown>[], sheetName: string, fileNam
 }
 
 export default function AccountantExportsPage() {
-  const organization = useDataStore((s) => s.organization);
-  const members = useDataStore((s) => s.members);
-  const loans = useDataStore((s) => s.loans);
-  const savingsBalance = useDataStore((s) => s.savingsBalance);
-  const ledgerTransactions = useDataStore((s) => s.ledgerTransactions);
-  const payrollImports = useDataStore((s) => s.payrollImports);
+  const { data: orgMembers = [] } = useMembers();
+  const { data: loans = [] } = useLoans();
+  const { data: ledgerTransactions = [] } = useLedger();
+  const { data: payrollImports = [] } = usePayrollImports();
 
-  const orgMembers = members.filter((m) => m.organizationId === organization.id);
-  const currentMonthKey = monthKey(MOCK_TODAY);
+  const currentMonthKey = monthKey(new Date().toISOString());
 
   function exportMemberBalances() {
     const rows = orgMembers.map((m) => ({
@@ -36,7 +35,7 @@ export default function AccountantExportsPage() {
       Name: m.fullName,
       Department: m.department,
       Status: m.status,
-      "Savings Balance (RWF)": savingsBalance(m.id),
+      "Savings Balance (RWF)": m.savingsBalanceRwf,
     }));
     exportSheet(rows, "Savings Balances", "member_savings_balances.xlsx");
   }
@@ -44,7 +43,7 @@ export default function AccountantExportsPage() {
   function exportAllLoans() {
     const rows = loans.map((l) => ({
       "Contract #": l.contractNumber,
-      Member: members.find((m) => m.id === l.memberId)?.fullName ?? "—",
+      Member: orgMembers.find((m) => m.id === l.memberId)?.fullName ?? "—",
       "Amount (RWF)": l.amount,
       Purpose: l.purpose,
       Status: LOAN_STATUS_LABEL[l.status],
@@ -60,7 +59,7 @@ export default function AccountantExportsPage() {
       .filter((t) => monthKey(t.date) === currentMonthKey)
       .map((t) => ({
         Date: t.date,
-        Member: members.find((m) => m.id === t.memberId)?.fullName ?? "—",
+        Member: orgMembers.find((m) => m.id === t.memberId)?.fullName ?? "—",
         Type: t.type,
         "Amount (RWF)": t.amount,
         Method: t.method,
@@ -108,7 +107,7 @@ export default function AccountantExportsPage() {
     {
       icon: Receipt,
       title: "This Month's Transactions",
-      description: `All ledger transactions recorded in ${new Date(MOCK_TODAY).toLocaleDateString("en-RW", { month: "long", year: "numeric" })}.`,
+      description: `All ledger transactions recorded in ${new Date().toLocaleDateString("en-RW", { month: "long", year: "numeric" })}.`,
       count: `${ledgerTransactions.filter((t) => monthKey(t.date) === currentMonthKey).length} transactions`,
       onExport: exportThisMonthTransactions,
     },

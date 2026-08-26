@@ -94,14 +94,29 @@
 5. A single named `@FilterDef` (e.g. `organizationFilter`) cannot be declared on more than one
    `@Entity` class, even identically — Hibernate 6 throws at startup. Declare it exactly once, in
    `tenant/package-info.java`; entities only add `@Filter(name = ..., condition = ...)`.
+6. **A role granted access to a detail endpoint isn't automatically granted access to the
+   corresponding list endpoint — check both when adding a new consumer of either.** `GET
+   /members/{id}` allowed `HR` from the start; `GET /members` never did, purely because nothing
+   needed it until HR's own dashboard/reports pages were wired (phase 4/11's frontend work, this
+   session). HR could look up one member by ID but not list the roster at all. Fixed by widening
+   the list endpoint's `@PreAuthorize` to match. Worth checking for the same split anywhere a role
+   is added to one of a resource's endpoints but not audited against its siblings.
+7. **Widening a platform-only endpoint's role check must force the new role's query scope
+   server-side, never trust a filter param it could also set.** `GET /audit-logs` was
+   SUPER_ADMIN-only with an optional `?organizationId=` narrowing param. Adding ORG_ADMIN for
+   `org-admin/Dashboard.tsx` without also overriding that param server-side would have let an
+   org-admin request another tenant's audit trail just by passing its UUID. Fixed by ignoring the
+   param entirely for a non-super-admin caller and always using their own
+   `currentUser.organizationId()` — see [ARCHITECTURE.md](ARCHITECTURE.md#frontendbackend-integration)
+   for the general pattern. Verified directly, not assumed: passing a fabricated org UUID as an
+   ORG_ADMIN still returned only the caller's own org's rows.
 
 ## Not a bug, just not done yet
 
 - Row-Level Security (database-layer tenant isolation, defense-in-depth on top of the application
   layer) is designed but not implemented — see [ARCHITECTURE.md](ARCHITECTURE.md).
-- The frontend is only partially wired to the real backend — member, secretary, and loan committee
-  workspaces call it now, every other workspace (HR, Accountant, Org Admin, Super Admin) still
-  runs on the zustand mock. See [FEATURES.md](FEATURES.md) and
+- The frontend is only partially wired to the real backend — every workspace except Super Admin
+  calls it now. See [FEATURES.md](FEATURES.md) and
   [ARCHITECTURE.md](ARCHITECTURE.md#frontendbackend-integration).
 - Within the now-wired member workspace, three pages are deliberately still mock-only:
   `member/Policies.tsx` (reads `RolePolicy` content — no backend exists for this in any phase),
@@ -116,17 +131,25 @@
   no-match/invalid-amount outcomes against *existing* members, nothing about employees who aren't
   members yet). Manual entry (the rest of the form) is fully wired; the picker itself was removed
   rather than fabricated. Revisit if/when payroll import is extended to expose that data.
-- **`GET /members`/`GET /loans` have no "get all" mode** — every staff page that needs the full
-  roster or portfolio (`secretary/Members.tsx`, `Suspended.tsx`, `Dashboard.tsx`,
-  `ExitRequests.tsx`'s name lookup, `org-admin/Users.tsx` once wired, and every `loan-committee/*`
-  page) asks for one large page (`?size=500`) instead of paging through results, matching the
-  mock's assume-everything-fits-in-memory shape. Fine at real-world SACCO scale; would need genuine
+- **`GET /members`/`GET /loans`/`GET /ledger` have no "get all" mode** — every staff page that
+  needs the full roster/portfolio/ledger (`secretary/Members.tsx`, `Suspended.tsx`,
+  `org-admin/Users.tsx` once wired, every `loan-committee/*` and `accountant/*` list page) asks for
+  one large page (`?size=500`) instead of paging through results, matching the mock's
+  assume-everything-fits-in-memory shape. Fine at real-world SACCO scale; would need genuine
   pagination support (and paginated UI) to hold up at, say, thousands of records in one org.
 - **`loan-committee/Policy.tsx`'s reference-policy list stays on mock data.** The editable loan
   calculation settings (interest/insurance rates, eligibility window, repayment periods) are fully
   wired to `PATCH /organizations/{id}/loan-policy`; the read-only "constitution and guarantor rule"
   reference text below it has no backend anywhere in the roadmap — same gap as
   `member/Policies.tsx`, kept rather than faked.
+- **`accountant/Import.tsx` and `hr/Upload.tsx`'s upload flow changed shape, not just data
+  source.** The mock parsed the `.xlsx` client-side and showed an editable preview before a
+  separate "Import" click; the real backend (`POST /payroll/import`) parses and validates the
+  actual file server-side in one atomic call, with no non-committing preview endpoint. Both pages
+  are wired as upload-then-show-real-result instead — the download-template button (still a pure
+  client-side convenience) and Import/Upload History table are otherwise unchanged. Revisit only if
+  a genuine "preview without committing" need shows up; adding one just to match the old UX isn't
+  worth a new endpoint on its own.
 - No browser-automation tool was available while wiring the member workspace, so real
   click-through testing (login, submit a savings top-up, apply for a loan, respond to a guarantee
   request, etc.) in an actual browser has not been done by Claude and still needs a human — see

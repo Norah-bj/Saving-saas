@@ -15,9 +15,10 @@ import {
 } from "@/components/ui/dialog";
 import { DataTable } from "@/components/shared/data-table";
 import { MemberStatusBadge } from "@/components/shared/status-badge";
-import { useCurrentUser } from "@/lib/hooks/use-current-user";
-import { useDataStore } from "@/lib/store/data-store";
-import { ROLE_LABEL, type AppUser, type Role } from "@/lib/types";
+import { useOrganization } from "@/lib/api/organization";
+import { useMembers, useUpdateMemberRoles, type MemberSummaryDto } from "@/lib/api/members";
+import { ApiError } from "@/lib/api/client";
+import { ROLE_LABEL, type Role } from "@/lib/types";
 
 const ASSIGNABLE_ROLES: Role[] = [
   "member",
@@ -29,23 +30,19 @@ const ASSIGNABLE_ROLES: Role[] = [
 ];
 
 export default function OrgAdminUsersPage() {
-  const { user } = useCurrentUser();
-  const organization = useDataStore((s) => s.organization);
-  const members = useDataStore((s) => s.members);
-  const setMemberRoles = useDataStore((s) => s.setMemberRoles);
+  const { data: organization } = useOrganization();
+  const { data: orgMembers = [] } = useMembers();
+  const updateRoles = useUpdateMemberRoles();
 
-  const orgMembers = members.filter((m) => m.organizationId === organization.id);
-
-  const [editing, setEditing] = React.useState<AppUser | null>(null);
+  const [editing, setEditing] = React.useState<MemberSummaryDto | null>(null);
   const [checkedRoles, setCheckedRoles] = React.useState<Role[]>([]);
   const [open, setOpen] = React.useState(false);
 
-  const actorName = user?.fullName ?? "Organization Admin";
-
-  function openEdit(member: AppUser) {
+  function openEdit(member: MemberSummaryDto) {
     setEditing(member);
-    setCheckedRoles(member.roles);
+    setCheckedRoles(member.roles as Role[]);
     setOpen(true);
+    updateRoles.reset();
   }
 
   function toggleRole(role: Role, checked: boolean) {
@@ -59,10 +56,18 @@ export default function OrgAdminUsersPage() {
     const finalRoles: Role[] = checkedRoles.includes("member")
       ? checkedRoles
       : [...checkedRoles, "member"];
-    setMemberRoles(editing.id, finalRoles, actorName);
-    setOpen(false);
-    setEditing(null);
+    updateRoles.mutate(
+      { memberId: editing.id, roles: finalRoles },
+      {
+        onSuccess: () => {
+          setOpen(false);
+          setEditing(null);
+        },
+      }
+    );
   }
+
+  if (!organization) return null;
 
   return (
     <div className="flex flex-col gap-6">
@@ -89,13 +94,13 @@ export default function OrgAdminUsersPage() {
                   <div className="flex flex-wrap gap-1">
                     {r.roles.map((role) => (
                       <Badge key={role} variant="outline">
-                        {ROLE_LABEL[role]}
+                        {ROLE_LABEL[role as Role]}
                       </Badge>
                     ))}
                   </div>
                 ),
               },
-              { header: "Status", cell: (r) => <MemberStatusBadge status={r.status} /> },
+              { header: "Status", cell: (r) => <MemberStatusBadge status={r.status as never} /> },
               {
                 header: "",
                 headClassName: "w-px",
@@ -137,11 +142,18 @@ export default function OrgAdminUsersPage() {
               </div>
             ))}
           </div>
+          {updateRoles.isError && (
+            <p className="text-sm text-destructive">
+              {updateRoles.error instanceof ApiError ? updateRoles.error.message : "Something went wrong."}
+            </p>
+          )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleSave}>Save Roles</Button>
+            <Button onClick={handleSave} disabled={updateRoles.isPending}>
+              Save Roles
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

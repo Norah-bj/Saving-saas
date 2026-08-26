@@ -20,9 +20,12 @@ import rw.ikiminaconnect.loan.LoanRepository;
 import rw.ikiminaconnect.loan.LoanStatus;
 import rw.ikiminaconnect.loan.LoanStatusCount;
 import rw.ikiminaconnect.member.MemberRepository;
+import rw.ikiminaconnect.organization.Organization;
+import rw.ikiminaconnect.organization.OrganizationRepository;
 import rw.ikiminaconnect.savings.SavingsTransaction;
 import rw.ikiminaconnect.savings.SavingsTransactionRepository;
 import rw.ikiminaconnect.savings.SavingsTxType;
+import rw.ikiminaconnect.savings.ShareHoldingRepository;
 
 /**
  * Accountant reporting (roadmap phase 11). Ports accountant/Dashboard.tsx
@@ -56,16 +59,22 @@ public class ReportingService {
     private final LedgerTransactionRepository ledgerTransactionRepository;
     private final LoanRepository loanRepository;
     private final MemberRepository memberRepository;
+    private final ShareHoldingRepository shareHoldingRepository;
+    private final OrganizationRepository organizationRepository;
 
     public ReportingService(
             SavingsTransactionRepository savingsTransactionRepository,
             LedgerTransactionRepository ledgerTransactionRepository,
             LoanRepository loanRepository,
-            MemberRepository memberRepository) {
+            MemberRepository memberRepository,
+            ShareHoldingRepository shareHoldingRepository,
+            OrganizationRepository organizationRepository) {
         this.savingsTransactionRepository = savingsTransactionRepository;
         this.ledgerTransactionRepository = ledgerTransactionRepository;
         this.loanRepository = loanRepository;
         this.memberRepository = memberRepository;
+        this.shareHoldingRepository = shareHoldingRepository;
+        this.organizationRepository = organizationRepository;
     }
 
     @Transactional(readOnly = true)
@@ -94,9 +103,14 @@ public class ReportingService {
         List<MonthPoint> savingsGrowth = savingsGrowthByMonth(savingsTx, months);
         List<CashFlowPoint> cashFlow = cashFlowByMonth(ledgerTx, months);
 
+        long totalShares = shareHoldingRepository.sumTotalSharesByOrganizationId(organizationId);
+        Organization organization = organizationRepository.findById(organizationId).orElseThrow();
+        BigDecimal totalSharesValueRwf = organization.getShareValueRwf().multiply(BigDecimal.valueOf(totalShares));
+
         return new AccountantDashboardDto(
                 totalOrgSavings, memberCount, activeLoanPortfolio, thisMonthContributions,
-                currentMonth.format(MONTH_LABEL), totalInterestIncome, savingsGrowth, cashFlow);
+                currentMonth.format(MONTH_LABEL), totalInterestIncome, savingsGrowth, cashFlow,
+                totalSharesValueRwf);
     }
 
     @Transactional(readOnly = true)

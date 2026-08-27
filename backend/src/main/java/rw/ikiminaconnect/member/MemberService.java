@@ -103,6 +103,11 @@ public class MemberService {
         // for this person's identity, so there's no email-ownership gap to
         // close here (unlike POST /auth/register). See EmailVerificationFilter.
         member.verifyEmail();
+        // Otherwise stuck at the entity's default (pending) forever — nothing
+        // else in the system ever moves a member out of it. The self-
+        // registering admin created by AuthService.register() already does
+        // this; staff-added members need the same real, meaningful status.
+        member.activate();
         member = memberRepository.save(member);
 
         shareHoldingRepository.save(new ShareHolding(member.getId(), organizationId));

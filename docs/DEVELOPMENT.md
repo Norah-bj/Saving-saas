@@ -33,11 +33,46 @@
   - `zero@tcs2.rw` — status `exited` (used to verify the exit-approval flow end-to-end, including
     that login is actually blocked afterward) — **cannot log in**, kept as a record of that test,
     don't reset its password expecting it to work.
-  - `superadmin@ikiminaconnect.rw` / `DevTest123!` — SUPER_ADMIN, `organization_id = NULL`. Not
-    reset from an existing row — this one was **inserted from scratch** via SQL, since no API path
-    creates a super-admin (`/auth/register` only creates ORG_ADMIN + a new org). If it's ever
-    deleted, recreate it the same way: insert into `users` with `organization_id = NULL`, then
-    insert `('<that user's id>', 'super-admin', false)` into `user_roles`.
+  - `superadmin@ikiminaconnect.rw` / `DevTest123!` — SUPER_ADMIN, `organization_id = NULL`. This
+    one predates `POST /auth/bootstrap-super-admin` and was **inserted from scratch** via SQL. If
+    it's ever deleted, recreate it via the bootstrap endpoint instead (see below) — SQL insertion
+    is no longer necessary.
+
+## Provisioning the platform SUPER_ADMIN
+
+`POST /auth/bootstrap-super-admin` is the real way to create the platform's first (and, by design,
+only ever automatically created) SUPER_ADMIN — see [API.md](API.md) for the exact request/response
+shape. It's public (no JWT exists yet the first time it's meaningfully callable) but gated two
+ways: a bootstrap token, and the fact that it only ever succeeds once.
+
+1. Set `SUPER_ADMIN_BOOTSTRAP_TOKEN` before starting the backend — it's blank by default, which
+   disables the endpoint entirely (every call 403s regardless of what token is sent):
+   ```bash
+   export SUPER_ADMIN_BOOTSTRAP_TOKEN="some-long-random-value-you-generate"
+   mvn spring-boot:run
+   ```
+2. Call the endpoint once:
+   ```bash
+   curl -X POST http://localhost:8080/api/v1/auth/bootstrap-super-admin \
+     -H "Content-Type: application/json" \
+     -d '{
+       "token": "some-long-random-value-you-generate",
+       "fullName": "Platform Operator",
+       "nationalId": "1199000000000001",
+       "employeeId": "PLAT-001",
+       "email": "you@example.com",
+       "phone": "0788000000",
+       "password": "a-real-password"
+     }'
+   ```
+   Response is the normal `AuthResponse` shape (real access + refresh tokens) — log in with the
+   same email/password afterward via `/auth/login` as usual.
+3. Any further call — same token or not — 409s with `"A platform super-admin already exists."`
+   once any user holds the `super-admin` role. Rotate/unset `SUPER_ADMIN_BOOTSTRAP_TOKEN` after use
+   if you want to close the door entirely (not required for correctness, since the existence check
+   already prevents a second super-admin, but tidier for a shared/non-local environment).
+
+Not exposed anywhere in the frontend UI — a one-time operational action, not a normal signup flow.
 
 ## Environment variables
 
@@ -45,6 +80,8 @@ No `.env` file is required for local backend development — DB connection defau
 (`DB_USERNAME=ikiminaconnect`, `DB_PASSWORD=ikiminaconnect_dev`) are baked into
 `application.properties` for the dev profile. See `backend/DEV_SETUP.md` for the reasoning and
 what would need to change for a non-local environment.
+
+`SUPER_ADMIN_BOOTSTRAP_TOKEN` (optional, blank/disabled by default) — see above.
 
 ## Git / PR workflow
 

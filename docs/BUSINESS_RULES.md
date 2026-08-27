@@ -140,15 +140,15 @@ from "exists but isn't yours." `GET /notifications` and `POST /notifications/rea
 scoped to the caller's own `userId`; there is no org-wide or staff view of another member's
 notifications anywhere in the API.
 
-## Organization status has no functional effect yet
+## Organization status gates login
 
 `POST /organizations/{id}/status` (SUPER_ADMIN) lets the platform mark an organization
-`suspended`, but `AuthService.login` only ever checks the logging-in *user's* status — it never
-checks their organization's status. So today, suspending an organization changes what
-`GET /organizations` reports but does not actually block any of its members from logging in or
-using the API. Not fixed here since it touches already-shipped phase-1 auth code without being
-asked — flagged in [KNOWN_ISSUES.md](KNOWN_ISSUES.md) as a real gap for whenever organization
-suspension needs to be a real enforcement mechanism rather than just a status label.
+`suspended`. `AuthService.login` checks both the logging-in user's own status *and* their
+organization's status: a `suspended` organization gets a 403 (`"Your organization's account is
+suspended. Contact the platform administrator."`) for every one of its members, even with correct
+credentials. `trial` is a normal operating status (a billing signal only) and never blocks login. A
+platform SUPER_ADMIN has no organization (`organization_id = NULL`) and so can never be blocked by
+this check. See [KNOWN_ISSUES.md](KNOWN_ISSUES.md) for when this was fixed.
 
 ## Email verification gates sensitive access (added beyond the frontend mock — the mock has no auth backend at all)
 

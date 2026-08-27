@@ -3,6 +3,7 @@ package rw.ikiminaconnect.auth;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Locale;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -18,6 +19,7 @@ import rw.ikiminaconnect.member.Role;
 import rw.ikiminaconnect.member.UserRoleAssignment;
 import rw.ikiminaconnect.organization.Organization;
 import rw.ikiminaconnect.organization.OrganizationRepository;
+import rw.ikiminaconnect.organization.OrganizationStatus;
 import rw.ikiminaconnect.savings.ShareHolding;
 import rw.ikiminaconnect.savings.ShareHoldingRepository;
 import rw.ikiminaconnect.security.JwtService;
@@ -43,6 +45,7 @@ public class AuthService {
     private final RefreshTokenService refreshTokenService;
     private final AuditService auditService;
     private final EmailVerificationService emailVerificationService;
+    private final String superAdminBootstrapToken;
 
     public AuthService(
             OrganizationRepository organizationRepository,
@@ -52,7 +55,8 @@ public class AuthService {
             JwtService jwtService,
             RefreshTokenService refreshTokenService,
             AuditService auditService,
-            EmailVerificationService emailVerificationService) {
+            EmailVerificationService emailVerificationService,
+            @Value("${app.super-admin-bootstrap-token:}") String superAdminBootstrapToken) {
         this.organizationRepository = organizationRepository;
         this.memberRepository = memberRepository;
         this.shareHoldingRepository = shareHoldingRepository;
@@ -61,6 +65,7 @@ public class AuthService {
         this.refreshTokenService = refreshTokenService;
         this.auditService = auditService;
         this.emailVerificationService = emailVerificationService;
+        this.superAdminBootstrapToken = superAdminBootstrapToken;
     }
 
     @Transactional
@@ -123,6 +128,50 @@ public class AuthService {
         return issueTokens(admin);
     }
 
+    /**
+     * Provisions the platform's SUPER_ADMIN. Previously only reachable via a
+     * direct SQL insert against the database — see docs/KNOWN_ISSUES.md and
+     * docs/DEVELOPMENT.md for how to call this instead. Deliberately not
+     * exposed anywhere in the frontend UI; a one-time operational action, not
+     * a normal signup flow.
+     */
+    @Transactional
+    public AuthResponse bootstrapSuperAdmin(BootstrapSuperAdminRequest request) {
+        if (superAdminBootstrapToken.isBlank() || !superAdminBootstrapToken.equals(request.token())) {
+            throw new ForbiddenException("Invalid bootstrap token.");
+        }
+        if (memberRepository.existsSuperAdmin()) {
+            throw new ConflictException("A platform super-admin already exists.");
+        }
+        if (memberRepository.existsByNationalId(request.nationalId())) {
+            throw new ConflictException("A user with this national ID already exists on the platform.");
+        }
+
+        AppUser admin = new AppUser(
+                null, // no organization — a platform operator, not a tenant member
+                request.nationalId(),
+                request.employeeId(),
+                request.fullName(),
+                request.email(),
+                request.phone(),
+                "Platform",
+                "Super Administrator",
+                passwordEncoder.encode(request.password()),
+                BigDecimal.ZERO);
+        admin.addRole(Role.SUPER_ADMIN, false);
+        admin.activate();
+        // Provisioned directly by whoever holds the bootstrap token, not
+        // self-registered — no email-ownership gap to close (same reasoning
+        // as staff-added members; see EmailVerificationFilter).
+        admin.verifyEmail();
+        admin = memberRepository.save(admin);
+
+        auditService.record(null, admin.getId(), admin.getFullName(),
+                "Bootstrapped platform super-admin", admin.getEmail());
+
+        return issueTokens(admin);
+    }
+
     @Transactional
     public AuthResponse login(LoginRequest request) {
         AppUser user = memberRepository.findByEmail(request.email())
@@ -133,6 +182,14 @@ public class AuthService {
         }
         if (user.getStatus() == MemberStatus.suspended || user.getStatus() == MemberStatus.exited) {
             throw new ForbiddenException("This account is " + user.getStatus().name() + ".");
+        }
+        // Null only for a platform super-admin, who isn't a member of any
+        // organization and so can't be blocked by one. `trial` is a normal
+        // operating status (only a billing signal) and never blocks login —
+        // only `suspended` does.
+        Organization organization = user.getOrganization();
+        if (organization != null && organization.getStatus() == OrganizationStatus.suspended) {
+            throw new ForbiddenException("Your organization's account is suspended. Contact the platform administrator.");
         }
 
         return issueTokens(user);

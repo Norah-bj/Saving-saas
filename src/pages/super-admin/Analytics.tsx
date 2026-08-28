@@ -2,15 +2,14 @@ import { ChartCard } from "@/components/shared/chart-card";
 import { TrendLineChart } from "@/components/charts/trend-line-chart";
 import { DonutChart } from "@/components/charts/donut-chart";
 import { BarComparisonChart } from "@/components/charts/bar-comparison-chart";
-import { useDataStore } from "@/lib/store/data-store";
-import { MOCK_TODAY } from "@/lib/mock-data";
+import { usePlatformOrganizations } from "@/lib/api/platform-organizations";
 import type { Organization } from "@/lib/types";
 
 function organizationGrowthByYear(createdAtList: string[]) {
   if (createdAtList.length === 0) return [];
   const years = createdAtList.map((d) => new Date(d).getFullYear());
   const minYear = Math.min(...years);
-  const maxYear = new Date(MOCK_TODAY).getFullYear();
+  const maxYear = new Date().getFullYear();
   const result: { year: string; organizations: number }[] = [];
   let cumulative = 0;
   for (let y = minYear; y <= maxYear; y++) {
@@ -33,7 +32,7 @@ const PLAN_LABEL: Record<Organization["plan"], string> = {
 };
 
 export default function SuperAdminAnalyticsPage() {
-  const organizations = useDataStore((s) => s.organizations);
+  const { data: organizations = [] } = usePlatformOrganizations();
 
   const growthSeries = organizationGrowthByYear(organizations.map((o) => o.createdAt));
 

@@ -24,15 +24,15 @@ real HTTP calls (curl) against real dev data, cross-checked against hand-run SQL
 inspection, and merged to `main` via reviewed PR. See [TESTING.md](TESTING.md) for what was
 actually exercised per phase, and [CHANGELOG.md](CHANGELOG.md) for the dated history.
 
-**Frontend integration is workspace-by-workspace**: member (dashboard, savings, shares, loans,
-guarantors, meetings, announcements, documents, notifications, profile), secretary (dashboard,
-members, exit requests, suspended members, meetings, announcements, documents), loan committee
-(dashboard, pending applications, application review/decision, decision history, reports, loan
-policy), accountant (dashboard, transactions, member statements, loan disbursement, reports, Excel
-payroll import, exports), HR (dashboard, salary deduction upload, payroll reports), and now org
-admin (dashboard, users & roles, suspend/activate, settings & branding, backups, reports) call the
-real backend. Only Super Admin still runs entirely on the zustand mock store. Wiring continues
-workspace by workspace, same pattern — see
+**All six role workspaces are now wired to the real backend**: member (dashboard, savings, shares,
+loans, guarantors, meetings, announcements, documents, notifications, profile), secretary
+(dashboard, members, exit requests, suspended members, meetings, announcements, documents), loan
+committee (dashboard, pending applications, application review/decision, decision history,
+reports, loan policy), accountant (dashboard, transactions, member statements, loan disbursement,
+reports, Excel payroll import, exports), HR (dashboard, salary deduction upload, payroll reports),
+org admin (dashboard, users & roles, suspend/activate, settings & branding, backups, reports), and
+super admin (organizations, billing, analytics, audit logs, backups — 5 of its 9 pages; see the
+phase 15 note below for why the other 3 stay mock). See
 [ARCHITECTURE.md](ARCHITECTURE.md#frontendbackend-integration) for
 how it's structured and [KNOWN_ISSUES.md](KNOWN_ISSUES.md) for what's explicitly still mock-only
 within the wired workspaces (`member/Policies.tsx`, `LoanContract.tsx`, `ExitSettlement.tsx`,
@@ -42,9 +42,11 @@ are both fully wired but their UX changed from the mock's two-step client-parse-
 one-step upload, since the real backend validates the file atomically server-side with no
 non-committing preview — see [KNOWN_ISSUES.md](KNOWN_ISSUES.md). Wiring HR also surfaced a real
 pre-existing gap: `GET /members` (list) never included HR in its role check even though `GET
-/members/{id}` (detail) always did — fixed as part of that phase. `org-admin/Backups.tsx`'s
-"Restore" button stays local-only fake state, matching the backend's own real limitation (no
-`pg_dump`/restore automation exists yet).
+/members/{id}` (detail) always did — fixed as part of that phase. `org-admin/Backups.tsx`'s and
+`super-admin/Backups.tsx`'s "Restore" buttons stay local-only fake state, matching the backend's
+own real limitation (no `pg_dump`/restore automation exists yet).
+`super-admin/Monitoring.tsx`/`Settings.tsx`/`Support.tsx` remain the only pages in the entire app
+still deliberately unwired for a reason other than "not yet reached" — see the phase 15 note below.
 
 **Phase 13 note**: role assignment (`org-admin/Users.tsx`), member suspend/activate
 (`org-admin/Moderation.tsx`), org profile/branding (`org-admin/Settings.tsx`), loan policy

@@ -18,7 +18,7 @@ import rw.ikiminaconnect.ledger.LedgerTransactionRepository;
 import rw.ikiminaconnect.ledger.LedgerTxType;
 import rw.ikiminaconnect.loan.LoanRepository;
 import rw.ikiminaconnect.loan.LoanStatus;
-import rw.ikiminaconnect.loan.LoanStatusCount;
+// import rw.ikiminaconnect.loan.LoanStatusCount;
 import rw.ikiminaconnect.member.MemberRepository;
 import rw.ikiminaconnect.organization.Organization;
 import rw.ikiminaconnect.organization.OrganizationRepository;

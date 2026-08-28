@@ -6,8 +6,19 @@ import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 
 public interface MemberRepository extends JpaRepository<AppUser, UUID> {
+
+    /** One row per org — super-admin/PlatformOrganizationsController.listAll() needs every org's
+     * member count and would otherwise mean one countByOrganizationId call per org in the list. */
+    interface OrganizationMemberCount {
+        UUID getOrganizationId();
+        long getCount();
+    }
+
+    @Query("SELECT u.organizationId AS organizationId, COUNT(u) AS count FROM AppUser u GROUP BY u.organizationId")
+    List<OrganizationMemberCount> countAllGroupedByOrganization();
 
     Optional<AppUser> findByEmail(String email);
 

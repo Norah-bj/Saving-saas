@@ -2,13 +2,15 @@ import { DatabaseBackup } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/shared/data-table";
-import { useDataStore } from "@/lib/store/data-store";
+import { useBackups, useCreateBackup } from "@/lib/api/backups";
+import { usePlatformOrganizations } from "@/lib/api/platform-organizations";
+import { ApiError } from "@/lib/api/client";
 import { formatDate } from "@/lib/format";
 
 export default function SuperAdminBackupsPage() {
-  const backups = useDataStore((s) => s.backups);
-  const organizations = useDataStore((s) => s.organizations);
-  const createBackup = useDataStore((s) => s.createBackup);
+  const { data: backups = [] } = useBackups();
+  const { data: organizations = [] } = usePlatformOrganizations();
+  const createBackup = useCreateBackup();
 
   const sortedBackups = [...backups].sort(
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
@@ -28,10 +30,19 @@ export default function SuperAdminBackupsPage() {
             Data snapshots across the platform and every organization.
           </p>
         </div>
-        <Button onClick={() => createBackup("Platform-wide scheduled backup", "platform")}>
+        <Button
+          onClick={() => createBackup.mutate("Platform-wide scheduled backup")}
+          disabled={createBackup.isPending}
+        >
           <DatabaseBackup className="size-4" /> Create Platform Backup
         </Button>
       </div>
+
+      {createBackup.isError && (
+        <p className="text-sm text-destructive">
+          {createBackup.error instanceof ApiError ? createBackup.error.message : "Something went wrong."}
+        </p>
+      )}
 
       <Card>
         <CardHeader>

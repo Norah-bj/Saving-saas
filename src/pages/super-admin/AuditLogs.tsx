@@ -2,12 +2,13 @@ import * as React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DataTable } from "@/components/shared/data-table";
-import { useDataStore } from "@/lib/store/data-store";
+import { usePlatformAuditLog } from "@/lib/api/audit";
+import { usePlatformOrganizations } from "@/lib/api/platform-organizations";
 import { formatDate } from "@/lib/format";
 
 export default function SuperAdminAuditLogsPage() {
-  const auditLogs = useDataStore((s) => s.auditLogs);
-  const organizations = useDataStore((s) => s.organizations);
+  const { data: auditLogs = [] } = usePlatformAuditLog();
+  const { data: organizations = [] } = usePlatformOrganizations();
 
   const [filter, setFilter] = React.useState("all");
 

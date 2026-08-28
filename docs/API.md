@@ -129,7 +129,7 @@ branding/contact fields just because it can edit loan policy.
 
 | Method | Path | Notes |
 |---|---|---|
-| GET | `/organizations` | Every organization on the platform — not scoped to the caller's own, unlike `OrganizationController` above. Analytics and Billing's plan display derive entirely from this response client-side, same as the frontend mock. |
+| GET | `/organizations` | Every organization on the platform — not scoped to the caller's own, unlike `OrganizationController` above. `OrganizationDto` includes `createdAt` and `memberCount` (a single grouped query across every org, not one count query per org) — added for `super-admin/Organizations.tsx` and `Analytics.tsx`. Analytics and Billing's plan display derive entirely from this response client-side, same as the frontend mock. |
 | POST | `/organizations/{id}/status` | Body `{"status": "active"\|"suspended"\|"trial"}`. 409 on a no-op (already at that status) — no other transition restriction, since organization status doesn't gate anything yet (see [KNOWN_ISSUES.md](KNOWN_ISSUES.md)). |
 | POST | `/organizations/{id}/plan` | Body `{"plan": "starter"\|"growth"\|"enterprise"}`. |
 

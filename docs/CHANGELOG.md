@@ -56,6 +56,61 @@ file those PRs touch.
 
 ---
 
+## 2026-08-27 — Super Admin workspace wired to the real backend (final phase)
+
+**Changed**: `super-admin/Organizations.tsx`, `Billing.tsx`, `Analytics.tsx`, `AuditLogs.tsx`,
+`Backups.tsx` now call the real backend — the sixth and last of the workspaces marked for wiring.
+`Monitoring.tsx`, `Settings.tsx`, and `Support.tsx` stay on mock data, unchanged from the explicit
+scope decision made back in phase 15 (no real system exists behind any of the three). New frontend
+file `src/lib/api/platform-organizations.ts` (`usePlatformOrganizations`,
+`useUpdatePlatformOrganizationStatus`, `useUpdatePlatformOrganizationPlan`). `audit.ts` gained
+`usePlatformAuditLog`; `backups.ts`/`useBackups`/`useCreateBackup` were reused as-is from the Org
+Admin phase — the backend already scopes them correctly for a super-admin caller (null
+`organizationId` from the JWT), no change needed. Backend: `OrganizationDto` gained `createdAt` and
+`memberCount`.
+
+**One real backend gap, closed with a bulk query, not N+1**: neither `Organizations.tsx`'s table
+nor `Analytics.tsx`'s growth/member-distribution charts had a field to read — `OrganizationDto`
+never carried `createdAt` or a member count. Added both. `createdAt` was already a plain column
+read; `memberCount` needed real care since `PlatformOrganizationsController.list()` returns every
+org on the platform — computing it via the existing single-org `countByOrganizationId` once per
+org in the list would be an N+1 query. Added `MemberRepository.countAllGroupedByOrganization()`
+(one `GROUP BY` query for every org's count at once) instead, used only by the platform list; the
+single-org endpoints (`GET /organizations/{id}`, the profile/loan-policy PATCHes) keep using the
+existing single-org count method, unaffected.
+
+**Testing**: real end-to-end curl flow against local Postgres. Cross-checked every org's
+`memberCount` from the bulk query against a hand-run `LEFT JOIN ... GROUP BY` SQL query — matched
+exactly for all 5 dev orgs (1 each for four, 7 for `tcs2`). Exercised `POST
+/organizations/{id}/status` (suspend → revert to active) and `POST /organizations/{id}/plan`
+(enterprise → revert to starter) against a real org, reverting both immediately after. Confirmed
+`GET /audit-logs` as a real SUPER_ADMIN spans all 5 orgs (97 entries, 5 distinct `organizationId`
+values) — the platform-wide view Org Admin's phase deliberately couldn't grant. Confirmed `GET
+/backups` as SUPER_ADMIN lists records across orgs, and `POST /backups` as SUPER_ADMIN correctly
+produces `organizationId: null` (platform-wide), unlike an ORG_ADMIN's own-org-scoped create.
+`tsc -b`, the stricter unused-locals check, and `vite build` all pass clean.
+
+**A real hiccup while testing, not a code bug**: the local dev backend failed to start once with
+"Port 8080 was already in use" — several `mvn spring-boot:run` processes and their `cmd.exe`
+wrappers from earlier phases' testing sessions had been left running rather than fully terminated.
+Identified and killed the actual stray processes (verified each one's real command line first,
+including confirming a live `java.exe` PID was VS Code's own Java language server and *not*
+touching it) rather than assuming and force-killing broadly. Worth remembering for future sessions
+in this environment: stopping a backgrounded `mvn spring-boot:run` needs to account for the wrapper
+process, not just the JVM it spawns.
+
+**Not verified**: no browser-automation tool exists in this environment — the actual click-through
+hasn't been done in a running browser and still needs a human.
+
+**All six role workspaces are now wired to the real backend.** What's left of the original roadmap:
+`member/Policies.tsx`, `LoanContract.tsx`, `ExitSettlement.tsx` (member workspace),
+`secretary/Members.tsx`'s registry picker, `loan-committee/Policy.tsx`'s reference list, and
+`super-admin/Monitoring.tsx`/`Settings.tsx`/`Support.tsx` — all deliberately deferred, documented
+in [KNOWN_ISSUES.md](KNOWN_ISSUES.md), not oversights. Phase 17 (production deployment) is the only
+unstarted roadmap item.
+
+---
+
 ## 2026-08-26 — Org Admin workspace wired to the real backend
 
 **Changed**: `org-admin/Dashboard.tsx`, `Users.tsx`, `Moderation.tsx`, `Settings.tsx`,

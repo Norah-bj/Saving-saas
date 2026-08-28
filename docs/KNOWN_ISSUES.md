@@ -117,9 +117,14 @@
 
 - Row-Level Security (database-layer tenant isolation, defense-in-depth on top of the application
   layer) is designed but not implemented — see [ARCHITECTURE.md](ARCHITECTURE.md).
-- The frontend is only partially wired to the real backend — every workspace except Super Admin
-  calls it now. See [FEATURES.md](FEATURES.md) and
-  [ARCHITECTURE.md](ARCHITECTURE.md#frontendbackend-integration).
+- **Every role workspace now calls the real backend** — the workspace-by-workspace wiring effort
+  (member → secretary → loan committee → accountant → HR → org admin → super admin) is complete.
+  What's left is page-level, not workspace-level: a handful of individual pages within otherwise-
+  wired workspaces deliberately still read the zustand mock store (listed in the items directly
+  below), plus `super-admin/Monitoring.tsx`/`Settings.tsx`/`Support.tsx`, which were explicitly
+  scoped out back in phase 15 since no real system exists behind any of the three (fabricated
+  uptime numbers, fabricated API keys, a hardcoded ticket list — see that item further down). See
+  [FEATURES.md](FEATURES.md) and [ARCHITECTURE.md](ARCHITECTURE.md#frontendbackend-integration).
 - Within the now-wired member workspace, three pages are deliberately still mock-only:
   `member/Policies.tsx` (reads `RolePolicy` content — no backend exists for this in any phase),
   and `LoanContract.tsx`/`ExitSettlement.tsx` (the backend already generates real PDFs for these —

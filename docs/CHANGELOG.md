@@ -6,6 +6,56 @@ verified.
 
 ---
 
+## 2026-08-27 — Three documented gaps closed: member activation, org-suspension login gate, SUPER_ADMIN bootstrap
+
+**Changed**: three small, independent backend fixes, each previously tracked in
+[KNOWN_ISSUES.md](KNOWN_ISSUES.md) as a real gap, chosen deliberately as "cheap real bugs" ahead of
+broader feature work and manual browser testing.
+
+1. **`MemberService.create()` now activates new members.** Was leaving every staff-added member
+   stuck at the entity's default `pending` status forever — nothing else in the system ever moved
+   them out of it. Added one line, `member.activate()`, right after the existing
+   `member.verifyEmail()` call, mirroring what the self-registering org-admin created by
+   `/auth/register` already did.
+2. **`AuthService.login()` now checks the logging-in user's organization status, not just the
+   user's own.** A `suspended` organization's members could previously still log in and use the
+   API normally. Added a check that 403s with "Your organization's account is suspended. Contact
+   the platform administrator." when `organization.getStatus() == OrganizationStatus.suspended`.
+   `trial` is unaffected (a billing signal only, not a login gate); a platform SUPER_ADMIN has no
+   organization (`organization == null`) and so can never be blocked by one.
+3. **New `POST /auth/bootstrap-super-admin` endpoint.** Previously the only way to create a
+   platform SUPER_ADMIN was a direct SQL insert against the database. The new endpoint is public
+   (no JWT exists yet the first time it's meaningfully callable) but gated by a bootstrap token
+   (`app.super-admin-bootstrap-token`, from `SUPER_ADMIN_BOOTSTRAP_TOKEN`, blank/disabled by
+   default) checked in the service layer, and by a new `MemberRepository.existsSuperAdmin()` query
+   that makes the endpoint succeed at most once ever, regardless of how many times it's called or
+   whether the token leaks. New `BootstrapSuperAdminRequest` DTO. Deliberately not exposed anywhere
+   in the frontend — a one-time operational action, not a signup flow. See
+   [DEVELOPMENT.md](DEVELOPMENT.md) for how to use it and [API.md](API.md) for the contract.
+
+**Testing**: real end-to-end curl flow against a locally running backend + real Postgres, cross-
+checked against hand-run SQL, with every test mutation reverted/deleted immediately after:
+- Fix 1: `POST /members` as an org-admin now returns `"status":"active"` instead of `"pending"`.
+- Fix 2: suspending a test org via `POST /organizations/{id}/status` immediately 403s that org's
+  members' logins (`"Your organization's account is suspended..."`); reverting to `active`
+  immediately restores them.
+- Fix 3: wrong token → 403 "Invalid bootstrap token."; correct token while a super-admin already
+  exists → 409 "A platform super-admin already exists."; with the existing dev super-admin's role
+  row temporarily removed, correct token → 201 + real access/refresh tokens issued for a new
+  SUPER_ADMIN with `organizationId: null`; an immediate second attempt → 409 again. Dev database
+  fully restored to its original state afterward (original super-admin's role reinserted, all test
+  rows deleted).
+
+**Merge-risk assessment**: low. All three changes are additive or narrowly scoped — one new line in
+`MemberService`, one new conditional in `AuthService.login()` that only fires for an org explicitly
+marked `suspended` (a status nothing currently sets except the existing platform
+`POST /organizations/{id}/status` endpoint), and one wholly new endpoint + repository query + DTO
+with no existing caller. No existing endpoint's request/response shape changed. Branched from fresh
+`main`, independent of the open Phase C–F frontend-wiring PR stack (#22–#25) — no overlap with any
+file those PRs touch.
+
+---
+
 ## 2026-08-27 — Super Admin workspace wired to the real backend (final phase)
 
 **Changed**: `super-admin/Organizations.tsx`, `Billing.tsx`, `Analytics.tsx`, `AuditLogs.tsx`,

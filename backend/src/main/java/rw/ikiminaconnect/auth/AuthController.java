@@ -59,4 +59,16 @@ public class AuthController {
     public void resendVerification(@AuthenticationPrincipal CurrentUser currentUser) {
         authService.resendVerification(currentUser.userId());
     }
+
+    /**
+     * Public like register/login (no JWT exists yet the first time this is
+     * ever meaningfully callable) — real access control is the bootstrap
+     * token, checked in the service layer, plus the fact that it only ever
+     * succeeds once. See docs/DEVELOPMENT.md.
+     */
+    @PostMapping("/auth/bootstrap-super-admin")
+    @ResponseStatus(HttpStatus.CREATED)
+    public AuthResponse bootstrapSuperAdmin(@Valid @RequestBody BootstrapSuperAdminRequest request) {
+        return authService.bootstrapSuperAdmin(request);
+    }
 }

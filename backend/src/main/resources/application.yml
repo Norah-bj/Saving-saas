@@ -48,6 +48,10 @@ app:
   frontend-url: ${FRONTEND_URL:http://localhost:3000}
   email-verification:
     ttl-hours: 24
+  # Unset by default — POST /auth/bootstrap-super-admin refuses every request
+  # until an operator explicitly sets SUPER_ADMIN_BOOTSTRAP_TOKEN (and the
+  # endpoint only ever succeeds once regardless). See docs/DEVELOPMENT.md.
+  super-admin-bootstrap-token: ${SUPER_ADMIN_BOOTSTRAP_TOKEN:}
 
 logging:
   level:

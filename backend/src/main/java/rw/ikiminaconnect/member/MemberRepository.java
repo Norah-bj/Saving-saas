@@ -22,6 +22,12 @@ public interface MemberRepository extends JpaRepository<AppUser, UUID> {
 
     Optional<AppUser> findByEmail(String email);
 
+    // AuthService.bootstrapSuperAdmin() — the bootstrap endpoint only ever
+    // works once, so a second attempt (token leaked, script rerun, ...)
+    // can't silently mint another platform operator.
+    @Query("SELECT COUNT(u) > 0 FROM AppUser u JOIN u.roles r WHERE r.role = rw.ikiminaconnect.member.Role.SUPER_ADMIN")
+    boolean existsSuperAdmin();
+
     boolean existsByNationalId(String nationalId);
 
     boolean existsByOrganizationIdAndEmployeeId(UUID organizationId, String employeeId);

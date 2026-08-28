@@ -18,15 +18,6 @@
   via `UPDATE user_roles SET is_committee_chair = true` against the dev database. No frontend page
   exposes chair assignment either (`org-admin/Users.tsx`'s role editor has no chair toggle), so
   there's no UI-driven spec to port yet.
-- **Newly created members are stuck `pending` forever.** Discovered while testing phase 13's
-  `POST /members/{id}/status` (which correctly 409s trying to move a `pending` member to
-  `active`/`suspended`, since that's not a transition it supports) — `MemberService.create` never
-  calls `AppUser.activate()`, unlike the self-registering org-admin created by `/auth/register`,
-  which does. Every member added via `POST /members` is `pending` indefinitely; nothing in the
-  system currently moves them to `active`. Pre-existing gap from earlier phases, not introduced by
-  phase 13 — just newly surfaced by it. `MemberStatus.pending` doesn't block login either (only
-  `suspended`/`exited` do in `AuthService.login`), so this hasn't blocked anything functionally,
-  but it means member status is not actually meaningful yet for freshly created members.
 - **No real backup mechanism, and no restore endpoint at all.** `backup_records` (phase 14) is
   metadata tracking only — `size_mb` is a row-count-based proxy, not an actual file size, and
   nothing performs a real `pg_dump`. This matches the frontend mock, which also never implements
@@ -50,21 +41,32 @@
   not even wired to the mock's own data layer, i.e. no spec exists to port). Building those three
   for real would mean inventing entire new subsystems unrelated to anything else in this app —
   revisit only with an explicit decision to build real observability/API-key-auth/ticketing.
-- **No SUPER_ADMIN bootstrap flow.** The only way to create a platform super-admin user today is a
-  direct SQL insert (`organization_id = NULL`, a `user_roles` row with `role = 'super-admin'`) —
-  `/auth/register` only ever creates an ORG_ADMIN + brand-new org. Fine for one dev-only test
-  account; a real platform launch needs a real way to provision the first super-admin.
 - **Email verification sends no real email yet.** `EmailService`'s only implementation
   (`ConsoleEmailService`) logs the verification link instead of sending it — chosen deliberately so
   this feature wasn't blocked on picking/paying for a real provider before one was needed. Before
   any real user registers, swap in a real implementation (SMTP, SendGrid, SES, ...) and remove
   `ConsoleEmailService`'s `@Service` annotation; nothing else needs to change, `EmailVerificationService`
   only depends on the `EmailService` interface. See [BUSINESS_RULES.md](BUSINESS_RULES.md).
-- **Organization status doesn't gate anything.** `POST /organizations/{id}/status` (phase 15) can
-  mark an org `suspended`, but `AuthService.login` never checks the logging-in user's
-  *organization's* status, only the user's own — so a "suspended" organization's members can still
-  log in and use the API normally today. See [BUSINESS_RULES.md](BUSINESS_RULES.md). Not fixed
-  here since it touches already-shipped phase-1 auth code without being asked.
+## Recently closed gaps
+
+- **Newly created members are stuck `pending` forever — fixed.** `MemberService.create()` now
+  calls `member.activate()` right after `member.verifyEmail()`, matching what the self-registering
+  org-admin created by `/auth/register` already did. Verified: `POST /members` now returns
+  `"status":"active"` immediately.
+- **No SUPER_ADMIN bootstrap flow — fixed.** `POST /auth/bootstrap-super-admin` provisions the
+  platform's SUPER_ADMIN, gated by a `SUPER_ADMIN_BOOTSTRAP_TOKEN` env var (unset by default —
+  the endpoint refuses every request until an operator configures one) and by
+  `MemberRepository.existsSuperAdmin()` (succeeds at most once, ever, regardless of how many times
+  it's called or whether the token leaks). See [DEVELOPMENT.md](DEVELOPMENT.md) and
+  [API.md](API.md). Verified end-to-end: wrong token → 403; correct token while a super-admin
+  already exists → 409; correct token with no super-admin in the system → 201 + real tokens issued;
+  immediate second attempt → 409.
+- **Organization status doesn't gate anything — fixed.** `AuthService.login` now checks the
+  logging-in user's *organization's* status (not just the user's own) and rejects with 403 when
+  it's `suspended`. `trial` remains a normal operating status (billing signal only) and never
+  blocks login; a platform SUPER_ADMIN has no organization and so can't be blocked by one.
+  Verified: suspending a test org via `POST /organizations/{id}/status` immediately 403s that
+  org's members' logins; reverting to `active` immediately restores them.
 
 ## Fixed bugs worth remembering (so the same mistake doesn't recur)
 

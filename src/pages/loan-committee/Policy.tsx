@@ -9,7 +9,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { BookOpen } from "lucide-react";
 import { useOrganization, useUpdateLoanPolicy } from "@/lib/api/organization";
 import { ApiError } from "@/lib/api/client";
-import { useDataStore } from "@/lib/store/data-store";
+import { usePolicies } from "@/lib/api/policies";
 import { formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -18,10 +18,7 @@ const PERIOD_CANDIDATES = [3, 6, 8, 12, 18, 24, 36];
 export default function LoanCommitteePolicyPage() {
   const { data: organization } = useOrganization();
   const updateLoanPolicy = useUpdateLoanPolicy();
-  // The reference-policy list below has no backend equivalent anywhere in
-  // the roadmap (same gap as member/Policies.tsx) — kept on mock data
-  // deliberately, not faked. See docs/KNOWN_ISSUES.md.
-  const policies = useDataStore((s) => s.policies);
+  const { data: policies = [] } = usePolicies();
 
   const [form, setForm] = React.useState<{
     loanInterestRate: number;

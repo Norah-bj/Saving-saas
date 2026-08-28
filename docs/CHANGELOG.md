@@ -6,6 +6,35 @@ verified.
 
 ---
 
+## 2026-08-29 — Gap-closure Phase 1a: real backend for the Policies reference text
+
+**Changed**: new `GET /policies` (`policy` package: `PolicyDocument`, `PolicyDocumentRepository`,
+`PolicyDocumentDto`, `PolicyController`, `PolicyDocumentSeeder`) returns the same 8 read-only
+governance documents (membership, savings, shares, loan, guarantor, suspension, exit, privacy)
+`member/Policies.tsx` and `loan-committee/Policy.tsx`'s reference list previously read from the
+mock store. `V9__policy_documents.sql` seeds them for every existing organization; new frontend
+`src/lib/api/policies.ts` (`usePolicies`) wires both pages to the real endpoint.
+
+**Every organization gets the same starting content, including brand-new ones**:
+`AuthService.register()` now also calls `PolicyDocumentSeeder.defaults(organizationId)` and saves
+the result, so a self-registered organization's admin sees real policy text immediately, not an
+empty list. Content is identical across orgs today (generic cooperative governance language, not
+per-tenant); no edit endpoint exists yet — this was a data-source swap, not a new editing feature.
+
+**Testing**: real end-to-end curl flow. Confirmed all 8 categories present for an existing org
+(`tcs2`); registered a fresh test organization and confirmed the same 8 rows were seeded for it
+too (verified via SQL, since `GET /policies` itself correctly 403s an unverified new admin —
+confirming the endpoint is covered by the existing `EmailVerificationFilter`, not a gap in it).
+Confirmed tenant isolation: each organization has its own 8 rows, not shared/global ones. Cleaned
+up the test organization completely afterward. `mvn -q compile`, `tsc -b`, and `npm run build` all
+clean.
+
+**Merge-risk assessment**: low. Purely additive — one new migration, one new package with no
+existing caller, one new field-free constructor call in `AuthService.register()` between two
+already-existing save calls. No existing endpoint's request/response shape changed.
+
+---
+
 ## 2026-08-27 — Three documented gaps closed: member activation, org-suspension login gate, SUPER_ADMIN bootstrap
 
 **Changed**: three small, independent backend fixes, each previously tracked in

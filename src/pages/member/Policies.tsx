@@ -1,10 +1,10 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { useDataStore } from "@/lib/store/data-store";
+import { usePolicies } from "@/lib/api/policies";
 import { formatDate } from "@/lib/format";
 
 export default function MemberPoliciesPage() {
-  const policies = useDataStore((s) => s.policies);
+  const { data: policies = [] } = usePolicies();
 
   return (
     <div className="flex flex-col gap-6">

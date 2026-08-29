@@ -20,6 +20,8 @@ import rw.ikiminaconnect.member.UserRoleAssignment;
 import rw.ikiminaconnect.organization.Organization;
 import rw.ikiminaconnect.organization.OrganizationRepository;
 import rw.ikiminaconnect.organization.OrganizationStatus;
+import rw.ikiminaconnect.policy.PolicyDocumentRepository;
+import rw.ikiminaconnect.policy.PolicyDocumentSeeder;
 import rw.ikiminaconnect.savings.ShareHolding;
 import rw.ikiminaconnect.savings.ShareHoldingRepository;
 import rw.ikiminaconnect.security.JwtService;
@@ -40,6 +42,7 @@ public class AuthService {
     private final OrganizationRepository organizationRepository;
     private final MemberRepository memberRepository;
     private final ShareHoldingRepository shareHoldingRepository;
+    private final PolicyDocumentRepository policyDocumentRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final RefreshTokenService refreshTokenService;
@@ -51,6 +54,7 @@ public class AuthService {
             OrganizationRepository organizationRepository,
             MemberRepository memberRepository,
             ShareHoldingRepository shareHoldingRepository,
+            PolicyDocumentRepository policyDocumentRepository,
             PasswordEncoder passwordEncoder,
             JwtService jwtService,
             RefreshTokenService refreshTokenService,
@@ -60,6 +64,7 @@ public class AuthService {
         this.organizationRepository = organizationRepository;
         this.memberRepository = memberRepository;
         this.shareHoldingRepository = shareHoldingRepository;
+        this.policyDocumentRepository = policyDocumentRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.refreshTokenService = refreshTokenService;
@@ -119,6 +124,7 @@ public class AuthService {
         admin = memberRepository.save(admin);
 
         shareHoldingRepository.save(new ShareHolding(admin.getId(), organization.getId()));
+        policyDocumentRepository.saveAll(PolicyDocumentSeeder.defaults(organization.getId()));
 
         auditService.record(organization.getId(), admin.getId(), admin.getFullName(),
                 "Registered organization", organization.getName());

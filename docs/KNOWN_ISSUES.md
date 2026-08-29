@@ -49,6 +49,14 @@
   only depends on the `EmailService` interface. See [BUSINESS_RULES.md](BUSINESS_RULES.md).
 ## Recently closed gaps
 
+- **`member/Policies.tsx` and `loan-committee/Policy.tsx`'s reference-policy list — fixed.** Both
+  read `RolePolicy` content that had no backend anywhere in the roadmap. New `GET /policies`
+  (`policy` package: `PolicyDocument` entity, `policy_documents` table) returns the same 8
+  read-only governance documents (membership, savings, shares, loan, guarantor, suspension, exit,
+  privacy) every organization already had as mock data — seeded identically for every existing org
+  via `V9__policy_documents.sql`, and for every newly self-registered org via
+  `AuthService.register()` (`PolicyDocumentSeeder`). No update/edit endpoint exists yet — still
+  read-only reference text, same as it always was; only the data source changed.
 - **Newly created members are stuck `pending` forever — fixed.** `MemberService.create()` now
   calls `member.activate()` right after `member.verifyEmail()`, matching what the self-registering
   org-admin created by `/auth/register` already did. Verified: `POST /members` now returns
@@ -125,12 +133,11 @@
   scoped out back in phase 15 since no real system exists behind any of the three (fabricated
   uptime numbers, fabricated API keys, a hardcoded ticket list — see that item further down). See
   [FEATURES.md](FEATURES.md) and [ARCHITECTURE.md](ARCHITECTURE.md#frontendbackend-integration).
-- Within the now-wired member workspace, three pages are deliberately still mock-only:
-  `member/Policies.tsx` (reads `RolePolicy` content — no backend exists for this in any phase),
-  and `LoanContract.tsx`/`ExitSettlement.tsx` (the backend already generates real PDFs for these —
+- Within the now-wired member workspace, two pages are deliberately still mock-only:
+  `LoanContract.tsx`/`ExitSettlement.tsx` (the backend already generates real PDFs for these —
   see [API.md](API.md)'s contract endpoints — but replacing the current bespoke HTML rendering with
   a PDF embed is a real design decision, not a data-source swap, so it wasn't done as part of this
-  round of wiring).
+  round of wiring). `member/Policies.tsx` is no longer on this list — see "Recently closed gaps".
 - **`secretary/Members.tsx`'s "pre-fill from employee registry" picker was dropped, not wired.**
   The mock let a secretary pick an unregistered employee from a payroll-derived candidate list to
   auto-fill the add-member form — no backend endpoint exposes anything like "employees imported via
@@ -144,11 +151,6 @@
   one large page (`?size=500`) instead of paging through results, matching the mock's
   assume-everything-fits-in-memory shape. Fine at real-world SACCO scale; would need genuine
   pagination support (and paginated UI) to hold up at, say, thousands of records in one org.
-- **`loan-committee/Policy.tsx`'s reference-policy list stays on mock data.** The editable loan
-  calculation settings (interest/insurance rates, eligibility window, repayment periods) are fully
-  wired to `PATCH /organizations/{id}/loan-policy`; the read-only "constitution and guarantor rule"
-  reference text below it has no backend anywhere in the roadmap — same gap as
-  `member/Policies.tsx`, kept rather than faked.
 - **`accountant/Import.tsx` and `hr/Upload.tsx`'s upload flow changed shape, not just data
   source.** The mock parsed the `.xlsx` client-side and showed an editable preview before a
   separate "Import" click; the real backend (`POST /payroll/import`) parses and validates the

@@ -5,6 +5,48 @@ Dated, most recent first. Format: **Decision** / **Reason** / **Alternatives con
 
 ---
 
+### Interest income / insurance fee recognized in full at disbursement (2026-08-29, gap-closure phase 1)
+
+**Decision**: The full interest and insurance amount for a loan's entire term is written as
+revenue (`interest-income`/`insurance-fee` typed `ledger_transactions` rows) at the moment the
+loan is disbursed, not amortized across installments and not deferred to loan completion.
+
+**Reason**: explicit user decision, made to unblock `totalInterestIncome`/`totalInsuranceCollected`
+staying permanently zero (see the superseded entry below). Matches how the insurance fee already
+behaves conceptually — a one-time charge — and is far simpler to implement/audit than per-
+installment interest/principal splitting, which doesn't exist anywhere in the codebase today.
+
+**Alternatives considered**: accrual recognition per repaid installment — rejected as materially
+more complex (needs a real amortization schedule per loan) for a metric that's currently a
+reporting nicety, not a regulatory requirement.
+
+**Impact**: `LoanService`'s disbursement path must write both ledger rows in the same transaction
+as the disbursement itself. A loan that's later written off or defaults keeps its already-recognized
+revenue — no reversal logic exists or is planned. Supersedes the "left undecided" entry below.
+
+---
+
+### Real backups are platform-wide only — no per-tenant restore (2026-08-29, gap-closure phase 1)
+
+**Decision**: "Real backup" means one real `pg_dump` of the entire shared-schema database,
+SUPER_ADMIN-triggered, stored securely, and listed in the existing `backup_records` UI. Restore is
+never a button in the app — it stays a manual ops action (`pg_restore` run by a human with direct
+DB access) for the whole platform, never scoped to one organization.
+
+**Reason**: explicit user decision. A shared-schema multi-tenant DB has no clean way to restore one
+organization's rows to an earlier point in time without touching every other tenant's foreign-key
+references (loans, guarantees, ledger entries cross-reference members across the same tables) —
+building that safely is a genuinely separate, much harder feature than "back up the database."
+
+**Alternatives considered**: real per-tenant export/restore — rejected for now as materially larger
+scope needing its own design pass; revisit only if a real need for it shows up.
+
+**Impact**: `POST /backups/{id}/restore` is explicitly out of scope. The existing Restore button
+stays local-only UI state (as documented in `KNOWN_ISSUES.md`) even after this phase ships a real
+`pg_dump`-backed create/list.
+
+---
+
 ### Query-param hyphenated enums need an explicit converter (2026-08-23, phase 11)
 
 **Decision**: Added `common/WebConfig.java` (`WebMvcConfigurer.addFormatters`) registering a

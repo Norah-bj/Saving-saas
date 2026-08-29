@@ -160,6 +160,12 @@ so it doesn't share the self-scoped controller's `@PreAuthorize` shape.
 
 No endpoint creates a notification — see [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
 
+## Policies — `PolicyController`
+
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/policies` | Any authenticated member of the org. Read-only reference/constitution text — 8 documents (membership, savings, shares, loan, guarantor, suspension, exit, privacy), seeded identically for every organization (`V9__policy_documents.sql` for pre-existing orgs, `PolicyDocumentSeeder` in `AuthService.register()` for new ones). No update endpoint exists. |
+
 ## Exit requests — `ExitRequestController`
 
 | Method | Path | Role | Notes |

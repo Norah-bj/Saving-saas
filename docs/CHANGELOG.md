@@ -6,6 +6,36 @@ verified.
 
 ---
 
+## 2026-08-29 — Gap-closure Phase 1c: ExitSettlement.tsx wired to real data (Phase 1 complete)
+
+**Changed**: `ExitSettlement.tsx` now reads `useMemberDetail` (savings balance, share count),
+`useOrganization` (share value, legal representative name/title — both newly added to the
+frontend's `OrganizationDto`), `useExitEligibility`, and `useExitRequests` instead of the zustand
+mock store. No new backend endpoint needed — the settlement amount is savings + share value, and
+outstanding loan balance is always 0 here since exit is only reachable once exit-eligibility is
+already clean.
+
+**A KNOWN_ISSUES.md claim turned out to be stale — found by checking, not by trusting the doc**:
+the entry for this page said "the backend already generates a real PDF for this," implying a
+design decision like `LoanContract.tsx`'s was needed. Grepping the whole backend for "settlement"
+found nothing — no such generator exists. Corrected the doc rather than building an unrequested
+PDF-generation feature to match an inaccurate claim; this page keeps `window.print()`.
+
+**This completes gap-closure Phase 1 (member workflows)** — `Policies.tsx`, `LoanContract.tsx`,
+and `ExitSettlement.tsx` all now read real backend data. Next: Phase 2 (committee-chair assignment).
+
+**Testing**: real end-to-end curl flow against the exited dev fixture (`zero@tcs2.rw`) — confirmed
+`GET /members/{id}` (`savingsBalanceRwf: 0`, `totalShares: 0`), `GET /members/{id}/exit-eligibility`
+(`eligible: true`), `GET /organizations/{id}` (`shareValueRwf: 5000`, real legal representative
+name/title), and `GET /exit-requests` (a real approved request with reason/dates) all return
+exactly what the page needs, cross-checked by hand against what it would render. `tsc -b` and
+`npm run build` both clean.
+
+**Merge-risk assessment**: low. Only `ExitSettlement.tsx` and `organization.ts` (two new fields
+added to an existing interface, additive) touched. No backend change.
+
+---
+
 ## 2026-08-29 — Gap-closure Phase 1b: LoanContract.tsx embeds the real generated PDF
 
 **Changed**: `LoanContract.tsx` no longer re-renders the loan contract as styled HTML from mock

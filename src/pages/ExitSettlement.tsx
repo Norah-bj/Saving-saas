@@ -1,24 +1,38 @@
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Printer, SearchX, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Printer, SearchX, CheckCircle2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { EmptyState } from "@/components/shared/empty-state";
-import { useDataStore } from "@/lib/store/data-store";
+import { useMemberDetail } from "@/lib/api/members";
+import { useOrganization } from "@/lib/api/organization";
+import { useExitEligibility, useExitRequests } from "@/lib/api/membership";
 import { formatDate, formatRwf } from "@/lib/format";
 
+/**
+ * Real backend data throughout — no new settlement-calculation endpoint was
+ * needed. The settlement amount is savings + share value; outstanding loan
+ * balance is always 0 here because exit is only reachable once
+ * exit-eligibility is clean (no outstanding loans, no active guarantees —
+ * see BUSINESS_RULES.md), the same rule this page already displayed as a
+ * confirmation. See docs/DECISIONS.md.
+ */
 export default function ExitSettlementPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const members = useDataStore((s) => s.members);
-  const organization = useDataStore((s) => s.organization);
-  const savingsBalance = useDataStore((s) => s.savingsBalance);
-  const shareHoldings = useDataStore((s) => s.shareHoldings);
-  const exitRequests = useDataStore((s) => s.exitRequests);
-  const exitEligibility = useDataStore((s) => s.exitEligibility);
+  const { data: member, isLoading: memberLoading } = useMemberDetail(id);
+  const { data: organization, isLoading: orgLoading } = useOrganization();
+  const { data: eligibility, isLoading: eligibilityLoading } = useExitEligibility(id);
+  const { data: exitRequests, isLoading: requestsLoading } = useExitRequests();
 
-  const member = members.find((m) => m.id === id);
+  if (memberLoading || orgLoading || eligibilityLoading || requestsLoading) {
+    return (
+      <div className="flex flex-1 items-center justify-center py-24">
+        <Loader2 className="size-5 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
-  if (!member) {
+  if (!member || !organization) {
     return (
       <EmptyState
         icon={SearchX}
@@ -33,14 +47,13 @@ export default function ExitSettlementPage() {
     );
   }
 
-  const request = exitRequests
+  const request = (exitRequests ?? [])
     .filter((r) => r.memberId === member.id)
     .sort((a, b) => (a.requestedDate < b.requestedDate ? 1 : -1))[0];
 
-  const savings = savingsBalance(member.id);
-  const shares = shareHoldings[member.id];
-  const shareValue = shares ? shares.totalShares * shares.shareValue : 0;
-  const eligibility = exitEligibility(member.id);
+  const savings = member.savingsBalanceRwf;
+  const shareValue = member.totalShares * organization.shareValueRwf;
+  const eligible = eligibility?.eligible ?? false;
   const finalSettlement = savings + shareValue;
 
   return (
@@ -95,7 +108,7 @@ export default function ExitSettlementPage() {
           <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Eligibility Confirmation
           </h2>
-          {eligibility.eligible ? (
+          {eligible ? (
             <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-300">
               <CheckCircle2 className="size-4 shrink-0" />
               No outstanding loans and no active guarantees on record at time of exit.
@@ -118,7 +131,7 @@ export default function ExitSettlementPage() {
             <Row label="Savings Balance" value={formatRwf(savings)} />
             <Row
               label="Share Value"
-              value={shares ? `${shares.totalShares} shares — ${formatRwf(shareValue)}` : "No shares held"}
+              value={member.totalShares > 0 ? `${member.totalShares} shares — ${formatRwf(shareValue)}` : "No shares held"}
             />
             <Row label="Outstanding Loan Balance" value={formatRwf(0)} />
             <dt className="border-t pt-2 font-medium">Final Amount Payable</dt>

@@ -168,6 +168,17 @@ public class AppUser {
         return roles.stream().anyMatch(r -> r.getRole() == Role.LOAN_COMMITTEE && r.isCommitteeChair());
     }
 
+    /**
+     * Assumes the caller (MemberService.setCommitteeChair) already validated
+     * that this user holds LOAN_COMMITTEE before promoting them — this method
+     * doesn't check, only applies the flag to whatever LOAN_COMMITTEE
+     * assignment already exists.
+     */
+    public void setCommitteeChair(boolean chair) {
+        roles.removeIf(r -> r.getRole() == Role.LOAN_COMMITTEE);
+        roles.add(new UserRoleAssignment(Role.LOAN_COMMITTEE, chair));
+    }
+
     public void activate() {
         this.status = MemberStatus.active;
     }

@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Pencil } from "lucide-react";
+import { Gavel, Pencil } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +16,12 @@ import {
 import { DataTable } from "@/components/shared/data-table";
 import { MemberStatusBadge } from "@/components/shared/status-badge";
 import { useOrganization } from "@/lib/api/organization";
-import { useMembers, useUpdateMemberRoles, type MemberSummaryDto } from "@/lib/api/members";
+import {
+  useMembers,
+  useUpdateMemberRoles,
+  useSetCommitteeChair,
+  type MemberSummaryDto,
+} from "@/lib/api/members";
 import { ApiError } from "@/lib/api/client";
 import { ROLE_LABEL, type Role } from "@/lib/types";
 
@@ -28,6 +33,36 @@ const ASSIGNABLE_ROLES: Role[] = [
   "hr",
   "org-admin",
 ];
+
+/**
+ * Own component, not inlined in a DataTable `cell` callback — per-row hooks
+ * (useSetCommitteeChair here) violate the Rules of Hooks inside a plain
+ * callback. See docs/ARCHITECTURE.md.
+ */
+function ChairAction({ member }: { member: MemberSummaryDto }) {
+  const setCommitteeChair = useSetCommitteeChair();
+  const isLoanCommittee = member.roles.includes("loan-committee");
+
+  if (!isLoanCommittee) return null;
+
+  return (
+    <div className="flex flex-col items-start gap-1">
+      <Button
+        variant={member.committeeChair ? "outline" : "ghost"}
+        size="sm"
+        disabled={setCommitteeChair.isPending}
+        onClick={() => setCommitteeChair.mutate({ memberId: member.id, chair: !member.committeeChair })}
+      >
+        <Gavel className="size-3.5" /> {member.committeeChair ? "Remove Chair" : "Make Chair"}
+      </Button>
+      {setCommitteeChair.isError && (
+        <p className="max-w-[16rem] text-xs text-destructive">
+          {setCommitteeChair.error instanceof ApiError ? setCommitteeChair.error.message : "Something went wrong."}
+        </p>
+      )}
+    </div>
+  );
+}
 
 export default function OrgAdminUsersPage() {
   const { data: organization } = useOrganization();
@@ -97,6 +132,11 @@ export default function OrgAdminUsersPage() {
                         {ROLE_LABEL[role as Role]}
                       </Badge>
                     ))}
+                    {r.committeeChair && (
+                      <Badge className="gap-1">
+                        <Gavel className="size-3" /> Chair
+                      </Badge>
+                    )}
                   </div>
                 ),
               },
@@ -105,9 +145,12 @@ export default function OrgAdminUsersPage() {
                 header: "",
                 headClassName: "w-px",
                 cell: (r) => (
-                  <Button variant="outline" size="sm" onClick={() => openEdit(r)}>
-                    <Pencil className="size-3.5" /> Edit Roles
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" onClick={() => openEdit(r)}>
+                      <Pencil className="size-3.5" /> Edit Roles
+                    </Button>
+                    <ChairAction member={r} />
+                  </div>
                 ),
               },
             ]}

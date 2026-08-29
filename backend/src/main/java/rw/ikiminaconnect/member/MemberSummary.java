@@ -16,5 +16,6 @@ public record MemberSummary(
         LocalDate dateJoined,
         BigDecimal savingsBalanceRwf,
         List<String> roles,
-        BigDecimal monthlySalaryRwf) {
+        BigDecimal monthlySalaryRwf,
+        boolean committeeChair) {
 }

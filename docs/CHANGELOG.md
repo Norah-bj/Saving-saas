@@ -6,6 +6,62 @@ verified.
 
 ---
 
+## 2026-08-29 — Gap-closure Phase 1c: ExitSettlement.tsx wired to real data (Phase 1 complete)
+
+**Changed**: `ExitSettlement.tsx` now reads `useMemberDetail` (savings balance, share count),
+`useOrganization` (share value, legal representative name/title — both newly added to the
+frontend's `OrganizationDto`), `useExitEligibility`, and `useExitRequests` instead of the zustand
+mock store. No new backend endpoint needed — the settlement amount is savings + share value, and
+outstanding loan balance is always 0 here since exit is only reachable once exit-eligibility is
+already clean.
+
+**A KNOWN_ISSUES.md claim turned out to be stale — found by checking, not by trusting the doc**:
+the entry for this page said "the backend already generates a real PDF for this," implying a
+design decision like `LoanContract.tsx`'s was needed. Grepping the whole backend for "settlement"
+found nothing — no such generator exists. Corrected the doc rather than building an unrequested
+PDF-generation feature to match an inaccurate claim; this page keeps `window.print()`.
+
+**This completes gap-closure Phase 1 (member workflows)** — `Policies.tsx`, `LoanContract.tsx`,
+and `ExitSettlement.tsx` all now read real backend data. Next: Phase 2 (committee-chair assignment).
+
+**Testing**: real end-to-end curl flow against the exited dev fixture (`zero@tcs2.rw`) — confirmed
+`GET /members/{id}` (`savingsBalanceRwf: 0`, `totalShares: 0`), `GET /members/{id}/exit-eligibility`
+(`eligible: true`), `GET /organizations/{id}` (`shareValueRwf: 5000`, real legal representative
+name/title), and `GET /exit-requests` (a real approved request with reason/dates) all return
+exactly what the page needs, cross-checked by hand against what it would render. `tsc -b` and
+`npm run build` both clean.
+
+**Merge-risk assessment**: low. Only `ExitSettlement.tsx` and `organization.ts` (two new fields
+added to an existing interface, additive) touched. No backend change.
+
+---
+
+## 2026-08-29 — Gap-closure Phase 1b: LoanContract.tsx embeds the real generated PDF
+
+**Changed**: `LoanContract.tsx` no longer re-renders the loan contract as styled HTML from mock
+data — it now fetches `GET /loans/{id}/contract` and displays the real backend-generated PDF in an
+`<iframe>`, with a Download button. New `apiClient.getBlob()` (binary responses, same bearer-token/
+401-refresh handling as the JSON path) and `useLoanContractPdf()` in `src/lib/api/loans.ts` (manages
+the blob object URL's lifecycle — revokes it on loan-id change or unmount).
+
+**A design decision, not a data-source swap, per `KNOWN_ISSUES.md` — resolved by reading the
+generator, not guessing**: `LoanContractPdfGenerator`'s class doc says it "ports
+`src/pages/LoanContract.tsx` article-for-article" — the backend PDF and the old bespoke HTML were
+already content-identical. That made embedding the real PDF a strict improvement (removes the risk
+of the two drifting apart on legal wording) with no content loss. See `DECISIONS.md`.
+
+**Testing**: fetched a real contract PDF via curl for a completed, insurance-required loan
+(`TC-2026-005`) as staff — `200`, `Content-Type: application/pdf`, a genuine 2-page PDF (`file`
+confirms `PDF document, version 1.5, 2 page(s)`), page count matching the extra insurance/guarantor
+articles this loan's content should include. `tsc -b` and `npm run build` both clean.
+
+**Merge-risk assessment**: low. Only `LoanContract.tsx`, `client.ts`, and `loans.ts` touched;
+`client.ts`'s change is additive (`getBlob` alongside the existing `get`/`post`/`put`/`patch`, no
+change to `request()`). No backend change — `GET /loans/{id}/contract` already existed and its
+authorization (self-or-staff) is unchanged.
+
+---
+
 ## 2026-08-29 — Gap-closure Phase 1a: real backend for the Policies reference text
 
 **Changed**: new `GET /policies` (`policy` package: `PolicyDocument`, `PolicyDocumentRepository`,

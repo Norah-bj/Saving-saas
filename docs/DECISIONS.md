@@ -5,6 +5,34 @@ Dated, most recent first. Format: **Decision** / **Reason** / **Alternatives con
 
 ---
 
+### LoanContract.tsx embeds the real generated PDF instead of re-rendering (2026-08-29, gap-closure phase 1b)
+
+**Decision**: `LoanContract.tsx` now fetches `GET /loans/{id}/contract` as an authenticated blob
+and displays it in an `<iframe>`, with a Download button, instead of re-rendering the contract as
+styled HTML from `useDataStore`'s mock loan/member/organization/guarantee data.
+
+**Reason**: `KNOWN_ISSUES.md` flagged this as "a real design decision, not a data-source swap"
+because a naive swap risked losing the page's rich, print-tuned bespoke rendering. Reading
+`LoanContractPdfGenerator` (the backend's PDF generator) settled it: its class doc says it "ports
+`src/pages/LoanContract.tsx` article-for-article — same Kinyarwanda text, same conditional
+articles" — the two were already content-identical by design. With no actual content difference,
+embedding the real PDF removes a real risk (frontend and backend drifting apart on a legal
+document's wording over time) for no loss.
+
+**Alternatives considered**: keep the bespoke HTML renderer but feed it real backend data instead
+of mock data — rejected because it would mean two independent implementations of the same legal
+text that could silently diverge on the next edit to either one; the backend's version is also the
+one used for `Content-Disposition: inline` viewing and downloading elsewhere in the app (e.g.
+`accountant/Disbursement.tsx`'s Preview/View Contract links), so it's already the canonical one.
+
+**Impact**: `apiClient` gained `getBlob()` (binary responses can't go through the JSON-parsing
+`request()` path) and `loans.ts` gained `useLoanContractPdf()`, which manages the object URL's
+lifecycle (revokes on loan-id change/unmount). The old bespoke Kinyarwanda-rendering code in
+`LoanContract.tsx` was deleted, not kept as a fallback — `LoanContractPdfGenerator` is now the only
+place that text lives; keep both in sync only if this decision is ever reversed.
+
+---
+
 ### Interest income / insurance fee recognized in full at disbursement (2026-08-29, gap-closure phase 1)
 
 **Decision**: The full interest and insurance amount for a loan's entire term is written as

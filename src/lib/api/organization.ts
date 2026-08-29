@@ -18,6 +18,8 @@ export interface OrganizationDto {
   stampLabel: string;
   plan: string;
   status: string;
+  legalRepresentativeName: string;
+  legalRepresentativeTitle: string;
   shareValueRwf: number;
   /**
    * Fractions (0.05 = 5%), unlike the old frontend mock's whole-percentage

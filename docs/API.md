@@ -61,22 +61,22 @@ super-admins, who are never gated) — an authenticated-but-unverified caller ge
 | Method | Path | Role |
 |---|---|---|
 | POST | `/loans/calculate` | any authenticated user |
-| POST | `/loans` (apply) | any authenticated user |
+| POST | `/loans` (apply) | any authenticated user. Notifies the applicant ("Loan application submitted") and, if a guarantor is required, the named guarantor ("You've been requested as a guarantor"). |
 | GET | `/loans` | any authenticated user (scoped server-side — staff see every org loan, a plain member sees only their own). `LoanSummaryDto` includes `decidedDate`: the approval date for approved-or-later loans, an `updatedAt`-derived approximation for rejected ones (no dedicated rejected-date column), `null` while undecided. Also includes `remainingBalance`/`monthlyInstallment` so a list of *every* active loan (not just one highlighted item) can render without a per-row detail fetch — see `accountant/Disbursement.tsx`. |
 | GET | `/loans/{id}` | any authenticated user (scoped server-side). `LoanDetailDto` includes `guaranteeStatus` (the single guarantor's `pending`/`accepted`/`rejected`/`released`, or `null` if none required) — added since `GET /guarantees` is deliberately a personal "my requests as guarantor" inbox, unusable by staff reviewing someone else's loan. |
 | POST | `/loans/{id}/start-review` | LOAN_COMMITTEE |
-| POST | `/loans/{id}/committee-decision` | LOAN_COMMITTEE (chair-only for guaranteed loans — see [BUSINESS_RULES.md](BUSINESS_RULES.md)) |
+| POST | `/loans/{id}/committee-decision` | LOAN_COMMITTEE (chair-only for guaranteed loans — see [BUSINESS_RULES.md](BUSINESS_RULES.md)). Notifies the borrower ("Loan approved"/"Loan rejected"). |
 | POST | `/loans/{id}/generate-contract` | ACCOUNTANT, ORG_ADMIN |
 | GET | `/loans/{id}/contract` | any authenticated user (renders live PDF, no status gate) |
-| POST | `/loans/{id}/disburse` | ACCOUNTANT, ORG_ADMIN. Also writes `interest-income` (and `insurance-fee`, if required) ledger rows — the full amount for the loan's whole term, recognized at disbursement, not amortized. See [DECISIONS.md](DECISIONS.md). |
-| POST | `/loans/{id}/record-repayment` | ACCOUNTANT, ORG_ADMIN |
+| POST | `/loans/{id}/disburse` | ACCOUNTANT, ORG_ADMIN. Also writes `interest-income` (and `insurance-fee`, if required) ledger rows — the full amount for the loan's whole term, recognized at disbursement, not amortized (see [DECISIONS.md](DECISIONS.md)) — and notifies the borrower ("Loan disbursed"). |
+| POST | `/loans/{id}/record-repayment` | ACCOUNTANT, ORG_ADMIN. Notifies the borrower ("Repayment recorded", or "Loan fully repaid" on the final installment). |
 
 ## Guarantees — `GuaranteeController`
 
 | Method | Path | Notes |
 |---|---|---|
 | GET | `/guarantees` | Always "my requests as guarantor" — a personal inbox, not org-wide. |
-| POST | `/guarantees/{id}/respond` | Only the named guarantor may respond (403 for anyone else, including the borrower); responding twice is rejected (409). |
+| POST | `/guarantees/{id}/respond` | Only the named guarantor may respond (403 for anyone else, including the borrower); responding twice is rejected (409). Notifies the borrower ("Guarantor accepted"/"declined your request"). |
 
 ## Ledger — `LedgerController` (ACCOUNTANT, ORG_ADMIN)
 
@@ -96,7 +96,7 @@ super-admins, who are never gated) — an authenticated-but-unverified caller ge
 | Method | Path | Role |
 |---|---|---|
 | GET | `/meetings` | any authenticated user of the org |
-| POST | `/meetings` | SECRETARY, ORG_ADMIN |
+| POST | `/meetings` | SECRETARY, ORG_ADMIN. Notifies every member of the organization ("{title} scheduled"). |
 | POST | `/meetings/{id}/minutes` | SECRETARY, ORG_ADMIN. Sets `minutesSummary` and moves status to `completed` — the only supported meeting update. |
 
 ## Announcements — `AnnouncementController`
@@ -104,7 +104,7 @@ super-admins, who are never gated) — an authenticated-but-unverified caller ge
 | Method | Path | Role | Notes |
 |---|---|---|---|
 | GET | `/announcements` | any authenticated user | A plain member (no role beyond MEMBER) never receives `audience: "admins"` rows — filtered server-side. Added beyond the frontend mock, which shows every announcement to every viewer regardless of audience. |
-| POST | `/announcements` | SECRETARY, ORG_ADMIN | |
+| POST | `/announcements` | SECRETARY, ORG_ADMIN | Notifies every member for `audience: "all"`/`"members"`, or staff only for `"admins"` — matching who can actually see it via the GET filtering above. |
 
 ## Documents — `DocumentController`
 
@@ -159,7 +159,9 @@ so it doesn't share the self-scoped controller's `@PreAuthorize` shape.
 | POST | `/notifications/{id}/read` | 404 if the notification belongs to someone else — never a 403 that would reveal it exists. |
 | POST | `/notifications/read-all` | |
 
-No endpoint creates a notification — see [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
+No endpoint here creates a notification directly — `NotificationService.notify`/`notifyMany` are
+called from the loan, guarantee, meeting, and announcement endpoints noted above as side effects.
+Savings/share events don't trigger any — see [DECISIONS.md](DECISIONS.md).
 
 ## Policies — `PolicyController`
 

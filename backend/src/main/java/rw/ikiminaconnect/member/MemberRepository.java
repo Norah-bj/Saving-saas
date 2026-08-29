@@ -65,4 +65,17 @@ public interface MemberRepository extends JpaRepository<AppUser, UUID> {
     @Query("SELECT u FROM AppUser u JOIN u.roles r WHERE u.organizationId = :orgId "
             + "AND r.role = rw.ikiminaconnect.member.Role.LOAN_COMMITTEE AND r.committeeChair = true")
     Optional<AppUser> findCommitteeChairByOrganizationId(@Param("orgId") UUID organizationId);
+
+    // Notification fan-out (SecretaryOpsService: new meeting/announcement) —
+    // just the IDs, not full AppUser rows with their roles collections, since
+    // that's all NotificationService.notifyMany needs.
+    @Query("SELECT u.id FROM AppUser u WHERE u.organizationId = :orgId")
+    List<UUID> findAllIdsByOrganizationId(@Param("orgId") UUID organizationId);
+
+    // Announcements with audience == admins notify staff only. "Staff" here
+    // matches every other isStaff check in this codebase: any role other
+    // than the base MEMBER one.
+    @Query("SELECT DISTINCT u.id FROM AppUser u JOIN u.roles r WHERE u.organizationId = :orgId "
+            + "AND r.role <> rw.ikiminaconnect.member.Role.MEMBER")
+    List<UUID> findAllStaffIdsByOrganizationId(@Param("orgId") UUID organizationId);
 }

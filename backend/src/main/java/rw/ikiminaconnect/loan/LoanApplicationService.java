@@ -1,8 +1,10 @@
 package rw.ikiminaconnect.loan;
 
 import java.math.BigDecimal;
+import java.text.NumberFormat;
 import java.time.LocalDate;
 import java.time.Period;
+import java.util.Locale;
 import java.util.UUID;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
@@ -15,6 +17,8 @@ import rw.ikiminaconnect.common.ForbiddenException;
 import rw.ikiminaconnect.common.NotFoundException;
 import rw.ikiminaconnect.member.AppUser;
 import rw.ikiminaconnect.member.MemberRepository;
+import rw.ikiminaconnect.notification.NotificationService;
+import rw.ikiminaconnect.notification.NotificationType;
 import rw.ikiminaconnect.organization.Organization;
 import rw.ikiminaconnect.organization.OrganizationRepository;
 import rw.ikiminaconnect.savings.SavingsService;
@@ -52,6 +56,7 @@ public class LoanApplicationService {
     private final SavingsService savingsService;
     private final AuditService auditService;
     private final LoanDetailAssembler loanDetailAssembler;
+    private final NotificationService notificationService;
 
     public LoanApplicationService(
             LoanRepository loanRepository,
@@ -61,7 +66,8 @@ public class LoanApplicationService {
             OrganizationRepository organizationRepository,
             SavingsService savingsService,
             AuditService auditService,
-            LoanDetailAssembler loanDetailAssembler) {
+            LoanDetailAssembler loanDetailAssembler,
+            NotificationService notificationService) {
         this.loanRepository = loanRepository;
         this.timelineRepository = timelineRepository;
         this.guaranteeRepository = guaranteeRepository;
@@ -70,6 +76,7 @@ public class LoanApplicationService {
         this.savingsService = savingsService;
         this.auditService = auditService;
         this.loanDetailAssembler = loanDetailAssembler;
+        this.notificationService = notificationService;
     }
 
     @Transactional(readOnly = true)
@@ -151,6 +158,13 @@ public class LoanApplicationService {
 
         auditService.record(organizationId, memberId, memberName, "Applied for loan", loan.getContractNumber());
 
+        notificationService.notify(memberId, NotificationType.loan, "Loan application submitted",
+                "Your loan application " + loan.getContractNumber() + " has been submitted and is awaiting review.");
+        if (guarantor != null) {
+            notificationService.notify(guarantor.getId(), NotificationType.loan, "You've been requested as a guarantor",
+                    memberName + " has requested you as a guarantor for a " + formatRwf(request.amount()) + " RWF loan.");
+        }
+
         return loanDetailAssembler.toDetail(loan);
     }
 
@@ -198,6 +212,10 @@ public class LoanApplicationService {
             }
         }
         throw new IllegalStateException("Could not generate a unique contract number after 5 attempts.");
+    }
+
+    private static String formatRwf(BigDecimal amount) {
+        return NumberFormat.getIntegerInstance(Locale.US).format(amount);
     }
 
     /** Same whole-calendar-month math as src/lib/mock-data/financials.ts's monthsBetween. */

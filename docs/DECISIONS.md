@@ -5,6 +5,36 @@ Dated, most recent first. Format: **Decision** / **Reason** / **Alternatives con
 
 ---
 
+### Notification scope: loan lifecycle + meetings/announcements only, not savings (2026-08-29, gap-closure phase 4)
+
+**Decision**: Wired real notification-creation to 8 concrete events — loan submitted, guarantor
+requested, guarantor accepted/declined, loan approved/rejected, loan disbursed, repayment recorded,
+loan fully repaid, meeting scheduled, announcement published. Deliberately did **not** wire any
+savings/share event (voluntary deposits, share purchases, share withdrawal decisions).
+
+**Reason**: every event that got wired has a concrete, unambiguous trigger point and recipient —
+there's exactly one reasonable notification to send and one reasonable place to send it from. The
+frontend mock's `NotificationType` enum includes a `savings` case, and "important savings/account
+events" was floated as in-scope, but no specific trigger was ever named — implementing it would
+mean inventing which savings actions matter enough to notify about (every voluntary deposit? only
+ones over some threshold? every share purchase?) with no real business rule to base that on. That's
+exactly the kind of unrequested-scope invention this whole gap-closure effort has been avoiding
+elsewhere (see the interest-recognition and backup-scope decisions above).
+
+**Alternatives considered**: notify on every savings/share transaction — rejected as almost
+certainly too noisy (a member could get a notification every single month for routine
+payroll-deducted savings, which isn't really "news"); guessing a threshold or subset — rejected for
+the same reason as leaving revenue recognition undecided was before Phase 3: an assumption baked
+into shipped code is harder to unwind than leaving it undone.
+
+**Impact**: `notification.NotificationType.savings` exists but nothing ever constructs one. Revisit
+with an explicit decision on which savings/share events should notify, and whether per-transaction
+or only for specific milestones (e.g. "share withdrawal approved," which — unlike routine
+deposits — already has a real, singular, event-like trigger and might be worth adding on its own
+later).
+
+---
+
 ### At most one Loan Committee Chair per organization (2026-08-29, gap-closure phase 2)
 
 **Decision**: `PUT /members/{id}/committee-chair` enforces a single chair per organization —

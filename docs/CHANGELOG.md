@@ -6,6 +6,40 @@ verified.
 
 ---
 
+## 2026-08-29 — Gap-closure Phase 4: notification-creation triggers
+
+**Changed**: `NotificationService` gained `notify`/`notifyMany`; `MemberRepository` gained
+`findAllIdsByOrganizationId`/`findAllStaffIdsByOrganizationId` for fan-out. Eight real events now
+create real notifications: loan submitted (borrower), guarantor requested (guarantor), guarantor
+accepted/declined (borrower), loan approved/rejected (borrower), loan disbursed (borrower),
+repayment recorded and loan fully repaid (borrower), meeting scheduled (every org member),
+announcement published (every member, or staff only for `admins` audience — matching who can
+actually see it). Wired into `LoanApplicationService`, `GuaranteeService`, `LoanReviewService`,
+`LoanDisbursementService`, and `SecretaryOpsService`.
+
+**Deliberately not wired**: any savings/share event (voluntary deposits, share purchases/
+withdrawals) — no concrete trigger was ever specified beyond a vague "important savings/account
+events," and guessing would mean inventing the actual business rule. See `DECISIONS.md`.
+
+**Testing**: real end-to-end flow through the complete loan lifecycle (application with guarantor →
+guarantee acceptance → chair approval → contract → disbursement → six repayments through full
+completion), confirming the right notification landed for the right recipient at every single step
+via the real `GET /notifications` endpoint. Separately created a real meeting and two real
+announcements (`audience: "all"` and `audience: "admins"`), confirming via SQL the exact recipient
+set at each: the `all` announcement reached all 7 `tcs2` members, the `admins` one reached only the
+3 staff members (excluding the plain member). Cleaned up all test data afterward (loan, guarantees,
+ledger rows, timeline events, notifications, the meeting, both announcements, audit-log entries) —
+dev fixtures back to exactly their documented state. `mvn -q compile` and `tsc -b` both clean (no
+frontend changes needed — the notifications inbox page already reads the real endpoint from an
+earlier phase).
+
+**Merge-risk assessment**: low. Five services each gained one new constructor parameter
+(`NotificationService`, already a `@Service` with no dependency back on any of them — no circular
+dependency) and a few `notify`/`notifyMany` calls at points where the relevant state-changing work
+was already complete. No existing endpoint's request/response shape changed, no schema change.
+
+---
+
 ## 2026-08-29 — Gap-closure Phase 3: real interest income / insurance fee ledger entries
 
 **Changed**: `LoanDisbursementService.disburse()` now writes `interest-income` and (if required)

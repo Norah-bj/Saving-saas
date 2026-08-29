@@ -6,9 +6,10 @@ import com.fasterxml.jackson.annotation.JsonValue;
 /**
  * Mirrors src/lib/types.ts's LedgerTransaction.type union exactly (same
  * hyphen-handling pattern as member.Role / savings.SavingsTxType / loan.LoanStatus).
- * Only DISBURSEMENT_ADJUSTMENT and LOAN_REPAYMENT are inserted by this
- * phase — the rest belong to later reporting phases but are the same
- * stable domain vocabulary from types.ts, not speculative additions.
+ * INTEREST_INCOME and INSURANCE_FEE are written by LoanDisbursementService.disburse()
+ * (see docs/DECISIONS.md — recognized in full at disbursement, not amortized);
+ * SALARY_DEDUCTION is written by payroll import; the rest by
+ * LoanDisbursementService and savings/share-withdrawal flows.
  */
 public enum LedgerTxType {
     SALARY_DEDUCTION, VOLUNTARY, SHARE_PURCHASE, LOAN_REPAYMENT,

@@ -68,7 +68,7 @@ super-admins, who are never gated) — an authenticated-but-unverified caller ge
 | POST | `/loans/{id}/committee-decision` | LOAN_COMMITTEE (chair-only for guaranteed loans — see [BUSINESS_RULES.md](BUSINESS_RULES.md)) |
 | POST | `/loans/{id}/generate-contract` | ACCOUNTANT, ORG_ADMIN |
 | GET | `/loans/{id}/contract` | any authenticated user (renders live PDF, no status gate) |
-| POST | `/loans/{id}/disburse` | ACCOUNTANT, ORG_ADMIN |
+| POST | `/loans/{id}/disburse` | ACCOUNTANT, ORG_ADMIN. Also writes `interest-income` (and `insurance-fee`, if required) ledger rows — the full amount for the loan's whole term, recognized at disbursement, not amortized. See [DECISIONS.md](DECISIONS.md). |
 | POST | `/loans/{id}/record-repayment` | ACCOUNTANT, ORG_ADMIN |
 
 ## Guarantees — `GuaranteeController`

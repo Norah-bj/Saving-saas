@@ -104,6 +104,41 @@ async function request<T>(path: string, options: RequestOptions = {}, isRetry = 
   return data as T;
 }
 
+/**
+ * For binary responses (PDFs, ...) that can't go through request()'s
+ * JSON.parse. Same bearer-token/401-refresh-retry handling, no JSON body
+ * parsing. Used by useLoanContractPdf — LoanContract.tsx embeds the real
+ * backend-generated PDF rather than re-rendering the contract from data.
+ */
+async function requestBlob(path: string, isRetry = false): Promise<Blob> {
+  const { accessToken } = useAuthStore.getState();
+  const headers: Record<string, string> = {};
+  if (accessToken) {
+    headers.Authorization = `Bearer ${accessToken}`;
+  }
+
+  const res = await fetch(`${BASE_URL}${path}`, { headers });
+
+  if (res.status === 401 && !isRetry) {
+    if (!refreshPromise) {
+      refreshPromise = refreshAccessToken().finally(() => {
+        refreshPromise = null;
+      });
+    }
+    const newToken = await refreshPromise;
+    if (newToken) {
+      return requestBlob(path, true);
+    }
+    throw new ApiError(401, "unauthorized", "Your session has expired. Please log in again.");
+  }
+
+  if (!res.ok) {
+    throw new ApiError(res.status, "error", "Something went wrong.");
+  }
+
+  return res.blob();
+}
+
 export const apiClient = {
   get: <T>(path: string, options?: RequestOptions) => request<T>(path, { ...options, method: "GET" }),
   post: <T>(path: string, body?: unknown, options?: RequestOptions) =>
@@ -112,4 +147,5 @@ export const apiClient = {
     request<T>(path, { ...options, method: "PUT", body }),
   patch: <T>(path: string, body?: unknown, options?: RequestOptions) =>
     request<T>(path, { ...options, method: "PATCH", body }),
+  getBlob: requestBlob,
 };

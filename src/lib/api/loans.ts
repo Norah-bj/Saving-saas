@@ -1,5 +1,6 @@
+import * as React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { apiClient } from "@/lib/api/client";
+import { apiClient, ApiError } from "@/lib/api/client";
 import { useAuthStore } from "@/lib/store/auth-store";
 import type { Loan, LoanStatus } from "@/lib/types";
 
@@ -246,4 +247,52 @@ export function useDisburse() {
 
 export function useRecordRepayment() {
   return useLoanActionMutation("record-repayment");
+}
+
+/**
+ * The real backend-generated PDF (GET /loans/{id}/contract) — a binary
+ * response, so it goes through apiClient.getBlob rather than react-query's
+ * usual JSON path. LoanContract.tsx embeds this directly instead of
+ * re-rendering the contract from data; LoanContractPdfGenerator ports the
+ * page's old article text article-for-article, so nothing here changed
+ * except the source of truth for what's actually shown/printed.
+ *
+ * Manages the object URL's lifecycle itself: revokes the previous one
+ * whenever loanId changes or the component unmounts, so a member paging
+ * through several loan contracts doesn't leak a blob URL per visit.
+ */
+export function useLoanContractPdf(loanId: string | undefined) {
+  const accessToken = useAuthStore((s) => s.accessToken);
+  const [url, setUrl] = React.useState<string | null>(null);
+  const [error, setError] = React.useState<ApiError | null>(null);
+  const [isLoading, setIsLoading] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!loanId || !accessToken) return;
+    let objectUrl: string | null = null;
+    let cancelled = false;
+
+    setIsLoading(true);
+    setError(null);
+    apiClient
+      .getBlob(`/loans/${loanId}/contract`)
+      .then((blob) => {
+        if (cancelled) return;
+        objectUrl = URL.createObjectURL(blob);
+        setUrl(objectUrl);
+      })
+      .catch((e: unknown) => {
+        if (!cancelled) setError(e instanceof ApiError ? e : new ApiError(0, "error", "Something went wrong."));
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [loanId, accessToken]);
+
+  return { url, error, isLoading };
 }

@@ -6,6 +6,32 @@ verified.
 
 ---
 
+## 2026-08-29 — Gap-closure Phase 1b: LoanContract.tsx embeds the real generated PDF
+
+**Changed**: `LoanContract.tsx` no longer re-renders the loan contract as styled HTML from mock
+data — it now fetches `GET /loans/{id}/contract` and displays the real backend-generated PDF in an
+`<iframe>`, with a Download button. New `apiClient.getBlob()` (binary responses, same bearer-token/
+401-refresh handling as the JSON path) and `useLoanContractPdf()` in `src/lib/api/loans.ts` (manages
+the blob object URL's lifecycle — revokes it on loan-id change or unmount).
+
+**A design decision, not a data-source swap, per `KNOWN_ISSUES.md` — resolved by reading the
+generator, not guessing**: `LoanContractPdfGenerator`'s class doc says it "ports
+`src/pages/LoanContract.tsx` article-for-article" — the backend PDF and the old bespoke HTML were
+already content-identical. That made embedding the real PDF a strict improvement (removes the risk
+of the two drifting apart on legal wording) with no content loss. See `DECISIONS.md`.
+
+**Testing**: fetched a real contract PDF via curl for a completed, insurance-required loan
+(`TC-2026-005`) as staff — `200`, `Content-Type: application/pdf`, a genuine 2-page PDF (`file`
+confirms `PDF document, version 1.5, 2 page(s)`), page count matching the extra insurance/guarantor
+articles this loan's content should include. `tsc -b` and `npm run build` both clean.
+
+**Merge-risk assessment**: low. Only `LoanContract.tsx`, `client.ts`, and `loans.ts` touched;
+`client.ts`'s change is additive (`getBlob` alongside the existing `get`/`post`/`put`/`patch`, no
+change to `request()`). No backend change — `GET /loans/{id}/contract` already existed and its
+authorization (self-or-staff) is unchanged.
+
+---
+
 ## 2026-08-29 — Gap-closure Phase 1a: real backend for the Policies reference text
 
 **Changed**: new `GET /policies` (`policy` package: `PolicyDocument`, `PolicyDocumentRepository`,

@@ -49,6 +49,13 @@
   only depends on the `EmailService` interface. See [BUSINESS_RULES.md](BUSINESS_RULES.md).
 ## Recently closed gaps
 
+- **`LoanContract.tsx` was mock-rendered HTML — fixed.** Now embeds the real backend-generated PDF
+  (`GET /loans/{id}/contract`) via an `<iframe>`, fetched as an authenticated blob (new
+  `apiClient.getBlob`/`useLoanContractPdf`) since a plain `<iframe src>` can't carry the JWT bearer
+  token. `LoanContractPdfGenerator` already ported this page's old article-for-article Kinyarwanda
+  text faithfully (see its class doc), so this was purely a source-of-truth swap, not a content
+  change — the design decision flagged in the entry this replaces was "embed the PDF, since backend
+  and frontend content are already identical," not "invent new content."
 - **`member/Policies.tsx` and `loan-committee/Policy.tsx`'s reference-policy list — fixed.** Both
   read `RolePolicy` content that had no backend anywhere in the roadmap. New `GET /policies`
   (`policy` package: `PolicyDocument` entity, `policy_documents` table) returns the same 8
@@ -133,11 +140,12 @@
   scoped out back in phase 15 since no real system exists behind any of the three (fabricated
   uptime numbers, fabricated API keys, a hardcoded ticket list — see that item further down). See
   [FEATURES.md](FEATURES.md) and [ARCHITECTURE.md](ARCHITECTURE.md#frontendbackend-integration).
-- Within the now-wired member workspace, two pages are deliberately still mock-only:
-  `LoanContract.tsx`/`ExitSettlement.tsx` (the backend already generates real PDFs for these —
-  see [API.md](API.md)'s contract endpoints — but replacing the current bespoke HTML rendering with
-  a PDF embed is a real design decision, not a data-source swap, so it wasn't done as part of this
-  round of wiring). `member/Policies.tsx` is no longer on this list — see "Recently closed gaps".
+- Within the now-wired member workspace, one page is deliberately still mock-only:
+  `ExitSettlement.tsx` (the backend already generates a real PDF for this — see
+  [API.md](API.md)'s settlement endpoint — but replacing the current bespoke HTML rendering with a
+  PDF embed is a real design decision, not a data-source swap, so it wasn't done as part of this
+  round of wiring). `member/Policies.tsx` and `LoanContract.tsx` are no longer on this list — see
+  "Recently closed gaps".
 - **`secretary/Members.tsx`'s "pre-fill from employee registry" picker was dropped, not wired.**
   The mock let a secretary pick an unregistered employee from a payroll-derived candidate list to
   auto-fill the add-member form — no backend endpoint exposes anything like "employees imported via

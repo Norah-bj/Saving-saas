@@ -33,6 +33,26 @@ public class PayrollFileParser {
     private static final List<String> AMOUNT_HEADERS = List.of("saving amount", "amount");
 
     public List<PayrollFileRow> parse(InputStream inputStream) {
+        return parse(inputStream, null);
+    }
+
+    /**
+     * {@code originalFilename} is checked against the two extensions POI's
+     * {@code WorkbookFactory} actually supports here, before ever touching
+     * the file content — a clear "wrong file type" message instead of
+     * whatever cryptic exception POI happens to throw for, say, a renamed
+     * .csv or .pdf (a real gap: previously only a raw IOException was
+     * caught, so a corrupt/encrypted/wrong-format file could surface as an
+     * unhandled 500 — see docs/CHANGELOG.md, gap-closure phase 5).
+     */
+    public List<PayrollFileRow> parse(InputStream inputStream, String originalFilename) {
+        if (originalFilename != null) {
+            String lower = originalFilename.toLowerCase(Locale.ROOT);
+            if (!lower.endsWith(".xlsx") && !lower.endsWith(".xls")) {
+                throw new BadRequestException("Please upload an Excel file (.xlsx or .xls) — \""
+                        + originalFilename + "\" doesn't look like one.");
+            }
+        }
         try (Workbook workbook = WorkbookFactory.create(inputStream)) {
             Sheet sheet = workbook.getSheetAt(0);
             var rowIterator = sheet.iterator();
@@ -66,8 +86,15 @@ public class PayrollFileParser {
                 throw emptySheetError();
             }
             return rows;
-        } catch (IOException e) {
-            throw new BadRequestException("Couldn't read this file. Please upload a valid .xlsx file.");
+        } catch (BadRequestException e) {
+            throw e; // our own intentional "no rows found" — don't re-wrap it below
+        } catch (IOException | RuntimeException e) {
+            // Broadened beyond IOException — POI throws various unchecked
+            // exceptions for encrypted (EncryptedDocumentException) or
+            // otherwise malformed workbooks, which previously surfaced as an
+            // unhandled 500 instead of a clear "bad file" message.
+            throw new BadRequestException(
+                    "Couldn't read this file. Make sure it's a valid, unprotected .xlsx or .xls file.");
         }
     }
 

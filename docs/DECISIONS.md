@@ -72,9 +72,10 @@ installment interest/principal splitting, which doesn't exist anywhere in the co
 more complex (needs a real amortization schedule per loan) for a metric that's currently a
 reporting nicety, not a regulatory requirement.
 
-**Impact**: `LoanService`'s disbursement path must write both ledger rows in the same transaction
-as the disbursement itself. A loan that's later written off or defaults keeps its already-recognized
-revenue — no reversal logic exists or is planned. Supersedes the "left undecided" entry below.
+**Impact**: implemented in gap-closure phase 3 — `LoanDisbursementService.disburse()` writes both
+ledger rows in the same transaction as the disbursement itself. A loan that's later written off or
+defaults keeps its already-recognized revenue — no reversal logic exists or is planned. Supersedes
+the "left undecided" entry below.
 
 ---
 
@@ -120,7 +121,11 @@ have its converter added to `WebConfig`, or it will 500 on every value containin
 
 ---
 
-### Interest income / insurance fee recognition timing left undecided (2026-08-23, phase 11)
+### Interest income / insurance fee recognition timing left undecided (2026-08-23, phase 11) — SUPERSEDED
+
+**Superseded 2026-08-29** by "Interest income / insurance fee recognized in full at disbursement"
+above — the decision got made and implemented in gap-closure phase 3. Kept here as a record of the
+reasoning for leaving it unresolved for as long as it was.
 
 **Decision**: Ported the accountant reporting aggregations faithfully — they correctly compute
 `totalInterestIncome`/`totalInsuranceCollected` from whatever `ledger_transactions` rows exist,

@@ -33,17 +33,12 @@ import rw.ikiminaconnect.savings.ShareHoldingRepository;
  * 8-month trailing window, same month-bucketing algorithm (carry the last
  * known balance forward into months with no activity).
  *
- * <p>One honest gap ported faithfully, not invented: the frontend never
- * actually creates any 'interest-income' or 'insurance-fee' typed ledger
- * transaction anywhere in data-store.ts, so totalInterestIncome and
- * totalInsuranceCollected are always zero in the current system — this is a
- * real gap in the source of truth (there's no established business rule yet
- * for exactly when interest/insurance revenue should be recognized: upfront
- * at disbursement, amortized per installment, or at completion), not
- * something to silently invent here. These aggregates are computed
- * correctly from whatever ledger data exists; they'll show real numbers
- * once a future phase decides that recognition point and starts writing
- * those rows.
+ * <p>totalInterestIncome/totalInsuranceCollected sum real 'interest-income'/
+ * 'insurance-fee' ledger_transactions rows, written by
+ * LoanDisbursementService.disburse() in full at disbursement time (not
+ * amortized per installment, not deferred to completion) — see
+ * docs/DECISIONS.md for the recognition-timing decision. The frontend mock
+ * never wrote either type of row, so these were always zero before that.
  */
 @Service
 public class ReportingService {

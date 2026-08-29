@@ -6,6 +6,41 @@ verified.
 
 ---
 
+## 2026-08-29 — Gap-closure Phase 3: real interest income / insurance fee ledger entries
+
+**Changed**: `LoanDisbursementService.disburse()` now writes `interest-income` and (if required)
+`insurance-fee` typed `ledger_transactions` rows in the same transaction as the disbursement
+itself — the full amount for the loan's entire term, recognized at disbursement (not amortized per
+installment, not deferred to completion; see `DECISIONS.md`). `totalInterestIncome`/
+`totalInsuranceCollected` (`GET /reports/accountant-dashboard`, `GET /reports/financial`) were
+always zero before this — the aggregation queries were already correct, they just had no real rows
+to sum. No frontend change needed — `accountant/Dashboard.tsx`, `accountant/Reports.tsx`, and
+`org-admin/Dashboard.tsx` already read these fields; they'll simply show real numbers now.
+
+**Two stale code comments corrected while in the area**: `LedgerTxType`'s class doc and
+`ReportingService`'s class doc both explicitly documented the "always zero, no rows are ever
+written" gap — updated to describe the real behavior now that it's implemented, rather than left to
+silently rot into an inaccurate comment.
+
+**Testing**: real end-to-end flow through the actual multi-step loan lifecycle, not a shortcut —
+applied for a guaranteed test loan as `g2@tcs2.rw` (50,000 RWF, insurance required since savings
+was 0), had `admin2@tcs2.rw` accept the guarantee, had `chair@tcs2.rw` give the chair-only approval
+a guaranteed loan requires, generated the contract, and disbursed it. Confirmed via SQL exactly the
+right three ledger rows (`loan-disbursement-adjustment: 50000`, `interest-income: 2500` = 50,000 ×
+5%, `insurance-fee: 500` matching the loan's own precomputed fee), and confirmed both reporting
+endpoints immediately reflected the real totals. Cleaned up the entire test loan afterward (ledger
+rows, timeline events, guarantee, audit-log entries, the loan itself) — dev fixtures back to
+exactly the documented 6 `tcs2` loans. **Also found and fixed a pre-existing, unrelated drift**:
+`g2@tcs2.rw` was sitting at `status: pending` instead of its documented `active` baseline (not
+caused by anything in this phase — nothing in the loan-application path touches member status;
+left over from some earlier session) — restored to `active`.
+
+**Merge-risk assessment**: low. One method (`LoanDisbursementService.disburse()`) gained two more
+`ledgerTransactionRepository.save()` calls after the existing one, using the same constructor
+already in use. No schema change, no new endpoint, no DTO change.
+
+---
+
 ## 2026-08-29 — Gap-closure Phase 2: committee-chair assignment endpoint
 
 **Changed**: new `PUT /members/{id}/committee-chair` (ORG_ADMIN only), body `{"chair": true|false}`.

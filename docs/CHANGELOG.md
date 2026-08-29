@@ -6,6 +6,39 @@ verified.
 
 ---
 
+## 2026-08-29 — Gap-closure Phase 2: committee-chair assignment endpoint
+
+**Changed**: new `PUT /members/{id}/committee-chair` (ORG_ADMIN only), body `{"chair": true|false}`.
+Previously the only way to grant/revoke Loan Committee Chair status was a direct
+`UPDATE user_roles SET is_committee_chair = true` against the database. `AppUser` gained
+`setCommitteeChair(boolean)`; `MemberRepository` gained `findCommitteeChairByOrganizationId`;
+`MemberService` gained `setCommitteeChair(...)` with the validation/single-chair logic below.
+`MemberSummary`/`MemberSummaryDto` gained a `committeeChair` field (previously only on the detail
+DTO) so the roster table can show chair status without a per-row detail fetch. `org-admin/Users.tsx`
+gained a "Make Chair"/"Remove Chair" button (shown only for members holding the `loan-committee`
+role) and a "Chair" badge.
+
+**At most one chair per organization, enforced server-side**: promoting a member auto-demotes
+whoever currently holds the role — both changes get their own audit-log entry, so an admin can
+always see who displaced whom. Promoting 409s if the target doesn't hold `loan-committee` yet
+("Assign that role first") or is already chair; demoting 409s if they aren't currently chair. See
+`DECISIONS.md` for why a single chair is assumed rather than allowing several or requiring a
+separate manual demotion step.
+
+**Testing**: real end-to-end curl flow against `tcs2`'s real loan-committee members
+(`chair@tcs2.rw`, already chair; `admin2@tcs2.rw`, not chair; `g2@tcs2.rw`, not loan-committee at
+all). Verified all three 409 cases (promote a non-loan-committee member, demote a non-chair,
+promote an already-chair member), then the real promotion (`admin2` → chair, confirmed
+`chair@tcs2.rw` auto-demoted via SQL) and reverted back to the original state, confirming both the
+promotion and the resulting demotion each produced their own audit-log row. `mvn -q compile`,
+`tsc -b`, and `npm run build` all clean.
+
+**Merge-risk assessment**: low. One new endpoint + one new DTO field (additive, existing
+`MemberSummary` consumers unaffected by an extra field) + one new repository query. No existing
+endpoint's behavior changed.
+
+---
+
 ## 2026-08-29 — Gap-closure Phase 1c: ExitSettlement.tsx wired to real data (Phase 1 complete)
 
 **Changed**: `ExitSettlement.tsx` now reads `useMemberDetail` (savings balance, share count),

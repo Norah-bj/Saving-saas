@@ -7,6 +7,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 public interface MemberRepository extends JpaRepository<AppUser, UUID> {
 
@@ -57,4 +58,11 @@ public interface MemberRepository extends JpaRepository<AppUser, UUID> {
     // See GuarantorCandidateDto.
     List<AppUser> findAllByOrganizationIdAndIdNotAndStatus(
             UUID organizationId, UUID excludedId, MemberStatus status);
+
+    // MemberService.setCommitteeChair() — enforces at most one chair per
+    // organization by demoting whoever currently holds it before promoting
+    // someone else. See docs/DECISIONS.md.
+    @Query("SELECT u FROM AppUser u JOIN u.roles r WHERE u.organizationId = :orgId "
+            + "AND r.role = rw.ikiminaconnect.member.Role.LOAN_COMMITTEE AND r.committeeChair = true")
+    Optional<AppUser> findCommitteeChairByOrganizationId(@Param("orgId") UUID organizationId);
 }

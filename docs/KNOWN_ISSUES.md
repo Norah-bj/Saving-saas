@@ -13,11 +13,6 @@
   `/members/{id}/exit-settlement` — a separate settlement-calculation feature that was never
   requested and isn't built. Exit/share-withdrawal requests themselves (submit, decide, real share
   and savings-balance movement on approval) are fully built — see [FEATURES.md](FEATURES.md).
-- **No committee-chair assignment endpoint.** `PUT /members/{id}/roles` (phase 13) replaces a
-  member's role set but deliberately never grants chair status — it's still only settable directly
-  via `UPDATE user_roles SET is_committee_chair = true` against the dev database. No frontend page
-  exposes chair assignment either (`org-admin/Users.tsx`'s role editor has no chair toggle), so
-  there's no UI-driven spec to port yet.
 - **No real backup mechanism, and no restore endpoint at all.** `backup_records` (phase 14) is
   metadata tracking only — `size_mb` is a row-count-based proxy, not an actual file size, and
   nothing performs a real `pg_dump`. This matches the frontend mock, which also never implements
@@ -49,6 +44,14 @@
   only depends on the `EmailService` interface. See [BUSINESS_RULES.md](BUSINESS_RULES.md).
 ## Recently closed gaps
 
+- **No committee-chair assignment endpoint — fixed.** New `PUT /members/{id}/committee-chair`
+  (ORG_ADMIN only), body `{"chair": true|false}`. Promoting someone requires they already hold the
+  `loan-committee` role (409 otherwise — assign that role first via the existing `/roles`
+  endpoint); the backend enforces at most one chair per organization by auto-demoting whoever
+  currently holds it (both the promotion and the auto-demotion get their own audit-log entry). No
+  longer only settable via direct SQL. `org-admin/Users.tsx` gained a "Make Chair"/"Remove Chair"
+  button (shown only for loan-committee members) and a "Chair" badge in the roster table. See
+  [DECISIONS.md](DECISIONS.md) for why a single chair is assumed.
 - **`ExitSettlement.tsx` was mock-rendered HTML — fixed.** Now reads real data throughout:
   `useMemberDetail` (savings balance, share count), `useOrganization` (share value, legal
   representative), `useExitEligibility`, and `useExitRequests`. No new backend endpoint was needed

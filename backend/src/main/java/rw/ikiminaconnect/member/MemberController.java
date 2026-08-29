@@ -86,4 +86,14 @@ public class MemberController {
         return memberService.updateStatus(
                 currentUser.organizationId(), id, request, currentUser.userId(), currentUser.fullName());
     }
+
+    @PutMapping("/{id}/committee-chair")
+    @PreAuthorize("hasRole('ORG_ADMIN')")
+    public MemberDetail setCommitteeChair(
+            @AuthenticationPrincipal CurrentUser currentUser,
+            @PathVariable UUID id,
+            @Valid @RequestBody SetCommitteeChairRequest request) {
+        return memberService.setCommitteeChair(
+                currentUser.organizationId(), id, request, currentUser.userId(), currentUser.fullName());
+    }
 }

@@ -57,6 +57,7 @@ export interface MemberSummaryDto {
   savingsBalanceRwf: number;
   roles: string[];
   monthlySalaryRwf: number;
+  committeeChair: boolean;
 }
 
 /**
@@ -131,6 +132,24 @@ export function useUpdateMemberStatus() {
   return useMutation({
     mutationFn: ({ memberId, status }: { memberId: string; status: MemberStatus }) =>
       apiClient.post<MemberDetailDto>(`/members/${memberId}/status`, { status }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["members"] });
+      queryClient.invalidateQueries({ queryKey: ["member-detail"] });
+    },
+  });
+}
+
+/**
+ * ORG_ADMIN only. Promoting someone (chair: true) requires they already hold
+ * the loan-committee role (409 otherwise — assign that role first) and
+ * demotes whoever currently holds it, since the backend enforces at most one
+ * chair per organization. See docs/DECISIONS.md.
+ */
+export function useSetCommitteeChair() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ memberId, chair }: { memberId: string; chair: boolean }) =>
+      apiClient.put<MemberDetailDto>(`/members/${memberId}/committee-chair`, { chair }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["members"] });
       queryClient.invalidateQueries({ queryKey: ["member-detail"] });

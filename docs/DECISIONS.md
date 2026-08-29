@@ -5,6 +5,30 @@ Dated, most recent first. Format: **Decision** / **Reason** / **Alternatives con
 
 ---
 
+### At most one Loan Committee Chair per organization (2026-08-29, gap-closure phase 2)
+
+**Decision**: `PUT /members/{id}/committee-chair` enforces a single chair per organization —
+promoting a new chair automatically demotes whoever currently holds it, rather than allowing
+multiple simultaneous chairs or requiring the caller to demote the old one first.
+
+**Reason**: every reference to this role elsewhere in the codebase and docs treats it as singular —
+`BUSINESS_RULES.md` and `LoanReviewService` both say "the Committee Chair," never "a chair," and
+the whole point of the rule (final say on guaranteed loans belongs to one specific person, not the
+whole committee) only holds if there's exactly one. Requiring a separate manual demotion step
+first would just be an extra click for the same guaranteed outcome, with a window in between where
+an org could accidentally end up with two chairs if the admin forgot the first step.
+
+**Alternatives considered**: allow multiple chairs (any of whom can give final approval) — rejected
+as a materially different, unrequested business rule; requiring explicit demotion before promotion
+— rejected as extra friction with no real benefit over doing both atomically server-side.
+
+**Impact**: `MemberRepository.findCommitteeChairByOrganizationId` assumes at most one row can ever
+match — if that invariant is ever violated (e.g., a future direct-SQL fix reintroduces two), this
+query silently returns just one of them via `Optional`. Both the promotion and the resulting
+auto-demotion get their own audit-log entry, so an admin can always see who displaced whom.
+
+---
+
 ### LoanContract.tsx embeds the real generated PDF instead of re-rendering (2026-08-29, gap-closure phase 1b)
 
 **Decision**: `LoanContract.tsx` now fetches `GET /loans/{id}/contract` as an authenticated blob

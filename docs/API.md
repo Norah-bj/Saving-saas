@@ -31,11 +31,12 @@ super-admins, who are never gated) — an authenticated-but-unverified caller ge
 
 | Method | Path | Role |
 |---|---|---|
-| GET | `/members` | SECRETARY, ORG_ADMIN, HR. Paginated (`?search=`, standard `page`/`size`) — no "get all" mode; large-fetch callers pass a high `size`. `MemberSummary` includes `roles`, `monthlySalaryRwf`. HR was added alongside SECRETARY/ORG_ADMIN — it already had `GET /members/{id}` access but not the list, an inconsistency from before HR's own dashboard/reports pages needed a roster at all. |
+| GET | `/members` | SECRETARY, ORG_ADMIN, HR. Paginated (`?search=`, standard `page`/`size`) — no "get all" mode; large-fetch callers pass a high `size`. `MemberSummary` includes `roles`, `monthlySalaryRwf`, `committeeChair`. HR was added alongside SECRETARY/ORG_ADMIN — it already had `GET /members/{id}` access but not the list, an inconsistency from before HR's own dashboard/reports pages needed a roster at all. |
 | POST | `/members` | SECRETARY, ORG_ADMIN |
 | GET | `/members/{id}` | self, or SECRETARY/ACCOUNTANT/ORG_ADMIN |
 | GET | `/members/guarantor-candidates` | any authenticated user. Deliberately minimal — `{id, fullName, department}` only, excludes the caller. Added for the frontend's loan-application guarantor picker, which needs a member list but shouldn't get the staff-only `GET /members`'s sensitive fields (national ID, savings balance). |
-| PUT | `/members/{id}/roles` | ORG_ADMIN. Replaces the member's full role set; MEMBER is always kept even if omitted. Does not touch committee-chair status (see [KNOWN_ISSUES.md](KNOWN_ISSUES.md)). |
+| PUT | `/members/{id}/roles` | ORG_ADMIN. Replaces the member's full role set; MEMBER is always kept even if omitted. Does not touch committee-chair status — use the endpoint below instead. |
+| PUT | `/members/{id}/committee-chair` | ORG_ADMIN. Body `{"chair": true\|false}`. Promoting (`true`) 409s unless the member already holds `loan-committee`, and 409s if they're already chair; demoting (`false`) 409s if they aren't currently chair. At most one chair per organization — promoting someone auto-demotes whoever currently holds it (both changes audited separately). See [DECISIONS.md](DECISIONS.md). |
 | POST | `/members/{id}/status` | ORG_ADMIN. Body `{"status": "active"\|"suspended"}` only — the transition must be the opposite of the member's current status (409 otherwise); `exited`/`pending` aren't reachable through this endpoint. |
 | GET | `/members/{id}/exit-eligibility` | self, or SECRETARY/ORG_ADMIN. Returns `{eligible, outstandingLoans: [{id, contractNumber, remainingBalance}], activeGuarantees: [{guaranteeId, loanContractNumber, amountGuaranteed}]}` — restructured from plain contract-number-string lists to these nested records so `Profile.tsx` can render real IDs/amounts, not just names. |
 
@@ -184,12 +185,9 @@ No endpoint creates a notification — see [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
 
 ## Not built yet — needed but currently only reachable via direct SQL
 
-- Committee-chair assignment (still only settable via `UPDATE user_roles SET is_committee_chair
-  = true` directly against the dev DB — see [KNOWN_ISSUES.md](KNOWN_ISSUES.md)).
 - Anything creating a notification (nothing does yet, anywhere).
-- Backup restore (no endpoint — the frontend mock doesn't implement it either).
-- Any way to create a SUPER_ADMIN user through the API — the one that exists in the dev DB was
-  inserted directly via SQL (see [DEVELOPMENT.md](DEVELOPMENT.md)); `/auth/register` only ever
-  creates a new organization + its first ORG_ADMIN.
+- Backup restore (no endpoint — the frontend mock doesn't implement it either; see
+  [DECISIONS.md](DECISIONS.md) for why restore is deliberately out of scope even once real backups
+  ship).
 - Platform Super Admin's Monitoring, Settings (API keys), and Support — deliberately not built;
   see [KNOWN_ISSUES.md](KNOWN_ISSUES.md) for why.

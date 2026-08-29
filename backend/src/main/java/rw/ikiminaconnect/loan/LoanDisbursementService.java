@@ -1,6 +1,7 @@
 package rw.ikiminaconnect.loan;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.text.NumberFormat;
 import java.util.List;
 import java.util.Locale;
@@ -66,6 +67,22 @@ public class LoanDisbursementService {
         ledgerTransactionRepository.save(new LedgerTransaction(
                 organizationId, loan.getMemberId(), LedgerTxType.LOAN_DISBURSEMENT_ADJUSTMENT, loan.getAmount(),
                 LedgerTxMethod.BANK_TRANSFER, loan.getContractNumber(), actorId, actorName));
+
+        // Revenue recognized in full at disbursement, not amortized per
+        // installment — see docs/DECISIONS.md. Interest is a fraction of the
+        // loan amount (e.g. 0.05), same rounding convention as
+        // LoanContractPdfGenerator's contract text so the two amounts always
+        // agree; the insurance fee is already a precomputed BigDecimal set
+        // when the loan was applied for, so it's used as-is.
+        BigDecimal interestAmount = loan.getAmount().multiply(loan.getInterestRate()).setScale(0, RoundingMode.HALF_UP);
+        ledgerTransactionRepository.save(new LedgerTransaction(
+                organizationId, loan.getMemberId(), LedgerTxType.INTEREST_INCOME, interestAmount,
+                LedgerTxMethod.BANK_TRANSFER, loan.getContractNumber(), actorId, actorName));
+        if (loan.isInsuranceRequired()) {
+            ledgerTransactionRepository.save(new LedgerTransaction(
+                    organizationId, loan.getMemberId(), LedgerTxType.INSURANCE_FEE, loan.getInsuranceFee(),
+                    LedgerTxMethod.BANK_TRANSFER, loan.getContractNumber(), actorId, actorName));
+        }
 
         auditService.record(organizationId, actorId, actorName, "Disbursed loan", loan.getContractNumber());
         return loanDetailAssembler.toDetail(loan);

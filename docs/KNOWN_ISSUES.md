@@ -2,11 +2,6 @@
 
 ## Real gaps
 
-- **`totalInterestIncome`/`totalInsuranceCollected` are always zero.** No `interest-income` or
-  `insurance-fee` typed `ledger_transactions` row is ever written anywhere (frontend mock or real
-  backend) — there's no decided rule for revenue-recognition timing. See
-  [BUSINESS_RULES.md](BUSINESS_RULES.md) and [DECISIONS.md](DECISIONS.md). Not a bug; a decision
-  that hasn't been made yet.
 - **`/auth/register` cannot attach a new user to an existing organization** — it always creates a
   brand-new org + its first ORG_ADMIN. There is no invite-a-new-staff-member-to-my-org flow.
 - **No exit-settlement page/endpoint.** `secretary/ExitRequests.tsx` links an approved request to
@@ -44,6 +39,16 @@
   only depends on the `EmailService` interface. See [BUSINESS_RULES.md](BUSINESS_RULES.md).
 ## Recently closed gaps
 
+- **`totalInterestIncome`/`totalInsuranceCollected` were always zero — fixed.**
+  `LoanDisbursementService.disburse()` now writes real `interest-income`/`insurance-fee` typed
+  `ledger_transactions` rows in the same transaction as the disbursement itself, recognized in full
+  at disbursement time (not amortized per installment, not deferred to completion — see
+  [DECISIONS.md](DECISIONS.md)). The aggregation queries themselves needed no changes — they were
+  already correctly summing whatever rows existed, which until now was none. Verified end-to-end:
+  disbursed a real guaranteed test loan (50,000 RWF, 5% interest, insurance fee 500), confirmed
+  exactly the right ledger rows (`interest-income: 2500`, `insurance-fee: 500`) and that both
+  `GET /reports/accountant-dashboard` and `GET /reports/financial` immediately reflected the real
+  totals; cleaned up the test loan afterward.
 - **No committee-chair assignment endpoint — fixed.** New `PUT /members/{id}/committee-chair`
   (ORG_ADMIN only), body `{"chair": true|false}`. Promoting someone requires they already hold the
   `loan-committee` role (409 otherwise — assign that role first via the existing `/roles`

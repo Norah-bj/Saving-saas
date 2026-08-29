@@ -15,12 +15,6 @@
   disaster-recovery automation is future work, and restoring a shared-schema multi-tenant database
   per-organization is a genuinely harder problem than a single-tenant `pg_dump`/`pg_restore` pair —
   worth designing deliberately when it's actually needed, not bolted on here.
-- **Nothing creates a notification.** Phase 16 only built the inbox read side (list, mark-read,
-  mark-all-read) — same gap as the frontend mock, where `NOTIFICATIONS` is static seed data despite
-  per-type icons implying loan/meeting/announcement/savings events should push one. Wiring other
-  services (loan status changes, new meetings, new announcements, ...) to actually create
-  notifications is future work, deliberately not done here to avoid touching many already-shipped
-  services' logic without an explicit decision on which events should notify whom.
 - **Platform Super Admin (phase 15) deliberately covers only part of `super-admin/`'s 9 pages.**
   Asked the user how to scope it given the pages span very different maturity levels; chose "build
   only the real parts." Built: Organizations (list/status/plan), Analytics and Billing's
@@ -39,6 +33,21 @@
   only depends on the `EmailService` interface. See [BUSINESS_RULES.md](BUSINESS_RULES.md).
 ## Recently closed gaps
 
+- **Nothing created a notification — fixed.** Phase 16 only built the inbox read side; now these
+  real events write real notifications: loan application submitted (borrower), guarantor requested
+  (guarantor), guarantor accepted/declined (borrower), loan approved/rejected (borrower), loan
+  disbursed (borrower), repayment recorded and loan fully repaid (borrower), meeting scheduled (all
+  org members), announcement published (all members, or staff only for an `admins`-audience
+  announcement — matching who can actually see it). New `NotificationService.notify`/`notifyMany`;
+  `MemberRepository` gained `findAllIdsByOrganizationId`/`findAllStaffIdsByOrganizationId` for the
+  fan-out cases. **Deliberately still not wired**: savings/share events (voluntary deposits, share
+  purchases/withdrawals) — no specific trigger points were requested and the "important
+  savings/account events" framing was too vague to implement without inventing the actual rule;
+  revisit with an explicit decision on which savings events should notify. See
+  [DECISIONS.md](DECISIONS.md). Verified end-to-end through the real multi-step loan lifecycle
+  (application → guarantee → approval → disbursement → repayment → completion) plus a real meeting
+  and two real announcements (`all` and `admins` audience), confirming exact recipient sets via
+  SQL; all test data cleaned up afterward.
 - **`totalInterestIncome`/`totalInsuranceCollected` were always zero — fixed.**
   `LoanDisbursementService.disburse()` now writes real `interest-income`/`insurance-fee` typed
   `ledger_transactions` rows in the same transaction as the disbursement itself, recognized in full

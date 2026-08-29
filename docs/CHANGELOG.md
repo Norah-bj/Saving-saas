@@ -6,6 +6,42 @@ verified.
 
 ---
 
+## 2026-08-29 — Gap-closure Phase 5: payroll import hardening
+
+**Changed**: `PayrollFileParser` now rejects a non-.xlsx/.xls upload before touching its content,
+and catches the broader set of unchecked exceptions POI throws for encrypted/malformed workbooks
+(previously only `IOException` was caught — an encrypted file, for instance, surfaced as an
+unhandled 500). `GlobalExceptionHandler` gained a `MaxUploadSizeExceededException` handler (413,
+clear message — same generic-500 gap as above for anything over the configured 10MB limit).
+`PayrollImportService` gained a defensive 5000-row cap and now attempts each row's actual savings
+deduction *before* counting it successful or building the summary, catching any unexpected failure
+per row instead of risking a mid-loop exception rolling back every other row's already-good work.
+See `DECISIONS.md` for exactly what that last change does and doesn't guarantee.
+
+**Also reconsidered, and declined again for a concrete reason**: `secretary/Members.tsx`'s dropped
+"pre-fill from employee registry" picker. Checked what data would actually back it —
+`PayrollFileRow` only ever carries Employee ID and Saving Amount, no name/department/phone — so
+building it for real would mean redesigning the payroll import file contract, not just adding a
+read endpoint. See `DECISIONS.md`.
+
+**Testing**: a real generated test `.xlsx` covering all four row outcomes (matched × 2, duplicate,
+no-matching-member, invalid-amount) — confirmed the exact same summary/row shape as before this
+change, proving the restructured per-row apply loop didn't alter normal behavior. Separately
+verified: a `.txt` upload → 400 with a clear message; a corrupt file with a `.xlsx` extension → 400
+(previously would likely have been an unhandled 500 for some corruption modes); an oversized upload
+(temporarily lowered the configured limit to 1KB, uploaded a 16KB file, confirmed 413, then
+restarted with the normal 10MB config restored). All test savings transactions and payroll records
+cleaned up afterward, confirmed via SQL that both affected members' balances landed back on their
+exact prior values. `mvn -q compile` and `tsc -b` both clean — no frontend changes needed.
+
+**Merge-risk assessment**: low. `PayrollFileParser.parse(InputStream)` (no filename) is kept as a
+thin delegating overload for source compatibility; the real call site now uses
+`parse(InputStream, String)`. `PayrollImportService`'s loop restructuring is behavior-preserving
+for every case that was already working — verified with the same test file's outcomes matching
+exactly. New `GlobalExceptionHandler` handler is purely additive.
+
+---
+
 ## 2026-08-29 — Gap-closure Phase 4: notification-creation triggers
 
 **Changed**: `NotificationService` gained `notify`/`notifyMany`; `MemberRepository` gained

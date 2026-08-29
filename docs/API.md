@@ -50,11 +50,11 @@ super-admins, who are never gated) — an authenticated-but-unverified caller ge
 
 ## Payroll — `PayrollController` (HR, ACCOUNTANT)
 
-| Method | Path |
-|---|---|
-| POST | `/payroll/import` (multipart/form-data, .xlsx) |
-| GET | `/payroll/imports` |
-| GET | `/payroll/imports/{id}` |
+| Method | Path | Notes |
+|---|---|---|
+| POST | `/payroll/import` (multipart/form-data, .xlsx or .xls) | 400 for a non-Excel extension or an unreadable/encrypted/corrupt file; 400 for more than 5000 rows in one file; 413 (`payload_too_large`) over the configured 10MB upload limit. Each row's actual savings deduction is attempted before it's counted successful — see [DECISIONS.md](DECISIONS.md). |
+| GET | `/payroll/imports` | |
+| GET | `/payroll/imports/{id}` | |
 
 ## Loans — `LoanController`
 

@@ -33,6 +33,20 @@
   only depends on the `EmailService` interface. See [BUSINESS_RULES.md](BUSINESS_RULES.md).
 ## Recently closed gaps
 
+- **Payroll import hardening (gap-closure phase 5).** `PayrollFileParser` now rejects a non-.xlsx/
+  .xls upload before touching its content (clear "please upload an Excel file" message instead of
+  a cryptic parse error), and catches the broader set of unchecked exceptions POI throws for
+  encrypted/malformed workbooks (previously only `IOException` was caught, so those surfaced as an
+  unhandled 500). `GlobalExceptionHandler` gained a handler for `MaxUploadSizeExceededException`
+  (413 with a clear message — previously also fell through to a generic 500).
+  `PayrollImportService` gained a defensive row-count cap (5000) and now attempts each row's actual
+  savings deduction *before* counting it successful or building the summary, catching any
+  unexpected failure and downgrading just that row to `error` instead of either mis-reporting it or
+  risking a mid-loop exception rolling back every other row's already-good outcome. See
+  [DECISIONS.md](DECISIONS.md) for what this last change does and doesn't guarantee. Verified with
+  a real test file covering all four outcomes (matched/duplicate/two error reasons), a wrong file
+  type, a corrupt file, and (with a temporarily lowered limit) an oversized upload; all test
+  savings transactions and payroll records cleaned up afterward, restoring exact prior balances.
 - **Nothing created a notification — fixed.** Phase 16 only built the inbox read side; now these
   real events write real notifications: loan application submitted (borrower), guarantor requested
   (guarantor), guarantor accepted/declined (borrower), loan approved/rejected (borrower), loan
@@ -169,13 +183,16 @@
   [FEATURES.md](FEATURES.md) and [ARCHITECTURE.md](ARCHITECTURE.md#frontendbackend-integration).
 - **Every page in the member workspace's roadmap now calls the real backend** — see "Recently
   closed gaps" for `Policies.tsx`, `LoanContract.tsx`, and `ExitSettlement.tsx`.
-- **`secretary/Members.tsx`'s "pre-fill from employee registry" picker was dropped, not wired.**
-  The mock let a secretary pick an unregistered employee from a payroll-derived candidate list to
-  auto-fill the add-member form — no backend endpoint exposes anything like "employees imported via
-  payroll but not yet registered as members" (payroll import only records match/duplicate/
-  no-match/invalid-amount outcomes against *existing* members, nothing about employees who aren't
-  members yet). Manual entry (the rest of the form) is fully wired; the picker itself was removed
-  rather than fabricated. Revisit if/when payroll import is extended to expose that data.
+- **`secretary/Members.tsx`'s "pre-fill from employee registry" picker was dropped, not wired —
+  reconsidered in gap-closure phase 5 and still declined, for a concrete reason now.** The mock let
+  a secretary pick an unregistered employee from a payroll-derived candidate list to auto-fill the
+  add-member form. Checked what data would actually be available for such a picker:
+  `PayrollFileRow`/the import file format itself only ever carries Employee ID and Saving Amount —
+  no name, department, phone, or anything else a "pre-fill" would need. Building this for real
+  would mean redesigning the payroll import file contract to carry employee metadata beyond what
+  any real payroll export was ever asked to include, not just adding a read endpoint over existing
+  data. See [DECISIONS.md](DECISIONS.md). Manual entry (the rest of the form) is fully wired; the
+  picker itself stays dropped rather than fabricated.
 - **`GET /members`/`GET /loans`/`GET /ledger` have no "get all" mode** — every staff page that
   needs the full roster/portfolio/ledger (`secretary/Members.tsx`, `Suspended.tsx`,
   `org-admin/Users.tsx` once wired, every `loan-committee/*` and `accountant/*` list page) asks for

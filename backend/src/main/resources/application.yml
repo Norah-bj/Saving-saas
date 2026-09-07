@@ -48,10 +48,26 @@ app:
   frontend-url: ${FRONTEND_URL:http://localhost:3000}
   email-verification:
     ttl-hours: 24
+  email:
+    provider: ${EMAIL_PROVIDER:console}
+    resend-api-key: ${RESEND_API_KEY:}
+    from: ${EMAIL_FROM:onboarding@resend.dev}
   # Unset by default — POST /auth/bootstrap-super-admin refuses every request
   # until an operator explicitly sets SUPER_ADMIN_BOOTSTRAP_TOKEN (and the
   # endpoint only ever succeeds once regardless). See docs/DEVELOPMENT.md.
   super-admin-bootstrap-token: ${SUPER_ADMIN_BOOTSTRAP_TOKEN:}
+  backup:
+    # Real pg_dump, run as a subprocess — see backup/BackupFileService and
+    # docs/DECISIONS.md (platform-wide only, SUPER_ADMIN-triggered, no
+    # in-app restore). `pg-dump-path` defaults to a bare command name,
+    # correct wherever the postgresql-client tools are on PATH (a real
+    # Linux deployment with the client installed); override for local dev
+    # environments where they aren't (see docs/DEVELOPMENT.md).
+    directory: ${BACKUP_DIRECTORY:./backups}
+    pg-dump-path: ${PG_DUMP_PATH:pg_dump}
+    db-host: ${DB_HOST:localhost}
+    db-port: ${DB_PORT:5432}
+    db-name: ${DB_NAME:ikiminaconnect}
 
 logging:
   level:

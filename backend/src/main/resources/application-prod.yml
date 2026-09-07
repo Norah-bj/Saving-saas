@@ -11,6 +11,11 @@ spring:
     show-sql: false
 
 app:
+  frontend-url: ${FRONTEND_URL}
+  email:
+    provider: ${EMAIL_PROVIDER:resend}
+    resend-api-key: ${RESEND_API_KEY}
+    from: ${EMAIL_FROM}
   jwt:
     secret: ${JWT_SECRET}
   cors:

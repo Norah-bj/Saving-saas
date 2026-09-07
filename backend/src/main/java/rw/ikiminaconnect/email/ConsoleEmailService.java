@@ -3,6 +3,7 @@ package rw.ikiminaconnect.email;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 
 /**
  * Dev-only stand-in for a real email provider: logs the message instead of
@@ -12,6 +13,7 @@ import org.springframework.stereotype.Service;
  * link from the application log to test the flow locally.
  */
 @Service
+@ConditionalOnProperty(name = "app.email.provider", havingValue = "console", matchIfMissing = true)
 public class ConsoleEmailService implements EmailService {
 
     private static final Logger log = LoggerFactory.getLogger(ConsoleEmailService.class);

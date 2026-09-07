@@ -11,8 +11,9 @@ Two codebases in this one repo, now wired together — every role workspace call
   call the real backend now, though a handful of individual pages within them deliberately still
   read from the zustand mock store (`src/lib/mock-data/`, `src/lib/store/data-store.ts`) — see
   [FEATURES.md](FEATURES.md) and [KNOWN_ISSUES.md](KNOWN_ISSUES.md) for exactly which ones and why.
-  Deployed to Vercel (see [DEPLOYMENT.md](DEPLOYMENT.md)) — the deployed build still points at mock
-  data until the backend itself is deployed too.
+  Deployed to Vercel (see [DEPLOYMENT.md](DEPLOYMENT.md)). The deployed build
+  currently points at `localhost` because the API is not deployed yet; it must
+  receive the deployed API URL as `VITE_API_URL` at frontend build time.
 - **Backend** (`backend/`): Java 21 + Spring Boot 3.3.4 + PostgreSQL 17, built vertical-slice by
   vertical-slice against the frontend's existing mock behavior as the spec. Runs locally only —
   not yet deployed. See [FEATURES.md](FEATURES.md) for what's built so far.

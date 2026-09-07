@@ -5,6 +5,146 @@ Dated, most recent first. Format: **Decision** / **Reason** / **Alternatives con
 
 ---
 
+### Employee-registry picker declined — the payroll file format has no name/metadata to pick from (2026-08-29, gap-closure phase 5)
+
+**Decision**: Confirmed, not just deferred: `secretary/Members.tsx`'s dropped "pre-fill from
+employee registry" picker stays dropped, and won't be built as a straightforward new endpoint over
+existing data.
+
+**Reason**: the picker's whole premise is showing a secretary a candidate list of employees who've
+been imported via payroll but aren't members yet, so they can pick one and have the add-member form
+pre-fill. But `PayrollFileRow` — and the import file format itself — only ever carries Employee ID
+and Saving Amount (see `PayrollFileParser`'s two recognized header pairs). There's no name,
+department, or phone number anywhere in a payroll import to pre-fill *with*. Building this feature
+for real would mean redesigning the payroll file contract to require additional columns no real
+payroll export was ever asked to include — a much bigger, different change than "expose data that
+already exists," and one with no actual request behind it.
+
+**Alternatives considered**: expose just the Employee ID (with no name) as a picker — rejected as
+barely better than typing it manually, not worth the endpoint; requiring HR to also upload a
+separate employee-roster file with full metadata — rejected as inventing a whole second import
+flow nobody asked for.
+
+**Impact**: none — no code changed. Documented so this doesn't get re-investigated from scratch
+next time it comes up; revisit only if a real employee-roster data source (beyond the payroll
+savings-deduction file) is ever introduced.
+
+---
+
+### Payroll import: per-row deduction attempted before the summary is built, not after (2026-08-29, gap-closure phase 5)
+
+**Decision**: `PayrollImportService.importFile()` now calls `savingsService.recordDeduction(...)`
+for each matched row *during* the first pass over the file — before that row is counted successful
+or the `PayrollImportSummary` is constructed — catching any exception there and downgrading just
+that row to `error`. Previously, `PayrollImportSummary` (with its `successful`/`failed` counts) was
+built and saved first, and the actual deductions were only attempted in a second pass afterward —
+so a failure during that second pass would either go unnoticed (the summary would already claim
+success) or, if the exception propagated, roll back the entire `@Transactional` method including
+every other row's genuinely successful work.
+
+**Reason**: a payroll file processes many members' real money at once; both silently misreporting
+a failed deduction as successful and having one unlucky row nuke an entire otherwise-good import
+are real integrity problems worth fixing without being asked to invent new scope — it's squarely
+"transaction safety," which was explicitly requested for this phase.
+
+**Alternatives considered**: give each row its own nested transaction (`REQUIRES_NEW` propagation)
+so a single row's failure truly can't affect any other row, even a DB-level one — rejected as
+disproportionate for a failure mode (an unexpected exception from a call whose inputs are already
+validated: positive amount, member confirmed to exist) that's already rare, and because Spring's
+`REQUIRES_NEW` needs a separate proxied bean call to work reliably, adding real complexity for a
+theoretical edge case.
+
+**Impact — what this does and doesn't guarantee**: an *application-level* failure in
+`recordDeduction` (a bug, an unexpected null, etc.) is now caught per-row and correctly reported.
+A genuine *database-level* failure (a constraint violation, connection loss) would likely only
+surface later, at the transaction's implicit flush-on-commit — after the loop has already finished
+— and would still roll back the whole import. That residual risk is accepted, not solved, here;
+revisit with per-row `REQUIRES_NEW` transactions only if this actually happens in practice.
+
+---
+
+### Notification scope: loan lifecycle + meetings/announcements only, not savings (2026-08-29, gap-closure phase 4)
+
+**Decision**: Wired real notification-creation to 8 concrete events — loan submitted, guarantor
+requested, guarantor accepted/declined, loan approved/rejected, loan disbursed, repayment recorded,
+loan fully repaid, meeting scheduled, announcement published. Deliberately did **not** wire any
+savings/share event (voluntary deposits, share purchases, share withdrawal decisions).
+
+**Reason**: every event that got wired has a concrete, unambiguous trigger point and recipient —
+there's exactly one reasonable notification to send and one reasonable place to send it from. The
+frontend mock's `NotificationType` enum includes a `savings` case, and "important savings/account
+events" was floated as in-scope, but no specific trigger was ever named — implementing it would
+mean inventing which savings actions matter enough to notify about (every voluntary deposit? only
+ones over some threshold? every share purchase?) with no real business rule to base that on. That's
+exactly the kind of unrequested-scope invention this whole gap-closure effort has been avoiding
+elsewhere (see the interest-recognition and backup-scope decisions above).
+
+**Alternatives considered**: notify on every savings/share transaction — rejected as almost
+certainly too noisy (a member could get a notification every single month for routine
+payroll-deducted savings, which isn't really "news"); guessing a threshold or subset — rejected for
+the same reason as leaving revenue recognition undecided was before Phase 3: an assumption baked
+into shipped code is harder to unwind than leaving it undone.
+
+**Impact**: `notification.NotificationType.savings` exists but nothing ever constructs one. Revisit
+with an explicit decision on which savings/share events should notify, and whether per-transaction
+or only for specific milestones (e.g. "share withdrawal approved," which — unlike routine
+deposits — already has a real, singular, event-like trigger and might be worth adding on its own
+later).
+
+---
+
+### At most one Loan Committee Chair per organization (2026-08-29, gap-closure phase 2)
+
+**Decision**: `PUT /members/{id}/committee-chair` enforces a single chair per organization —
+promoting a new chair automatically demotes whoever currently holds it, rather than allowing
+multiple simultaneous chairs or requiring the caller to demote the old one first.
+
+**Reason**: every reference to this role elsewhere in the codebase and docs treats it as singular —
+`BUSINESS_RULES.md` and `LoanReviewService` both say "the Committee Chair," never "a chair," and
+the whole point of the rule (final say on guaranteed loans belongs to one specific person, not the
+whole committee) only holds if there's exactly one. Requiring a separate manual demotion step
+first would just be an extra click for the same guaranteed outcome, with a window in between where
+an org could accidentally end up with two chairs if the admin forgot the first step.
+
+**Alternatives considered**: allow multiple chairs (any of whom can give final approval) — rejected
+as a materially different, unrequested business rule; requiring explicit demotion before promotion
+— rejected as extra friction with no real benefit over doing both atomically server-side.
+
+**Impact**: `MemberRepository.findCommitteeChairByOrganizationId` assumes at most one row can ever
+match — if that invariant is ever violated (e.g., a future direct-SQL fix reintroduces two), this
+query silently returns just one of them via `Optional`. Both the promotion and the resulting
+auto-demotion get their own audit-log entry, so an admin can always see who displaced whom.
+
+---
+
+### LoanContract.tsx embeds the real generated PDF instead of re-rendering (2026-08-29, gap-closure phase 1b)
+
+**Decision**: `LoanContract.tsx` now fetches `GET /loans/{id}/contract` as an authenticated blob
+and displays it in an `<iframe>`, with a Download button, instead of re-rendering the contract as
+styled HTML from `useDataStore`'s mock loan/member/organization/guarantee data.
+
+**Reason**: `KNOWN_ISSUES.md` flagged this as "a real design decision, not a data-source swap"
+because a naive swap risked losing the page's rich, print-tuned bespoke rendering. Reading
+`LoanContractPdfGenerator` (the backend's PDF generator) settled it: its class doc says it "ports
+`src/pages/LoanContract.tsx` article-for-article — same Kinyarwanda text, same conditional
+articles" — the two were already content-identical by design. With no actual content difference,
+embedding the real PDF removes a real risk (frontend and backend drifting apart on a legal
+document's wording over time) for no loss.
+
+**Alternatives considered**: keep the bespoke HTML renderer but feed it real backend data instead
+of mock data — rejected because it would mean two independent implementations of the same legal
+text that could silently diverge on the next edit to either one; the backend's version is also the
+one used for `Content-Disposition: inline` viewing and downloading elsewhere in the app (e.g.
+`accountant/Disbursement.tsx`'s Preview/View Contract links), so it's already the canonical one.
+
+**Impact**: `apiClient` gained `getBlob()` (binary responses can't go through the JSON-parsing
+`request()` path) and `loans.ts` gained `useLoanContractPdf()`, which manages the object URL's
+lifecycle (revokes on loan-id change/unmount). The old bespoke Kinyarwanda-rendering code in
+`LoanContract.tsx` was deleted, not kept as a fallback — `LoanContractPdfGenerator` is now the only
+place that text lives; keep both in sync only if this decision is ever reversed.
+
+---
+
 ### Interest income / insurance fee recognized in full at disbursement (2026-08-29, gap-closure phase 1)
 
 **Decision**: The full interest and insurance amount for a loan's entire term is written as
@@ -20,9 +160,10 @@ installment interest/principal splitting, which doesn't exist anywhere in the co
 more complex (needs a real amortization schedule per loan) for a metric that's currently a
 reporting nicety, not a regulatory requirement.
 
-**Impact**: `LoanService`'s disbursement path must write both ledger rows in the same transaction
-as the disbursement itself. A loan that's later written off or defaults keeps its already-recognized
-revenue — no reversal logic exists or is planned. Supersedes the "left undecided" entry below.
+**Impact**: implemented in gap-closure phase 3 — `LoanDisbursementService.disburse()` writes both
+ledger rows in the same transaction as the disbursement itself. A loan that's later written off or
+defaults keeps its already-recognized revenue — no reversal logic exists or is planned. Supersedes
+the "left undecided" entry below.
 
 ---
 
@@ -68,7 +209,11 @@ have its converter added to `WebConfig`, or it will 500 on every value containin
 
 ---
 
-### Interest income / insurance fee recognition timing left undecided (2026-08-23, phase 11)
+### Interest income / insurance fee recognition timing left undecided (2026-08-23, phase 11) — SUPERSEDED
+
+**Superseded 2026-08-29** by "Interest income / insurance fee recognized in full at disbursement"
+above — the decision got made and implemented in gap-closure phase 3. Kept here as a record of the
+reasoning for leaving it unresolved for as long as it was.
 
 **Decision**: Ported the accountant reporting aggregations faithfully — they correctly compute
 `totalInterestIncome`/`totalInsuranceCollected` from whatever `ledger_transactions` rows exist,

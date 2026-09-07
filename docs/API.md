@@ -31,11 +31,12 @@ super-admins, who are never gated) — an authenticated-but-unverified caller ge
 
 | Method | Path | Role |
 |---|---|---|
-| GET | `/members` | SECRETARY, ORG_ADMIN, HR. Paginated (`?search=`, standard `page`/`size`) — no "get all" mode; large-fetch callers pass a high `size`. `MemberSummary` includes `roles`, `monthlySalaryRwf`. HR was added alongside SECRETARY/ORG_ADMIN — it already had `GET /members/{id}` access but not the list, an inconsistency from before HR's own dashboard/reports pages needed a roster at all. |
+| GET | `/members` | SECRETARY, ORG_ADMIN, HR. Paginated (`?search=`, standard `page`/`size`) — no "get all" mode; large-fetch callers pass a high `size`. `MemberSummary` includes `roles`, `monthlySalaryRwf`, `committeeChair`. HR was added alongside SECRETARY/ORG_ADMIN — it already had `GET /members/{id}` access but not the list, an inconsistency from before HR's own dashboard/reports pages needed a roster at all. |
 | POST | `/members` | SECRETARY, ORG_ADMIN |
 | GET | `/members/{id}` | self, or SECRETARY/ACCOUNTANT/ORG_ADMIN |
 | GET | `/members/guarantor-candidates` | any authenticated user. Deliberately minimal — `{id, fullName, department}` only, excludes the caller. Added for the frontend's loan-application guarantor picker, which needs a member list but shouldn't get the staff-only `GET /members`'s sensitive fields (national ID, savings balance). |
-| PUT | `/members/{id}/roles` | ORG_ADMIN. Replaces the member's full role set; MEMBER is always kept even if omitted. Does not touch committee-chair status (see [KNOWN_ISSUES.md](KNOWN_ISSUES.md)). |
+| PUT | `/members/{id}/roles` | ORG_ADMIN. Replaces the member's full role set; MEMBER is always kept even if omitted. Does not touch committee-chair status — use the endpoint below instead. |
+| PUT | `/members/{id}/committee-chair` | ORG_ADMIN. Body `{"chair": true\|false}`. Promoting (`true`) 409s unless the member already holds `loan-committee`, and 409s if they're already chair; demoting (`false`) 409s if they aren't currently chair. At most one chair per organization — promoting someone auto-demotes whoever currently holds it (both changes audited separately). See [DECISIONS.md](DECISIONS.md). |
 | POST | `/members/{id}/status` | ORG_ADMIN. Body `{"status": "active"\|"suspended"}` only — the transition must be the opposite of the member's current status (409 otherwise); `exited`/`pending` aren't reachable through this endpoint. |
 | GET | `/members/{id}/exit-eligibility` | self, or SECRETARY/ORG_ADMIN. Returns `{eligible, outstandingLoans: [{id, contractNumber, remainingBalance}], activeGuarantees: [{guaranteeId, loanContractNumber, amountGuaranteed}]}` — restructured from plain contract-number-string lists to these nested records so `Profile.tsx` can render real IDs/amounts, not just names. |
 
@@ -49,33 +50,33 @@ super-admins, who are never gated) — an authenticated-but-unverified caller ge
 
 ## Payroll — `PayrollController` (HR, ACCOUNTANT)
 
-| Method | Path |
-|---|---|
-| POST | `/payroll/import` (multipart/form-data, .xlsx) |
-| GET | `/payroll/imports` |
-| GET | `/payroll/imports/{id}` |
+| Method | Path | Notes |
+|---|---|---|
+| POST | `/payroll/import` (multipart/form-data, .xlsx or .xls) | 400 for a non-Excel extension or an unreadable/encrypted/corrupt file; 400 for more than 5000 rows in one file; 413 (`payload_too_large`) over the configured 10MB upload limit. Each row's actual savings deduction is attempted before it's counted successful — see [DECISIONS.md](DECISIONS.md). |
+| GET | `/payroll/imports` | |
+| GET | `/payroll/imports/{id}` | |
 
 ## Loans — `LoanController`
 
 | Method | Path | Role |
 |---|---|---|
 | POST | `/loans/calculate` | any authenticated user |
-| POST | `/loans` (apply) | any authenticated user |
+| POST | `/loans` (apply) | any authenticated user. Notifies the applicant ("Loan application submitted") and, if a guarantor is required, the named guarantor ("You've been requested as a guarantor"). |
 | GET | `/loans` | any authenticated user (scoped server-side — staff see every org loan, a plain member sees only their own). `LoanSummaryDto` includes `decidedDate`: the approval date for approved-or-later loans, an `updatedAt`-derived approximation for rejected ones (no dedicated rejected-date column), `null` while undecided. Also includes `remainingBalance`/`monthlyInstallment` so a list of *every* active loan (not just one highlighted item) can render without a per-row detail fetch — see `accountant/Disbursement.tsx`. |
 | GET | `/loans/{id}` | any authenticated user (scoped server-side). `LoanDetailDto` includes `guaranteeStatus` (the single guarantor's `pending`/`accepted`/`rejected`/`released`, or `null` if none required) — added since `GET /guarantees` is deliberately a personal "my requests as guarantor" inbox, unusable by staff reviewing someone else's loan. |
 | POST | `/loans/{id}/start-review` | LOAN_COMMITTEE |
-| POST | `/loans/{id}/committee-decision` | LOAN_COMMITTEE (chair-only for guaranteed loans — see [BUSINESS_RULES.md](BUSINESS_RULES.md)) |
+| POST | `/loans/{id}/committee-decision` | LOAN_COMMITTEE (chair-only for guaranteed loans — see [BUSINESS_RULES.md](BUSINESS_RULES.md)). Notifies the borrower ("Loan approved"/"Loan rejected"). |
 | POST | `/loans/{id}/generate-contract` | ACCOUNTANT, ORG_ADMIN |
 | GET | `/loans/{id}/contract` | any authenticated user (renders live PDF, no status gate) |
-| POST | `/loans/{id}/disburse` | ACCOUNTANT, ORG_ADMIN |
-| POST | `/loans/{id}/record-repayment` | ACCOUNTANT, ORG_ADMIN |
+| POST | `/loans/{id}/disburse` | ACCOUNTANT, ORG_ADMIN. Also writes `interest-income` (and `insurance-fee`, if required) ledger rows — the full amount for the loan's whole term, recognized at disbursement, not amortized (see [DECISIONS.md](DECISIONS.md)) — and notifies the borrower ("Loan disbursed"). |
+| POST | `/loans/{id}/record-repayment` | ACCOUNTANT, ORG_ADMIN. Notifies the borrower ("Repayment recorded", or "Loan fully repaid" on the final installment). |
 
 ## Guarantees — `GuaranteeController`
 
 | Method | Path | Notes |
 |---|---|---|
 | GET | `/guarantees` | Always "my requests as guarantor" — a personal inbox, not org-wide. |
-| POST | `/guarantees/{id}/respond` | Only the named guarantor may respond (403 for anyone else, including the borrower); responding twice is rejected (409). |
+| POST | `/guarantees/{id}/respond` | Only the named guarantor may respond (403 for anyone else, including the borrower); responding twice is rejected (409). Notifies the borrower ("Guarantor accepted"/"declined your request"). |
 
 ## Ledger — `LedgerController` (ACCOUNTANT, ORG_ADMIN)
 
@@ -95,7 +96,7 @@ super-admins, who are never gated) — an authenticated-but-unverified caller ge
 | Method | Path | Role |
 |---|---|---|
 | GET | `/meetings` | any authenticated user of the org |
-| POST | `/meetings` | SECRETARY, ORG_ADMIN |
+| POST | `/meetings` | SECRETARY, ORG_ADMIN. Notifies every member of the organization ("{title} scheduled"). |
 | POST | `/meetings/{id}/minutes` | SECRETARY, ORG_ADMIN. Sets `minutesSummary` and moves status to `completed` — the only supported meeting update. |
 
 ## Announcements — `AnnouncementController`
@@ -103,7 +104,7 @@ super-admins, who are never gated) — an authenticated-but-unverified caller ge
 | Method | Path | Role | Notes |
 |---|---|---|---|
 | GET | `/announcements` | any authenticated user | A plain member (no role beyond MEMBER) never receives `audience: "admins"` rows — filtered server-side. Added beyond the frontend mock, which shows every announcement to every viewer regardless of audience. |
-| POST | `/announcements` | SECRETARY, ORG_ADMIN | |
+| POST | `/announcements` | SECRETARY, ORG_ADMIN | Notifies every member for `audience: "all"`/`"members"`, or staff only for `"admins"` — matching who can actually see it via the GET filtering above. |
 
 ## Documents — `DocumentController`
 
@@ -158,7 +159,9 @@ so it doesn't share the self-scoped controller's `@PreAuthorize` shape.
 | POST | `/notifications/{id}/read` | 404 if the notification belongs to someone else — never a 403 that would reveal it exists. |
 | POST | `/notifications/read-all` | |
 
-No endpoint creates a notification — see [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
+No endpoint here creates a notification directly — `NotificationService.notify`/`notifyMany` are
+called from the loan, guarantee, meeting, and announcement endpoints noted above as side effects.
+Savings/share events don't trigger any — see [DECISIONS.md](DECISIONS.md).
 
 ## Policies — `PolicyController`
 
@@ -184,12 +187,9 @@ No endpoint creates a notification — see [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
 
 ## Not built yet — needed but currently only reachable via direct SQL
 
-- Committee-chair assignment (still only settable via `UPDATE user_roles SET is_committee_chair
-  = true` directly against the dev DB — see [KNOWN_ISSUES.md](KNOWN_ISSUES.md)).
 - Anything creating a notification (nothing does yet, anywhere).
-- Backup restore (no endpoint — the frontend mock doesn't implement it either).
-- Any way to create a SUPER_ADMIN user through the API — the one that exists in the dev DB was
-  inserted directly via SQL (see [DEVELOPMENT.md](DEVELOPMENT.md)); `/auth/register` only ever
-  creates a new organization + its first ORG_ADMIN.
+- Backup restore (no endpoint — the frontend mock doesn't implement it either; see
+  [DECISIONS.md](DECISIONS.md) for why restore is deliberately out of scope even once real backups
+  ship).
 - Platform Super Admin's Monitoring, Settings (API keys), and Support — deliberately not built;
   see [KNOWN_ISSUES.md](KNOWN_ISSUES.md) for why.

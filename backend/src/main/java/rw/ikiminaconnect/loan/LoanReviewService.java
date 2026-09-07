@@ -9,6 +9,8 @@ import rw.ikiminaconnect.common.ForbiddenException;
 import rw.ikiminaconnect.common.NotFoundException;
 import rw.ikiminaconnect.member.AppUser;
 import rw.ikiminaconnect.member.MemberRepository;
+import rw.ikiminaconnect.notification.NotificationService;
+import rw.ikiminaconnect.notification.NotificationType;
 
 /**
  * Loan Committee review (roadmap phase 7). Ports data-store.ts's
@@ -37,18 +39,21 @@ public class LoanReviewService {
     private final MemberRepository memberRepository;
     private final AuditService auditService;
     private final LoanDetailAssembler loanDetailAssembler;
+    private final NotificationService notificationService;
 
     public LoanReviewService(
             LoanRepository loanRepository,
             LoanTimelineEventRepository timelineRepository,
             MemberRepository memberRepository,
             AuditService auditService,
-            LoanDetailAssembler loanDetailAssembler) {
+            LoanDetailAssembler loanDetailAssembler,
+            NotificationService notificationService) {
         this.loanRepository = loanRepository;
         this.timelineRepository = timelineRepository;
         this.memberRepository = memberRepository;
         this.auditService = auditService;
         this.loanDetailAssembler = loanDetailAssembler;
+        this.notificationService = notificationService;
     }
 
     @Transactional
@@ -99,11 +104,15 @@ public class LoanReviewService {
             timelineRepository.save(new LoanTimelineEvent(
                     loan.getId(), LoanStatus.APPROVED, actorName, loan.getCommitteeNotes()));
             auditService.record(organizationId, actorId, actorName, "Approved loan", loan.getContractNumber());
+            notificationService.notify(loan.getMemberId(), NotificationType.loan, "Loan approved",
+                    "Your loan " + loan.getContractNumber() + " has been approved. Your contract is being prepared.");
         } else {
             loan.rejectByCommittee(blankToDefault(request.notes(), "Rejected by Loan Committee."));
             timelineRepository.save(new LoanTimelineEvent(
                     loan.getId(), LoanStatus.REJECTED, actorName, loan.getCommitteeNotes()));
             auditService.record(organizationId, actorId, actorName, "Rejected loan", loan.getContractNumber());
+            notificationService.notify(loan.getMemberId(), NotificationType.loan, "Loan rejected",
+                    "Your loan " + loan.getContractNumber() + " was not approved. " + loan.getCommitteeNotes());
         }
 
         return loanDetailAssembler.toDetail(loan);

@@ -154,13 +154,51 @@ public class MemberService {
         return toDetail(member);
     }
 
+    /**
+     * ORG_ADMIN only (enforced by MemberController). Enforces at most one
+     * chair per organization by demoting whoever currently holds it — see
+     * docs/DECISIONS.md for why a single chair is assumed, matching the
+     * business rule's "the Committee Chair" (singular) framing.
+     */
+    @Transactional
+    public MemberDetail setCommitteeChair(
+            UUID organizationId, UUID memberId, SetCommitteeChairRequest request, UUID actorId, String actorName) {
+        AppUser member = memberRepository.findByIdAndOrganizationId(memberId, organizationId)
+                .orElseThrow(() -> new NotFoundException("Member not found."));
+        boolean chair = request.chair();
+
+        if (chair) {
+            if (!member.hasRole(Role.LOAN_COMMITTEE)) {
+                throw new ConflictException(
+                        "Only a member holding the Loan Committee role can be made chair. Assign that role first.");
+            }
+            if (member.isCommitteeChair()) {
+                throw new ConflictException(member.getFullName() + " is already the Loan Committee Chair.");
+            }
+            memberRepository.findCommitteeChairByOrganizationId(organizationId)
+                    .ifPresent(existingChair -> {
+                        existingChair.setCommitteeChair(false);
+                        auditService.record(organizationId, actorId, actorName,
+                                "Removed Loan Committee Chair (replaced by " + member.getFullName() + ")",
+                                existingChair.getFullName());
+                    });
+        } else if (!member.isCommitteeChair()) {
+            throw new ConflictException(member.getFullName() + " is not currently the Loan Committee Chair.");
+        }
+
+        member.setCommitteeChair(chair);
+        auditService.record(organizationId, actorId, actorName,
+                chair ? "Assigned Loan Committee Chair" : "Removed Loan Committee Chair", member.getFullName());
+        return toDetail(member);
+    }
+
     private MemberSummary toSummary(AppUser user) {
         BigDecimal balance = savingsService.currentBalance(user.getOrganizationId(), user.getId());
         List<String> roles = user.getRoles().stream().map(r -> r.getRole().toValue()).toList();
         return new MemberSummary(
                 user.getId(), user.getNationalId(), user.getEmployeeId(), user.getFullName(),
                 user.getDepartment(), user.getPosition(), user.getStatus().name(),
-                user.getDateJoined(), balance, roles, user.getMonthlySalaryRwf());
+                user.getDateJoined(), balance, roles, user.getMonthlySalaryRwf(), user.isCommitteeChair());
     }
 
     private MemberDetail toDetail(AppUser user) {

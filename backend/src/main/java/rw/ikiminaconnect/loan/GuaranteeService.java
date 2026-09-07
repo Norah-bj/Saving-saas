@@ -10,6 +10,8 @@ import rw.ikiminaconnect.common.ForbiddenException;
 import rw.ikiminaconnect.common.NotFoundException;
 import rw.ikiminaconnect.member.AppUser;
 import rw.ikiminaconnect.member.MemberRepository;
+import rw.ikiminaconnect.notification.NotificationService;
+import rw.ikiminaconnect.notification.NotificationType;
 
 /**
  * Guarantor-side workflow (roadmap phase 6): responding to guarantee
@@ -27,18 +29,21 @@ public class GuaranteeService {
     private final LoanTimelineEventRepository timelineRepository;
     private final MemberRepository memberRepository;
     private final AuditService auditService;
+    private final NotificationService notificationService;
 
     public GuaranteeService(
             GuaranteeRepository guaranteeRepository,
             LoanRepository loanRepository,
             LoanTimelineEventRepository timelineRepository,
             MemberRepository memberRepository,
-            AuditService auditService) {
+            AuditService auditService,
+            NotificationService notificationService) {
         this.guaranteeRepository = guaranteeRepository;
         this.loanRepository = loanRepository;
         this.timelineRepository = timelineRepository;
         this.memberRepository = memberRepository;
         this.auditService = auditService;
+        this.notificationService = notificationService;
     }
 
     @Transactional(readOnly = true)
@@ -82,6 +87,11 @@ public class GuaranteeService {
 
         auditService.record(organizationId, guarantorId, actorName,
                 accept ? "Accepted guarantee request" : "Declined guarantee request", loan.getId().toString());
+
+        notificationService.notify(guarantee.getBorrowerId(), NotificationType.loan,
+                accept ? "Guarantor accepted your request" : "Guarantor declined your request",
+                actorName + " has " + (accept ? "accepted" : "declined") + " your guarantee request for loan "
+                        + loan.getContractNumber() + ".");
 
         return toDto(guarantee, loan);
     }

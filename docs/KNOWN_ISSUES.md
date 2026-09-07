@@ -2,22 +2,12 @@
 
 ## Real gaps
 
-- **`totalInterestIncome`/`totalInsuranceCollected` are always zero.** No `interest-income` or
-  `insurance-fee` typed `ledger_transactions` row is ever written anywhere (frontend mock or real
-  backend) — there's no decided rule for revenue-recognition timing. See
-  [BUSINESS_RULES.md](BUSINESS_RULES.md) and [DECISIONS.md](DECISIONS.md). Not a bug; a decision
-  that hasn't been made yet.
 - **`/auth/register` cannot attach a new user to an existing organization** — it always creates a
   brand-new org + its first ORG_ADMIN. There is no invite-a-new-staff-member-to-my-org flow.
 - **No exit-settlement page/endpoint.** `secretary/ExitRequests.tsx` links an approved request to
   `/members/{id}/exit-settlement` — a separate settlement-calculation feature that was never
   requested and isn't built. Exit/share-withdrawal requests themselves (submit, decide, real share
   and savings-balance movement on approval) are fully built — see [FEATURES.md](FEATURES.md).
-- **No committee-chair assignment endpoint.** `PUT /members/{id}/roles` (phase 13) replaces a
-  member's role set but deliberately never grants chair status — it's still only settable directly
-  via `UPDATE user_roles SET is_committee_chair = true` against the dev database. No frontend page
-  exposes chair assignment either (`org-admin/Users.tsx`'s role editor has no chair toggle), so
-  there's no UI-driven spec to port yet.
 - **No real backup mechanism, and no restore endpoint at all.** `backup_records` (phase 14) is
   metadata tracking only — `size_mb` is a row-count-based proxy, not an actual file size, and
   nothing performs a real `pg_dump`. This matches the frontend mock, which also never implements
@@ -25,12 +15,6 @@
   disaster-recovery automation is future work, and restoring a shared-schema multi-tenant database
   per-organization is a genuinely harder problem than a single-tenant `pg_dump`/`pg_restore` pair —
   worth designing deliberately when it's actually needed, not bolted on here.
-- **Nothing creates a notification.** Phase 16 only built the inbox read side (list, mark-read,
-  mark-all-read) — same gap as the frontend mock, where `NOTIFICATIONS` is static seed data despite
-  per-type icons implying loan/meeting/announcement/savings events should push one. Wiring other
-  services (loan status changes, new meetings, new announcements, ...) to actually create
-  notifications is future work, deliberately not done here to avoid touching many already-shipped
-  services' logic without an explicit decision on which events should notify whom.
 - **Platform Super Admin (phase 15) deliberately covers only part of `super-admin/`'s 9 pages.**
   Asked the user how to scope it given the pages span very different maturity levels; chose "build
   only the real parts." Built: Organizations (list/status/plan), Analytics and Billing's
@@ -49,6 +33,70 @@
   only depends on the `EmailService` interface. See [BUSINESS_RULES.md](BUSINESS_RULES.md).
 ## Recently closed gaps
 
+- **Payroll import hardening (gap-closure phase 5).** `PayrollFileParser` now rejects a non-.xlsx/
+  .xls upload before touching its content (clear "please upload an Excel file" message instead of
+  a cryptic parse error), and catches the broader set of unchecked exceptions POI throws for
+  encrypted/malformed workbooks (previously only `IOException` was caught, so those surfaced as an
+  unhandled 500). `GlobalExceptionHandler` gained a handler for `MaxUploadSizeExceededException`
+  (413 with a clear message — previously also fell through to a generic 500).
+  `PayrollImportService` gained a defensive row-count cap (5000) and now attempts each row's actual
+  savings deduction *before* counting it successful or building the summary, catching any
+  unexpected failure and downgrading just that row to `error` instead of either mis-reporting it or
+  risking a mid-loop exception rolling back every other row's already-good outcome. See
+  [DECISIONS.md](DECISIONS.md) for what this last change does and doesn't guarantee. Verified with
+  a real test file covering all four outcomes (matched/duplicate/two error reasons), a wrong file
+  type, a corrupt file, and (with a temporarily lowered limit) an oversized upload; all test
+  savings transactions and payroll records cleaned up afterward, restoring exact prior balances.
+- **Nothing created a notification — fixed.** Phase 16 only built the inbox read side; now these
+  real events write real notifications: loan application submitted (borrower), guarantor requested
+  (guarantor), guarantor accepted/declined (borrower), loan approved/rejected (borrower), loan
+  disbursed (borrower), repayment recorded and loan fully repaid (borrower), meeting scheduled (all
+  org members), announcement published (all members, or staff only for an `admins`-audience
+  announcement — matching who can actually see it). New `NotificationService.notify`/`notifyMany`;
+  `MemberRepository` gained `findAllIdsByOrganizationId`/`findAllStaffIdsByOrganizationId` for the
+  fan-out cases. **Deliberately still not wired**: savings/share events (voluntary deposits, share
+  purchases/withdrawals) — no specific trigger points were requested and the "important
+  savings/account events" framing was too vague to implement without inventing the actual rule;
+  revisit with an explicit decision on which savings events should notify. See
+  [DECISIONS.md](DECISIONS.md). Verified end-to-end through the real multi-step loan lifecycle
+  (application → guarantee → approval → disbursement → repayment → completion) plus a real meeting
+  and two real announcements (`all` and `admins` audience), confirming exact recipient sets via
+  SQL; all test data cleaned up afterward.
+- **`totalInterestIncome`/`totalInsuranceCollected` were always zero — fixed.**
+  `LoanDisbursementService.disburse()` now writes real `interest-income`/`insurance-fee` typed
+  `ledger_transactions` rows in the same transaction as the disbursement itself, recognized in full
+  at disbursement time (not amortized per installment, not deferred to completion — see
+  [DECISIONS.md](DECISIONS.md)). The aggregation queries themselves needed no changes — they were
+  already correctly summing whatever rows existed, which until now was none. Verified end-to-end:
+  disbursed a real guaranteed test loan (50,000 RWF, 5% interest, insurance fee 500), confirmed
+  exactly the right ledger rows (`interest-income: 2500`, `insurance-fee: 500`) and that both
+  `GET /reports/accountant-dashboard` and `GET /reports/financial` immediately reflected the real
+  totals; cleaned up the test loan afterward.
+- **No committee-chair assignment endpoint — fixed.** New `PUT /members/{id}/committee-chair`
+  (ORG_ADMIN only), body `{"chair": true|false}`. Promoting someone requires they already hold the
+  `loan-committee` role (409 otherwise — assign that role first via the existing `/roles`
+  endpoint); the backend enforces at most one chair per organization by auto-demoting whoever
+  currently holds it (both the promotion and the auto-demotion get their own audit-log entry). No
+  longer only settable via direct SQL. `org-admin/Users.tsx` gained a "Make Chair"/"Remove Chair"
+  button (shown only for loan-committee members) and a "Chair" badge in the roster table. See
+  [DECISIONS.md](DECISIONS.md) for why a single chair is assumed.
+- **`ExitSettlement.tsx` was mock-rendered HTML — fixed.** Now reads real data throughout:
+  `useMemberDetail` (savings balance, share count), `useOrganization` (share value, legal
+  representative), `useExitEligibility`, and `useExitRequests`. No new backend endpoint was needed
+  — the settlement amount is just savings + share value, and outstanding loan balance is always 0
+  here since exit is only reachable once exit-eligibility is already clean (no outstanding loans,
+  no active guarantees). **Correction to a stale claim this same entry used to make**: there is no
+  backend-generated settlement PDF anywhere in the codebase (verified by grepping the whole
+  backend for "settlement") — the earlier wording claiming one existed was inaccurate, unlike the
+  loan contract case below where a real generator genuinely did exist. This page keeps the
+  browser's `window.print()` for PDF output, same as before.
+- **`LoanContract.tsx` was mock-rendered HTML — fixed.** Now embeds the real backend-generated PDF
+  (`GET /loans/{id}/contract`) via an `<iframe>`, fetched as an authenticated blob (new
+  `apiClient.getBlob`/`useLoanContractPdf`) since a plain `<iframe src>` can't carry the JWT bearer
+  token. `LoanContractPdfGenerator` already ported this page's old article-for-article Kinyarwanda
+  text faithfully (see its class doc), so this was purely a source-of-truth swap, not a content
+  change — the design decision flagged in the entry this replaces was "embed the PDF, since backend
+  and frontend content are already identical," not "invent new content."
 - **`member/Policies.tsx` and `loan-committee/Policy.tsx`'s reference-policy list — fixed.** Both
   read `RolePolicy` content that had no backend anywhere in the roadmap. New `GET /policies`
   (`policy` package: `PolicyDocument` entity, `policy_documents` table) returns the same 8
@@ -133,18 +181,18 @@
   scoped out back in phase 15 since no real system exists behind any of the three (fabricated
   uptime numbers, fabricated API keys, a hardcoded ticket list — see that item further down). See
   [FEATURES.md](FEATURES.md) and [ARCHITECTURE.md](ARCHITECTURE.md#frontendbackend-integration).
-- Within the now-wired member workspace, two pages are deliberately still mock-only:
-  `LoanContract.tsx`/`ExitSettlement.tsx` (the backend already generates real PDFs for these —
-  see [API.md](API.md)'s contract endpoints — but replacing the current bespoke HTML rendering with
-  a PDF embed is a real design decision, not a data-source swap, so it wasn't done as part of this
-  round of wiring). `member/Policies.tsx` is no longer on this list — see "Recently closed gaps".
-- **`secretary/Members.tsx`'s "pre-fill from employee registry" picker was dropped, not wired.**
-  The mock let a secretary pick an unregistered employee from a payroll-derived candidate list to
-  auto-fill the add-member form — no backend endpoint exposes anything like "employees imported via
-  payroll but not yet registered as members" (payroll import only records match/duplicate/
-  no-match/invalid-amount outcomes against *existing* members, nothing about employees who aren't
-  members yet). Manual entry (the rest of the form) is fully wired; the picker itself was removed
-  rather than fabricated. Revisit if/when payroll import is extended to expose that data.
+- **Every page in the member workspace's roadmap now calls the real backend** — see "Recently
+  closed gaps" for `Policies.tsx`, `LoanContract.tsx`, and `ExitSettlement.tsx`.
+- **`secretary/Members.tsx`'s "pre-fill from employee registry" picker was dropped, not wired —
+  reconsidered in gap-closure phase 5 and still declined, for a concrete reason now.** The mock let
+  a secretary pick an unregistered employee from a payroll-derived candidate list to auto-fill the
+  add-member form. Checked what data would actually be available for such a picker:
+  `PayrollFileRow`/the import file format itself only ever carries Employee ID and Saving Amount —
+  no name, department, phone, or anything else a "pre-fill" would need. Building this for real
+  would mean redesigning the payroll import file contract to carry employee metadata beyond what
+  any real payroll export was ever asked to include, not just adding a read endpoint over existing
+  data. See [DECISIONS.md](DECISIONS.md). Manual entry (the rest of the form) is fully wired; the
+  picker itself stays dropped rather than fabricated.
 - **`GET /members`/`GET /loans`/`GET /ledger` have no "get all" mode** — every staff page that
   needs the full roster/portfolio/ledger (`secretary/Members.tsx`, `Suspended.tsx`,
   `org-admin/Users.tsx` once wired, every `loan-committee/*` and `accountant/*` list page) asks for

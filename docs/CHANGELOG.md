@@ -6,6 +6,200 @@ verified.
 
 ---
 
+## 2026-08-29 — Gap-closure Phase 5: payroll import hardening
+
+**Changed**: `PayrollFileParser` now rejects a non-.xlsx/.xls upload before touching its content,
+and catches the broader set of unchecked exceptions POI throws for encrypted/malformed workbooks
+(previously only `IOException` was caught — an encrypted file, for instance, surfaced as an
+unhandled 500). `GlobalExceptionHandler` gained a `MaxUploadSizeExceededException` handler (413,
+clear message — same generic-500 gap as above for anything over the configured 10MB limit).
+`PayrollImportService` gained a defensive 5000-row cap and now attempts each row's actual savings
+deduction *before* counting it successful or building the summary, catching any unexpected failure
+per row instead of risking a mid-loop exception rolling back every other row's already-good work.
+See `DECISIONS.md` for exactly what that last change does and doesn't guarantee.
+
+**Also reconsidered, and declined again for a concrete reason**: `secretary/Members.tsx`'s dropped
+"pre-fill from employee registry" picker. Checked what data would actually back it —
+`PayrollFileRow` only ever carries Employee ID and Saving Amount, no name/department/phone — so
+building it for real would mean redesigning the payroll import file contract, not just adding a
+read endpoint. See `DECISIONS.md`.
+
+**Testing**: a real generated test `.xlsx` covering all four row outcomes (matched × 2, duplicate,
+no-matching-member, invalid-amount) — confirmed the exact same summary/row shape as before this
+change, proving the restructured per-row apply loop didn't alter normal behavior. Separately
+verified: a `.txt` upload → 400 with a clear message; a corrupt file with a `.xlsx` extension → 400
+(previously would likely have been an unhandled 500 for some corruption modes); an oversized upload
+(temporarily lowered the configured limit to 1KB, uploaded a 16KB file, confirmed 413, then
+restarted with the normal 10MB config restored). All test savings transactions and payroll records
+cleaned up afterward, confirmed via SQL that both affected members' balances landed back on their
+exact prior values. `mvn -q compile` and `tsc -b` both clean — no frontend changes needed.
+
+**Merge-risk assessment**: low. `PayrollFileParser.parse(InputStream)` (no filename) is kept as a
+thin delegating overload for source compatibility; the real call site now uses
+`parse(InputStream, String)`. `PayrollImportService`'s loop restructuring is behavior-preserving
+for every case that was already working — verified with the same test file's outcomes matching
+exactly. New `GlobalExceptionHandler` handler is purely additive.
+
+---
+
+## 2026-08-29 — Gap-closure Phase 4: notification-creation triggers
+
+**Changed**: `NotificationService` gained `notify`/`notifyMany`; `MemberRepository` gained
+`findAllIdsByOrganizationId`/`findAllStaffIdsByOrganizationId` for fan-out. Eight real events now
+create real notifications: loan submitted (borrower), guarantor requested (guarantor), guarantor
+accepted/declined (borrower), loan approved/rejected (borrower), loan disbursed (borrower),
+repayment recorded and loan fully repaid (borrower), meeting scheduled (every org member),
+announcement published (every member, or staff only for `admins` audience — matching who can
+actually see it). Wired into `LoanApplicationService`, `GuaranteeService`, `LoanReviewService`,
+`LoanDisbursementService`, and `SecretaryOpsService`.
+
+**Deliberately not wired**: any savings/share event (voluntary deposits, share purchases/
+withdrawals) — no concrete trigger was ever specified beyond a vague "important savings/account
+events," and guessing would mean inventing the actual business rule. See `DECISIONS.md`.
+
+**Testing**: real end-to-end flow through the complete loan lifecycle (application with guarantor →
+guarantee acceptance → chair approval → contract → disbursement → six repayments through full
+completion), confirming the right notification landed for the right recipient at every single step
+via the real `GET /notifications` endpoint. Separately created a real meeting and two real
+announcements (`audience: "all"` and `audience: "admins"`), confirming via SQL the exact recipient
+set at each: the `all` announcement reached all 7 `tcs2` members, the `admins` one reached only the
+3 staff members (excluding the plain member). Cleaned up all test data afterward (loan, guarantees,
+ledger rows, timeline events, notifications, the meeting, both announcements, audit-log entries) —
+dev fixtures back to exactly their documented state. `mvn -q compile` and `tsc -b` both clean (no
+frontend changes needed — the notifications inbox page already reads the real endpoint from an
+earlier phase).
+
+**Merge-risk assessment**: low. Five services each gained one new constructor parameter
+(`NotificationService`, already a `@Service` with no dependency back on any of them — no circular
+dependency) and a few `notify`/`notifyMany` calls at points where the relevant state-changing work
+was already complete. No existing endpoint's request/response shape changed, no schema change.
+
+---
+
+## 2026-08-29 — Gap-closure Phase 3: real interest income / insurance fee ledger entries
+
+**Changed**: `LoanDisbursementService.disburse()` now writes `interest-income` and (if required)
+`insurance-fee` typed `ledger_transactions` rows in the same transaction as the disbursement
+itself — the full amount for the loan's entire term, recognized at disbursement (not amortized per
+installment, not deferred to completion; see `DECISIONS.md`). `totalInterestIncome`/
+`totalInsuranceCollected` (`GET /reports/accountant-dashboard`, `GET /reports/financial`) were
+always zero before this — the aggregation queries were already correct, they just had no real rows
+to sum. No frontend change needed — `accountant/Dashboard.tsx`, `accountant/Reports.tsx`, and
+`org-admin/Dashboard.tsx` already read these fields; they'll simply show real numbers now.
+
+**Two stale code comments corrected while in the area**: `LedgerTxType`'s class doc and
+`ReportingService`'s class doc both explicitly documented the "always zero, no rows are ever
+written" gap — updated to describe the real behavior now that it's implemented, rather than left to
+silently rot into an inaccurate comment.
+
+**Testing**: real end-to-end flow through the actual multi-step loan lifecycle, not a shortcut —
+applied for a guaranteed test loan as `g2@tcs2.rw` (50,000 RWF, insurance required since savings
+was 0), had `admin2@tcs2.rw` accept the guarantee, had `chair@tcs2.rw` give the chair-only approval
+a guaranteed loan requires, generated the contract, and disbursed it. Confirmed via SQL exactly the
+right three ledger rows (`loan-disbursement-adjustment: 50000`, `interest-income: 2500` = 50,000 ×
+5%, `insurance-fee: 500` matching the loan's own precomputed fee), and confirmed both reporting
+endpoints immediately reflected the real totals. Cleaned up the entire test loan afterward (ledger
+rows, timeline events, guarantee, audit-log entries, the loan itself) — dev fixtures back to
+exactly the documented 6 `tcs2` loans. **Also found and fixed a pre-existing, unrelated drift**:
+`g2@tcs2.rw` was sitting at `status: pending` instead of its documented `active` baseline (not
+caused by anything in this phase — nothing in the loan-application path touches member status;
+left over from some earlier session) — restored to `active`.
+
+**Merge-risk assessment**: low. One method (`LoanDisbursementService.disburse()`) gained two more
+`ledgerTransactionRepository.save()` calls after the existing one, using the same constructor
+already in use. No schema change, no new endpoint, no DTO change.
+
+---
+
+## 2026-08-29 — Gap-closure Phase 2: committee-chair assignment endpoint
+
+**Changed**: new `PUT /members/{id}/committee-chair` (ORG_ADMIN only), body `{"chair": true|false}`.
+Previously the only way to grant/revoke Loan Committee Chair status was a direct
+`UPDATE user_roles SET is_committee_chair = true` against the database. `AppUser` gained
+`setCommitteeChair(boolean)`; `MemberRepository` gained `findCommitteeChairByOrganizationId`;
+`MemberService` gained `setCommitteeChair(...)` with the validation/single-chair logic below.
+`MemberSummary`/`MemberSummaryDto` gained a `committeeChair` field (previously only on the detail
+DTO) so the roster table can show chair status without a per-row detail fetch. `org-admin/Users.tsx`
+gained a "Make Chair"/"Remove Chair" button (shown only for members holding the `loan-committee`
+role) and a "Chair" badge.
+
+**At most one chair per organization, enforced server-side**: promoting a member auto-demotes
+whoever currently holds the role — both changes get their own audit-log entry, so an admin can
+always see who displaced whom. Promoting 409s if the target doesn't hold `loan-committee` yet
+("Assign that role first") or is already chair; demoting 409s if they aren't currently chair. See
+`DECISIONS.md` for why a single chair is assumed rather than allowing several or requiring a
+separate manual demotion step.
+
+**Testing**: real end-to-end curl flow against `tcs2`'s real loan-committee members
+(`chair@tcs2.rw`, already chair; `admin2@tcs2.rw`, not chair; `g2@tcs2.rw`, not loan-committee at
+all). Verified all three 409 cases (promote a non-loan-committee member, demote a non-chair,
+promote an already-chair member), then the real promotion (`admin2` → chair, confirmed
+`chair@tcs2.rw` auto-demoted via SQL) and reverted back to the original state, confirming both the
+promotion and the resulting demotion each produced their own audit-log row. `mvn -q compile`,
+`tsc -b`, and `npm run build` all clean.
+
+**Merge-risk assessment**: low. One new endpoint + one new DTO field (additive, existing
+`MemberSummary` consumers unaffected by an extra field) + one new repository query. No existing
+endpoint's behavior changed.
+
+---
+
+## 2026-08-29 — Gap-closure Phase 1c: ExitSettlement.tsx wired to real data (Phase 1 complete)
+
+**Changed**: `ExitSettlement.tsx` now reads `useMemberDetail` (savings balance, share count),
+`useOrganization` (share value, legal representative name/title — both newly added to the
+frontend's `OrganizationDto`), `useExitEligibility`, and `useExitRequests` instead of the zustand
+mock store. No new backend endpoint needed — the settlement amount is savings + share value, and
+outstanding loan balance is always 0 here since exit is only reachable once exit-eligibility is
+already clean.
+
+**A KNOWN_ISSUES.md claim turned out to be stale — found by checking, not by trusting the doc**:
+the entry for this page said "the backend already generates a real PDF for this," implying a
+design decision like `LoanContract.tsx`'s was needed. Grepping the whole backend for "settlement"
+found nothing — no such generator exists. Corrected the doc rather than building an unrequested
+PDF-generation feature to match an inaccurate claim; this page keeps `window.print()`.
+
+**This completes gap-closure Phase 1 (member workflows)** — `Policies.tsx`, `LoanContract.tsx`,
+and `ExitSettlement.tsx` all now read real backend data. Next: Phase 2 (committee-chair assignment).
+
+**Testing**: real end-to-end curl flow against the exited dev fixture (`zero@tcs2.rw`) — confirmed
+`GET /members/{id}` (`savingsBalanceRwf: 0`, `totalShares: 0`), `GET /members/{id}/exit-eligibility`
+(`eligible: true`), `GET /organizations/{id}` (`shareValueRwf: 5000`, real legal representative
+name/title), and `GET /exit-requests` (a real approved request with reason/dates) all return
+exactly what the page needs, cross-checked by hand against what it would render. `tsc -b` and
+`npm run build` both clean.
+
+**Merge-risk assessment**: low. Only `ExitSettlement.tsx` and `organization.ts` (two new fields
+added to an existing interface, additive) touched. No backend change.
+
+---
+
+## 2026-08-29 — Gap-closure Phase 1b: LoanContract.tsx embeds the real generated PDF
+
+**Changed**: `LoanContract.tsx` no longer re-renders the loan contract as styled HTML from mock
+data — it now fetches `GET /loans/{id}/contract` and displays the real backend-generated PDF in an
+`<iframe>`, with a Download button. New `apiClient.getBlob()` (binary responses, same bearer-token/
+401-refresh handling as the JSON path) and `useLoanContractPdf()` in `src/lib/api/loans.ts` (manages
+the blob object URL's lifecycle — revokes it on loan-id change or unmount).
+
+**A design decision, not a data-source swap, per `KNOWN_ISSUES.md` — resolved by reading the
+generator, not guessing**: `LoanContractPdfGenerator`'s class doc says it "ports
+`src/pages/LoanContract.tsx` article-for-article" — the backend PDF and the old bespoke HTML were
+already content-identical. That made embedding the real PDF a strict improvement (removes the risk
+of the two drifting apart on legal wording) with no content loss. See `DECISIONS.md`.
+
+**Testing**: fetched a real contract PDF via curl for a completed, insurance-required loan
+(`TC-2026-005`) as staff — `200`, `Content-Type: application/pdf`, a genuine 2-page PDF (`file`
+confirms `PDF document, version 1.5, 2 page(s)`), page count matching the extra insurance/guarantor
+articles this loan's content should include. `tsc -b` and `npm run build` both clean.
+
+**Merge-risk assessment**: low. Only `LoanContract.tsx`, `client.ts`, and `loans.ts` touched;
+`client.ts`'s change is additive (`getBlob` alongside the existing `get`/`post`/`put`/`patch`, no
+change to `request()`). No backend change — `GET /loans/{id}/contract` already existed and its
+authorization (self-or-staff) is unchanged.
+
+---
+
 ## 2026-08-29 — Gap-closure Phase 1a: real backend for the Policies reference text
 
 **Changed**: new `GET /policies` (`policy` package: `PolicyDocument`, `PolicyDocumentRepository`,

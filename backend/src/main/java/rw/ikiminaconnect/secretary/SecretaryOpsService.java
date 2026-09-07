@@ -6,6 +6,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import rw.ikiminaconnect.audit.AuditService;
 import rw.ikiminaconnect.common.NotFoundException;
+import rw.ikiminaconnect.member.MemberRepository;
+import rw.ikiminaconnect.notification.NotificationService;
+import rw.ikiminaconnect.notification.NotificationType;
 
 /**
  * Meetings, announcements, and documents — roadmap phase 12. Grouped in one
@@ -26,16 +29,22 @@ public class SecretaryOpsService {
     private final AnnouncementRepository announcementRepository;
     private final DocumentRepository documentRepository;
     private final AuditService auditService;
+    private final MemberRepository memberRepository;
+    private final NotificationService notificationService;
 
     public SecretaryOpsService(
             MeetingRepository meetingRepository,
             AnnouncementRepository announcementRepository,
             DocumentRepository documentRepository,
-            AuditService auditService) {
+            AuditService auditService,
+            MemberRepository memberRepository,
+            NotificationService notificationService) {
         this.meetingRepository = meetingRepository;
         this.announcementRepository = announcementRepository;
         this.documentRepository = documentRepository;
         this.auditService = auditService;
+        this.memberRepository = memberRepository;
+        this.notificationService = notificationService;
     }
 
     @Transactional(readOnly = true)
@@ -51,6 +60,10 @@ public class SecretaryOpsService {
                 request.location(), request.agenda(), actorName);
         meeting = meetingRepository.save(meeting);
         auditService.record(organizationId, actorId, actorName, "Scheduled meeting", meeting.getTitle());
+        notificationService.notifyMany(memberRepository.findAllIdsByOrganizationId(organizationId),
+                NotificationType.meeting, meeting.getTitle() + " scheduled",
+                "A meeting has been scheduled: " + meeting.getTitle() + ", on " + meeting.getMeetingDate()
+                        + " at " + meeting.getLocation() + ".");
         return MeetingDto.from(meeting);
     }
 
@@ -79,6 +92,15 @@ public class SecretaryOpsService {
                 request.priority(), actorName, request.audience());
         announcement = announcementRepository.save(announcement);
         auditService.record(organizationId, actorId, actorName, "Published announcement", announcement.getTitle());
+        // "admins" audience notifies staff only, matching who can actually
+        // see it (findVisibleToPlainMembers excludes admins-only rows); "all"
+        // and "members" both notify everyone, matching that query's visibility
+        // (it doesn't distinguish between those two for plain members either).
+        List<UUID> recipients = request.audience() == AnnouncementAudience.admins
+                ? memberRepository.findAllStaffIdsByOrganizationId(organizationId)
+                : memberRepository.findAllIdsByOrganizationId(organizationId);
+        notificationService.notifyMany(recipients, NotificationType.announcement, announcement.getTitle(),
+                announcement.getBody());
         return AnnouncementDto.from(announcement);
     }
 

@@ -1,5 +1,6 @@
 package rw.ikiminaconnect.notification;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
@@ -7,9 +8,13 @@ import org.springframework.transaction.annotation.Transactional;
 import rw.ikiminaconnect.common.NotFoundException;
 
 /**
- * Read side of the notification inbox only — nothing creates a notification
- * yet anywhere in the system (see docs/KNOWN_ISSUES.md). No create method
- * exists here deliberately, not as an oversight.
+ * The inbox read side, plus the creation methods every triggering event
+ * calls into: LoanApplicationService (submitted, guarantor requested),
+ * GuaranteeService (guarantor responded), LoanReviewService (approved/
+ * rejected), LoanDisbursementService (disbursed, repayment recorded, fully
+ * repaid), SecretaryOpsService (meeting scheduled, announcement published).
+ * See docs/KNOWN_ISSUES.md for what's deliberately NOT wired (savings/share
+ * events, exit/share-withdrawal decisions) and why.
  */
 @Service
 public class NotificationService {
@@ -18,6 +23,16 @@ public class NotificationService {
 
     public NotificationService(NotificationRepository notificationRepository) {
         this.notificationRepository = notificationRepository;
+    }
+
+    @Transactional
+    public void notify(UUID userId, NotificationType type, String title, String body) {
+        notificationRepository.save(new AppNotification(userId, title, body, type));
+    }
+
+    @Transactional
+    public void notifyMany(Collection<UUID> userIds, NotificationType type, String title, String body) {
+        userIds.forEach(userId -> notificationRepository.save(new AppNotification(userId, title, body, type)));
     }
 
     @Transactional(readOnly = true)

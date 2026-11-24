@@ -263,29 +263,31 @@ export function useRecordRepayment() {
  */
 export function useLoanContractPdf(loanId: string | undefined) {
   const accessToken = useAuthStore((s) => s.accessToken);
-  const [url, setUrl] = React.useState<string | null>(null);
-  const [error, setError] = React.useState<ApiError | null>(null);
-  const [isLoading, setIsLoading] = React.useState(false);
+  // The result remembers which loan it belongs to, so "loading" is derived
+  // (no result for the current loanId yet) instead of set synchronously at
+  // the start of the effect.
+  const [result, setResult] = React.useState<{
+    loanId: string;
+    url: string | null;
+    error: ApiError | null;
+  } | null>(null);
 
   React.useEffect(() => {
     if (!loanId || !accessToken) return;
     let objectUrl: string | null = null;
     let cancelled = false;
 
-    setIsLoading(true);
-    setError(null);
     apiClient
       .getBlob(`/loans/${loanId}/contract`)
       .then((blob) => {
         if (cancelled) return;
         objectUrl = URL.createObjectURL(blob);
-        setUrl(objectUrl);
+        setResult({ loanId, url: objectUrl, error: null });
       })
       .catch((e: unknown) => {
-        if (!cancelled) setError(e instanceof ApiError ? e : new ApiError(0, "error", "Something went wrong."));
-      })
-      .finally(() => {
-        if (!cancelled) setIsLoading(false);
+        if (cancelled) return;
+        const error = e instanceof ApiError ? e : new ApiError(0, "error", "Something went wrong.");
+        setResult({ loanId, url: null, error });
       });
 
     return () => {
@@ -294,5 +296,10 @@ export function useLoanContractPdf(loanId: string | undefined) {
     };
   }, [loanId, accessToken]);
 
-  return { url, error, isLoading };
+  const current = result && result.loanId === loanId ? result : null;
+  return {
+    url: current?.url ?? null,
+    error: current?.error ?? null,
+    isLoading: Boolean(loanId && accessToken) && current === null,
+  };
 }

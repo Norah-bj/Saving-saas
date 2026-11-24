@@ -15,7 +15,6 @@ import rw.ikiminaconnect.security.CurrentUser;
 
 @RestController
 @RequestMapping("/api/v1/backups")
-@PreAuthorize("hasAnyRole('ORG_ADMIN','SUPER_ADMIN')")
 public class BackupController {
 
     private final BackupService backupService;
@@ -24,16 +23,27 @@ public class BackupController {
         this.backupService = backupService;
     }
 
+    /**
+     * ORG_ADMIN and SUPER_ADMIN. An ORG_ADMIN sees the platform-wide backups
+     * (their own data's real coverage), not an org-scoped list that would
+     * always be empty now — see BackupService's javadoc.
+     */
     @GetMapping
+    @PreAuthorize("hasAnyRole('ORG_ADMIN','SUPER_ADMIN')")
     public List<BackupDto> list(@AuthenticationPrincipal CurrentUser currentUser) {
         return backupService.list(currentUser.organizationId(), currentUser.isSuperAdmin());
     }
 
+    /**
+     * SUPER_ADMIN only — a real pg_dump only ever makes sense platform-wide
+     * (see docs/DECISIONS.md), and only a platform operator should be able
+     * to trigger one or know it produced a file on the server's disk.
+     */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
     public BackupDto create(
             @AuthenticationPrincipal CurrentUser currentUser, @Valid @RequestBody CreateBackupRequest request) {
-        return backupService.create(
-                currentUser.organizationId(), request, currentUser.userId(), currentUser.fullName());
+        return backupService.create(request, currentUser.userId(), currentUser.fullName());
     }
 }

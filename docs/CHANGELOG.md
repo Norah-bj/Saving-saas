@@ -6,6 +6,46 @@ verified.
 
 ---
 
+## 2026-11-24 — Gap-closure Phase 6: real pg_dump backups + lint cleanup
+
+**Changed**: `POST /backups` now runs a real platform-wide `pg_dump -F c` through the new
+`BackupFileService` and is SUPER_ADMIN only; `GET /backups` gives ORG_ADMIN the platform-wide
+records (which cover their org). `V10__real_backups.sql` adds a nullable `backup_records.file_path`
+(absolute path, ops-only, not in the API). A failed or timed-out dump returns 409 and deletes the
+partial file. `org-admin/Backups.tsx` became read-only. The Dockerfile now installs
+`postgresql-client-17` from the PGDG repo, since `pg_dump` refuses to dump a newer server than
+itself. Fixed the 13 ESLint errors the ESLint 9 config exposed (derived state instead of
+setState-in-effect in `useLoanContractPdf`/`useIsMobile`/`ThemeToggle`, no post-render reassignment
+in two chart series, unused imports, Fast Refresh rule off for generated `components/ui`). Corrected
+stale KNOWN_ISSUES/FEATURES entries (email delivery, exit settlement, notifications).
+
+**Verification**: `mvn package`, `npm run lint` (0 errors, 1 known react-hook-form warning) and
+`npm run build` pass. Against local Postgres 17: V10 applied; SUPER_ADMIN create → 201 with a real
+93 KB dump and an audit-log entry; ORG_ADMIN create → 403; plain member list → 403; ORG_ADMIN list
+returns platform-wide records; forced failure (`DB_NAME=does_not_exist`) → 409 with no file left;
+`pg_restore --list` reads the archive (23 table-data entries, dumped by 17.11 from 17.11). **Not
+verified**: a full restore into a scratch database (local role lacks `CREATEDB`; deferred to the
+ops-readiness phase) and a Docker image build (Docker isn't installed here).
+
+---
+
+## 2026-09-06 — Production deployment preparation
+
+**Changed**: added a multi-stage backend Dockerfile, Actuator health endpoint
+support, a production environment-variable template, and deployment guidance
+for connecting the hosted API, PostgreSQL, and Vercel frontend. Corrected stale
+documentation that described the frontend as mock-only and backups as
+metadata-only. Role updates now refresh the signed-in user's profile so the
+workspace switcher immediately reflects roles assigned to that user.
+
+**Verification**: frontend production build passes. ESLint configuration was
+updated for ESLint 9 and now runs, exposing 13 pre-existing errors that need a
+separate cleanup. Backend Maven compilation could not run in this workspace
+because its Maven installation forces an unwritable `C:\\.m2\\repository`;
+Docker is also not installed here.
+
+---
+
 ## 2026-08-29 — Gap-closure Phase 5: payroll import hardening
 
 **Changed**: `PayrollFileParser` now rejects a non-.xlsx/.xls upload before touching its content,

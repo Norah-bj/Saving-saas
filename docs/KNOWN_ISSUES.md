@@ -4,17 +4,21 @@
 
 - **`/auth/register` cannot attach a new user to an existing organization** — it always creates a
   brand-new org + its first ORG_ADMIN. There is no invite-a-new-staff-member-to-my-org flow.
-- **No exit-settlement page/endpoint.** `secretary/ExitRequests.tsx` links an approved request to
-  `/members/{id}/exit-settlement` — a separate settlement-calculation feature that was never
-  requested and isn't built. Exit/share-withdrawal requests themselves (submit, decide, real share
-  and savings-balance movement on approval) are fully built — see [FEATURES.md](FEATURES.md).
-- **No real backup mechanism, and no restore endpoint at all.** `backup_records` (phase 14) is
-  metadata tracking only — `size_mb` is a row-count-based proxy, not an actual file size, and
-  nothing performs a real `pg_dump`. This matches the frontend mock, which also never implements
-  restore (its "Restore" button only sets local component state, calling no store action). Real
-  disaster-recovery automation is future work, and restoring a shared-schema multi-tenant database
-  per-organization is a genuinely harder problem than a single-tenant `pg_dump`/`pg_restore` pair —
-  worth designing deliberately when it's actually needed, not bolted on here.
+- **No in-app backup restore endpoint.** The platform can now create a real,
+  platform-wide `pg_dump`, but restore remains a manual platform-operations
+  action (see [DEVELOPMENT.md](DEVELOPMENT.md#backups-and-manual-restore)). The
+  frontend Restore button is still local-only UI state. Production backup
+  retention, off-host replication, and recovery drills still need an operational
+  runbook and storage configuration; see [DEPLOYMENT.md](DEPLOYMENT.md). A full
+  restore into a scratch database has not been exercised yet (the local
+  `ikiminaconnect` role has no `CREATEDB`); only `pg_restore --list` was verified.
+- **`super-admin/Dashboard.tsx` still reads the zustand mock store** (`useDataStore` organizations,
+  `MOCK_TODAY`), unlike its sibling `Organizations.tsx`/`Analytics.tsx`, which use the real
+  `GET /organizations`. **`LandingPage.tsx`** likewise renders the mock `PLATFORM_ORGANIZATIONS`
+  list and count as if they were real customers — must be replaced or removed before a public
+  launch.
+- **No automated tests and no CI.** Every phase so far was verified by hand (curl + SQL); there
+  are no backend or frontend test files and no `.github/workflows`.
 - **Platform Super Admin (phase 15) deliberately covers only part of `super-admin/`'s 9 pages.**
   Asked the user how to scope it given the pages span very different maturity levels; chose "build
   only the real parts." Built: Organizations (list/status/plan), Analytics and Billing's
@@ -25,13 +29,23 @@
   not even wired to the mock's own data layer, i.e. no spec exists to port). Building those three
   for real would mean inventing entire new subsystems unrelated to anything else in this app —
   revisit only with an explicit decision to build real observability/API-key-auth/ticketing.
-- **Email verification sends no real email yet.** `EmailService`'s only implementation
-  (`ConsoleEmailService`) logs the verification link instead of sending it — chosen deliberately so
-  this feature wasn't blocked on picking/paying for a real provider before one was needed. Before
-  any real user registers, swap in a real implementation (SMTP, SendGrid, SES, ...) and remove
-  `ConsoleEmailService`'s `@Service` annotation; nothing else needs to change, `EmailVerificationService`
-  only depends on the `EmailService` interface. See [BUSINESS_RULES.md](BUSINESS_RULES.md).
+- **Real email delivery needs a verified sending domain.** `ResendEmailService` sends real email
+  when `EMAIL_PROVIDER=resend` (`ConsoleEmailService` remains the local default), but Resend's test
+  sender `onboarding@resend.dev` only delivers to the Resend account's own address. Members can
+  only receive verification emails once a domain is verified in Resend (SPF/DKIM) and `EMAIL_FROM`
+  uses it — see [DEPLOYMENT.md](DEPLOYMENT.md).
+
 ## Recently closed gaps
+
+- **Backups were metadata-only — fixed (gap-closure phase 6).** `POST /backups` (now SUPER_ADMIN
+  only) runs a real platform-wide `pg_dump -F c` and records the file's real size and absolute
+  path; a failed dump returns 409 and deletes the partial file. ORG_ADMIN keeps read access to the
+  platform-wide list. The Docker image now installs the PGDG `postgresql-client-17` so `pg_dump`
+  matches a PostgreSQL 17 server (the base image's default client is older and would refuse).
+- **No exit-settlement page — fixed in gap-closure phase 1c** (`ExitSettlement.tsx`, see below);
+  `secretary/ExitRequests.tsx`'s "View Settlement" link now lands on a real page.
+- **Email verification sent no real email — fixed** by `ResendEmailService`
+  (`EMAIL_PROVIDER=resend`); only the sending-domain limitation above remains.
 
 - **Payroll import hardening (gap-closure phase 5).** `PayrollFileParser` now rejects a non-.xlsx/
   .xls upload before touching its content (clear "please upload an Excel file" message instead of

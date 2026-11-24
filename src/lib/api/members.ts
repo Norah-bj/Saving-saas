@@ -122,6 +122,8 @@ export function useUpdateMemberRoles() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["members"] });
       queryClient.invalidateQueries({ queryKey: ["member-detail"] });
+      // Refresh the switcher if an organization admin changes their own roles.
+      queryClient.invalidateQueries({ queryKey: ["me"] });
     },
   });
 }

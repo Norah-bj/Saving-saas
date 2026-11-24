@@ -7,20 +7,28 @@ import org.springframework.transaction.annotation.Transactional;
 import rw.ikiminaconnect.audit.AuditService;
 
 /**
- * Backup *records* only — there is no real pg_dump/restore automation
- * behind this (see BackupRecord's javadoc and docs/KNOWN_ISSUES.md).
- * {@code organizationId} being null means platform-wide, which happens
- * naturally for a super-admin caller since {@code CurrentUser.organizationId()}
- * is already null for them — no special-casing needed here.
+ * Since gap-closure phase 6, {@link #create} runs a real {@code pg_dump}
+ * via {@link BackupFileService} — platform-wide only, SUPER_ADMIN-only (see
+ * {@code BackupController}), no per-tenant restore. See docs/DECISIONS.md.
+ *
+ * <p>{@code list} for a non-super-admin now returns the platform-wide
+ * backups (the only kind that get created for real) rather than an
+ * org-scoped list that would always be empty — an org-admin's own data is
+ * covered by those same platform-wide dumps.
  */
 @Service
 public class BackupService {
 
+    private static final long BYTES_PER_MB = 1024L * 1024L;
+
     private final BackupRepository backupRepository;
+    private final BackupFileService backupFileService;
     private final AuditService auditService;
 
-    public BackupService(BackupRepository backupRepository, AuditService auditService) {
+    public BackupService(
+            BackupRepository backupRepository, BackupFileService backupFileService, AuditService auditService) {
         this.backupRepository = backupRepository;
+        this.backupFileService = backupFileService;
         this.auditService = auditService;
     }
 
@@ -28,16 +36,19 @@ public class BackupService {
     public List<BackupDto> list(UUID organizationId, boolean isSuperAdmin) {
         List<BackupRecord> records = isSuperAdmin
                 ? backupRepository.findAllByOrderByCreatedAtDesc()
-                : backupRepository.findAllByOrganizationIdOrderByCreatedAtDesc(organizationId);
+                : backupRepository.findAllByOrganizationIdOrderByCreatedAtDesc(null);
         return records.stream().map(BackupDto::from).toList();
     }
 
+    /** SUPER_ADMIN only (enforced by BackupController) — always platform-wide, never one org. */
     @Transactional
-    public BackupDto create(UUID organizationId, CreateBackupRequest request, UUID actorId, String actorName) {
-        int sizeMb = (int) Math.max(1, backupRepository.estimateRowCount(organizationId) / 50);
-        BackupRecord record = new BackupRecord(organizationId, request.label(), BackupType.manual, sizeMb, actorName);
+    public BackupDto create(CreateBackupRequest request, UUID actorId, String actorName) {
+        BackupFileService.DumpResult result = backupFileService.dump(request.label());
+        int sizeMb = (int) Math.max(1, result.sizeBytes() / BYTES_PER_MB);
+        BackupRecord record = new BackupRecord(
+                null, request.label(), BackupType.manual, sizeMb, actorName, result.filePath().toString());
         record = backupRepository.save(record);
-        auditService.record(organizationId, actorId, actorName, "Created backup", record.getLabel());
+        auditService.record(null, actorId, actorName, "Created platform backup", record.getLabel());
         return BackupDto.from(record);
     }
 }

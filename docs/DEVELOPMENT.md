@@ -83,6 +83,29 @@ what would need to change for a non-local environment.
 
 `SUPER_ADMIN_BOOTSTRAP_TOKEN` (optional, blank/disabled by default) — see above.
 
+`PG_DUMP_PATH` (optional, defaults to `pg_dump`) — set it when the PostgreSQL client tools aren't
+on the backend process's PATH, e.g.
+`PG_DUMP_PATH=C:\Program Files\PostgreSQL\17\bin\pg_dump.exe`. `BACKUP_DIRECTORY` defaults to
+`./backups` (git-ignored via `backend/.gitignore`).
+
+## Backups and manual restore
+
+`POST /api/v1/backups` (SUPER_ADMIN only) runs `pg_dump -F c` against the whole database and
+writes `backup-<UTC timestamp>-<label>.dump` into `BACKUP_DIRECTORY`; the record's `file_path`
+column holds the absolute path (not exposed by the API). The `pg_dump` major version must be at
+least the server's.
+
+There is deliberately no restore endpoint. To check a dump, then restore it into a **new, empty**
+database (never over the live one without a deliberate decision and a fresh backup first):
+
+```bash
+pg_restore --list path/to/backup.dump            # sanity-check the archive
+createdb -U postgres ikimina_restore_test         # needs a role with CREATEDB
+pg_restore -U postgres -d ikimina_restore_test --no-owner path/to/backup.dump
+```
+
+Compare row counts against the source, then drop the scratch database.
+
 ## Git / PR workflow
 
 GitHub Flow: `main` is protected, work happens on `feature/xxx` branches, Conventional Commit

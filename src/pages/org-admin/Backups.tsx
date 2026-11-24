@@ -1,19 +1,23 @@
 import * as React from "react";
-import { DatabaseBackup, RotateCcw, CheckCircle2 } from "lucide-react";
+import { RotateCcw, CheckCircle2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/shared/data-table";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { useOrganization } from "@/lib/api/organization";
-import { useBackups, useCreateBackup } from "@/lib/api/backups";
-import { ApiError } from "@/lib/api/client";
+import { useBackups } from "@/lib/api/backups";
 import { formatDate } from "@/lib/format";
 import type { BackupRecord } from "@/lib/types";
 
+/**
+ * Read-only since gap-closure phase 6 — a real pg_dump only ever makes
+ * sense platform-wide (see docs/DECISIONS.md), so only SUPER_ADMIN can
+ * trigger one (super-admin/Backups.tsx). This page shows the same
+ * platform-wide backups, which already cover this org's data.
+ */
 export default function OrgAdminBackupsPage() {
   const { data: organization } = useOrganization();
   const { data: orgBackups = [] } = useBackups();
-  const createBackup = useCreateBackup();
 
   const [restoreTarget, setRestoreTarget] = React.useState<BackupRecord | null>(null);
   const [restoredIds, setRestoredIds] = React.useState<string[]>([]);
@@ -22,26 +26,13 @@ export default function OrgAdminBackupsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-lg font-semibold tracking-tight">Backups</h1>
-          <p className="text-sm text-muted-foreground">
-            Snapshots of {organization.shortName}&apos;s data for disaster recovery.
-          </p>
-        </div>
-        <Button
-          onClick={() => createBackup.mutate("Manual backup — Organization Admin")}
-          disabled={createBackup.isPending}
-        >
-          <DatabaseBackup className="size-4" /> Create Manual Backup
-        </Button>
-      </div>
-
-      {createBackup.isError && (
-        <p className="text-sm text-destructive">
-          {createBackup.error instanceof ApiError ? createBackup.error.message : "Something went wrong."}
+      <div>
+        <h1 className="text-lg font-semibold tracking-tight">Backups</h1>
+        <p className="text-sm text-muted-foreground">
+          Platform-wide data snapshots, which cover {organization.shortName}&apos;s data too.
+          Backups are managed at the platform level.
         </p>
-      )}
+      </div>
 
       <Card>
         <CardHeader>

@@ -34,11 +34,11 @@ export default function SecretaryDashboardPage() {
     else byMonth.set(key, { label, sortKey: key, count: 1 });
   }
   const monthly = Array.from(byMonth.values()).sort((a, b) => a.sortKey.localeCompare(b.sortKey));
-  let cumulative = 0;
-  const growthSeries = monthly.map((m) => {
-    cumulative += m.count;
-    return { month: m.label, members: cumulative };
-  });
+  const growthSeries = monthly.reduce<{ month: string; members: number }[]>((acc, m) => {
+    const previous = acc.length > 0 ? acc[acc.length - 1].members : 0;
+    acc.push({ month: m.label, members: previous + m.count });
+    return acc;
+  }, []);
 
   const recentAnnouncements = announcements.slice(0, 3);
   const nextMeetings = upcomingMeetings.slice(0, 3);

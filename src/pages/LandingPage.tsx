@@ -27,7 +27,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { StatCard } from "@/components/shared/stat-card";
 import { AnimatedStatCard } from "@/components/shared/animated-stat-card";
 import { Reveal } from "@/components/shared/reveal";
 import { BrowserFrame } from "@/components/shared/browser-frame";

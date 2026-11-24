@@ -48,11 +48,12 @@ export default function MemberSharesPage() {
     byMonth.set(key, { label, sortKey: key, sharesAdded: (existing?.sharesAdded ?? 0) + sharesInTx });
   }
   const sortedMonths = Array.from(byMonth.values()).sort((a, b) => (a.sortKey < b.sortKey ? -1 : 1));
-  let cumulative = Math.max(0, totalShares - sortedMonths.reduce((s, m) => s + m.sharesAdded, 0));
-  const series = sortedMonths.map((m) => {
-    cumulative += m.sharesAdded;
-    return { month: m.label, shares: cumulative };
-  });
+  const startingShares = Math.max(0, totalShares - sortedMonths.reduce((s, m) => s + m.sharesAdded, 0));
+  const series = sortedMonths.reduce<{ month: string; shares: number }[]>((acc, m) => {
+    const previous = acc.length > 0 ? acc[acc.length - 1].shares : startingShares;
+    acc.push({ month: m.label, shares: previous + m.sharesAdded });
+    return acc;
+  }, []);
   if (series.length === 0) {
     series.push({ month: "Now", shares: totalShares });
   }

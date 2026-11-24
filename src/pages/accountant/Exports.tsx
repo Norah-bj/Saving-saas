@@ -6,7 +6,6 @@ import { useMembers } from "@/lib/api/members";
 import { useLoans } from "@/lib/api/loans";
 import { useLedger } from "@/lib/api/ledger";
 import { usePayrollImports } from "@/lib/api/payroll";
-import { formatDate, formatRwf } from "@/lib/format";
 import { LOAN_STATUS_LABEL } from "@/lib/types";
 
 function monthKey(iso: string) {

@@ -14,14 +14,15 @@ Build order is locked in (see [DECISIONS.md](DECISIONS.md)) — don't re-derive 
 | 11 | Accountant reporting | ✅ Built & verified | `reporting`, `ledger` (read side) | `accountant/Dashboard.tsx`, `Reports.tsx`, `Transactions.tsx`, `Statements.tsx` |
 | 12 | Secretary ops (meetings, documents, announcements) | ✅ Built & verified | `secretary` | `secretary/Meetings.tsx`, `Announcements.tsx`, `Documents.tsx`, `member/Meetings.tsx`, `Announcements.tsx`, `Documents.tsx` |
 | 13 | Organization administration | ✅ Built & verified (see note) | `organization`, `member` (roles/status), `membership` | `org-admin/Users.tsx`, `Settings.tsx`, `Moderation.tsx`, `loan-committee/Policy.tsx`, `Profile.tsx`, `member/Shares.tsx`, `secretary/ExitRequests.tsx` |
-| 14 | Backups (records only, no restore) | ✅ Built & verified | `backup` | `org-admin/Backups.tsx`, `super-admin/Backups.tsx` |
+| 14 | Platform-wide backups (no in-app restore) | ✅ Built & verified | `backup` | `org-admin/Backups.tsx`, `super-admin/Backups.tsx` |
 | 15 | Platform Super Admin | 🟡 Partial by design — see note | `organization` (platform), `audit` (platform) | `super-admin/Organizations.tsx`, `Analytics.tsx`, `AuditLogs.tsx`, `Billing.tsx` (plan part) |
-| 16 | Notifications (read side only) | ✅ Built & verified | `notification` | `Notifications.tsx`, topbar bell |
-| 17 | Production deployment | ⬜ Not started | — | — |
+| 16 | Notifications (inbox + event triggers) | ✅ Built & verified | `notification` | `Notifications.tsx`, topbar bell |
+| 17 | Production deployment | 🟡 Prepared (Dockerfile, prod profile, env template), not deployed | — | — |
 
 "Built & verified" means: compiles, runs against real local Postgres, smoke-tested end-to-end via
 real HTTP calls (curl) against real dev data, cross-checked against hand-run SQL or direct DB
-inspection, and merged to `main` via reviewed PR. See [TESTING.md](TESTING.md) for what was
+inspection, and merged to `main` via reviewed PR (gap-closure phases 1b–6 are verified but were
+still awaiting their merge PR as of 2026-11-24). See [TESTING.md](TESTING.md) for what was
 actually exercised per phase, and [CHANGELOG.md](CHANGELOG.md) for the dated history.
 
 **All six role workspaces are now wired to the real backend**: member (dashboard, savings, shares,
@@ -59,10 +60,12 @@ server-side (share sufficiency, exit eligibility) rather than only disabling a b
 — see [BUSINESS_RULES.md](BUSINESS_RULES.md). Not built: `secretary/ExitRequests.tsx`'s "View
 Settlement" link (a separate settlement-calculation page/feature, not requested).
 
-**Phase 14 note**: `backup_records` is metadata tracking only (label, type, a row-count-based
-size proxy) — there is no real `pg_dump`/restore automation, matching the frontend mock exactly
-(it doesn't implement restore either, only local UI state). See
-[KNOWN_ISSUES.md](KNOWN_ISSUES.md).
+**Phase 14 note**: a SUPER_ADMIN can create a real, platform-wide `pg_dump`; an
+ORG_ADMIN can view the records because the shared database backup covers their
+organization too. There is intentionally no in-app restore endpoint: restore
+is a manual platform-operations action. Production requires the container to
+have `pg_dump` and a persistent private backup directory; see
+[DEPLOYMENT.md](DEPLOYMENT.md).
 
 **Phase 15 note**: deliberately scoped to the parts of `super-admin/`'s 9 pages backed by real
 data — organization list/status/plan management (`GET/POST /organizations`, `POST
@@ -76,6 +79,7 @@ system behind them at all to port from (fabricated uptime/DB-size numbers, fabri
 hardcoded ticket list not even wired to the mock's own data layer) — see
 [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
 
-**Phase 16 note**: read side only (list, mark-read, mark-all-read) — nothing in the frontend mock
-ever dynamically creates a notification either (`NOTIFICATIONS` is static seed data), so no create
-endpoint exists yet. See [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
+**Phase 16 note**: originally read side only (list, mark-read, mark-all-read). Gap-closure phase 4
+added real creation triggers for loan, guarantor, meeting and announcement events; savings/share
+events still don't notify. There is still no public create endpoint — notifications are only
+written server-side. See [KNOWN_ISSUES.md](KNOWN_ISSUES.md).

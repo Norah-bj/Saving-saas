@@ -148,8 +148,8 @@ so it doesn't share the self-scoped controller's `@PreAuthorize` shape.
 
 | Method | Path | Notes |
 |---|---|---|
-| GET | `/backups` | ORG_ADMIN sees only their own org's records; SUPER_ADMIN sees every record, including platform-wide ones (works automatically since a super-admin's JWT already carries a null `organizationId`). |
-| POST | `/backups` | Creates a record scoped to the caller — ORG_ADMIN's own org, or platform-wide (`organizationId: null`) for SUPER_ADMIN. Metadata only, no real backup file — see [KNOWN_ISSUES.md](KNOWN_ISSUES.md). |
+| GET | `/backups` | ORG_ADMIN sees the platform-wide backup records that cover their organization's data; SUPER_ADMIN sees every record. |
+| POST | `/backups` | SUPER_ADMIN only. Runs a platform-wide `pg_dump` and records the generated file. Restore remains a manual operations action, not an API endpoint. |
 
 ## Notifications — `NotificationController`
 

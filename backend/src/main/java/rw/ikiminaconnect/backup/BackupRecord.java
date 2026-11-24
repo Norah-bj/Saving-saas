@@ -18,11 +18,13 @@ import org.hibernate.annotations.UuidGenerator;
  * reason: a filter scoped to one org's id would incorrectly hide the
  * platform-wide (null) rows a super-admin needs to see.
  *
- * <p>{@code sizeMb} is a real but rough proxy — total row count across a
- * fixed set of core tenant tables, not an actual file size — because there
- * is no real backup mechanism behind this yet (no pg_dump, no restore). See
- * docs/KNOWN_ISSUES.md. Deliberately not fabricated as a random number the
- * way the frontend mock does.
+ * <p>Since gap-closure phase 6, every new row is backed by a real
+ * {@code pg_dump} file (see {@link BackupFileService}) — {@code sizeMb} is
+ * that file's real size and {@code filePath} points to it on disk (not
+ * exposed via the API; ops-reference only, see docs/DEVELOPMENT.md for how
+ * to actually restore one). Historical rows created before this phase have
+ * {@code filePath == null} and an approximate {@code sizeMb} (a row-count
+ * proxy) — they were never backed by a real file to begin with.
  */
 @Entity
 @Table(name = "backup_records")
@@ -48,6 +50,9 @@ public class BackupRecord {
     @Column(name = "created_by", nullable = false)
     private String createdBy;
 
+    @Column(name = "file_path")
+    private String filePath;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -56,11 +61,17 @@ public class BackupRecord {
     }
 
     public BackupRecord(UUID organizationId, String label, BackupType type, Integer sizeMb, String createdBy) {
+        this(organizationId, label, type, sizeMb, createdBy, null);
+    }
+
+    public BackupRecord(
+            UUID organizationId, String label, BackupType type, Integer sizeMb, String createdBy, String filePath) {
         this.organizationId = organizationId;
         this.label = label;
         this.type = type;
         this.sizeMb = sizeMb;
         this.createdBy = createdBy;
+        this.filePath = filePath;
         this.createdAt = Instant.now();
     }
 
@@ -86,6 +97,10 @@ public class BackupRecord {
 
     public String getCreatedBy() {
         return createdBy;
+    }
+
+    public String getFilePath() {
+        return filePath;
     }
 
     public Instant getCreatedAt() {

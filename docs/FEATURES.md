@@ -21,8 +21,7 @@ Build order is locked in (see [DECISIONS.md](DECISIONS.md)) — don't re-derive 
 
 "Built & verified" means: compiles, runs against real local Postgres, smoke-tested end-to-end via
 real HTTP calls (curl) against real dev data, cross-checked against hand-run SQL or direct DB
-inspection, and merged to `main` via reviewed PR (gap-closure phases 1b–6 are verified but were
-still awaiting their merge PR as of 2026-11-24). See [TESTING.md](TESTING.md) for what was
+inspection, and merged to `main` via reviewed PR. See [TESTING.md](TESTING.md) for what was
 actually exercised per phase, and [CHANGELOG.md](CHANGELOG.md) for the dated history.
 
 **All six role workspaces are now wired to the real backend**: member (dashboard, savings, shares,

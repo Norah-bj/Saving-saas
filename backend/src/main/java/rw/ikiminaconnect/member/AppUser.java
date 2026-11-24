@@ -83,7 +83,12 @@ public class AppUser {
     @Column(nullable = false)
     private MemberStatus status = MemberStatus.pending;
 
-    @Column(name = "password_hash", nullable = false)
+    /**
+     * Null while a staff-added member hasn't accepted their invite yet (see
+     * auth/InviteService) — nobody can sign in as them until they choose a
+     * password through the invite link.
+     */
+    @Column(name = "password_hash")
     private String passwordHash;
 
     // False only for a self-registering org-admin (POST /auth/register) until
@@ -194,6 +199,16 @@ public class AppUser {
 
     public void verifyEmail() {
         this.emailVerified = true;
+    }
+
+    /** Sets the (already hashed) password — used when an invited member accepts their invite. */
+    public void setPasswordHash(String passwordHash) {
+        this.passwordHash = passwordHash;
+    }
+
+    /** True for a staff-added member who hasn't chosen a password through their invite link yet. */
+    public boolean isInvitePending() {
+        return passwordHash == null;
     }
 
     public UUID getId() {

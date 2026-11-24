@@ -17,6 +17,10 @@ tenant-scoped table (see [ARCHITECTURE.md](ARCHITECTURE.md)). Migrations via Fly
 | `V5__secretary_ops_and_org_admin.sql` | 12 | `meetings`, `announcements`, `documents` |
 | `V6__backups_and_notifications.sql` | 14, 16 | `backup_records`, `notifications` |
 | `V7__exit_and_share_withdrawal_requests.sql` | 13 | `exit_requests`, `share_withdrawal_requests` |
+| `V8__email_verification.sql` | email verification | `users.email_verified`, `email_verification_tokens` |
+| `V9__policy_documents.sql` | gap-closure 1a | `policy_documents` (seeded for every existing org) |
+| `V10__real_backups.sql` | gap-closure 6 | `backup_records.file_path` |
+| `V11__staff_invites.sql` | gap-closure 9 | `users.password_hash` becomes nullable (null = invite not yet accepted); `account_tokens` (hashed single-use invite and password-reset links, `purpose` = `INVITE`/`PASSWORD_RESET`) |
 
 Phases 6-8 and 11 added no migration (guarantor response, committee review, and contract
 generation reused the phase-5 `loans`/`guarantees` tables; phase 11 reporting/ledger is read-only

@@ -3,6 +3,7 @@ package rw.ikiminaconnect.auth;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Locale;
+import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -48,6 +49,7 @@ public class AuthService {
     private final RefreshTokenService refreshTokenService;
     private final AuditService auditService;
     private final EmailVerificationService emailVerificationService;
+    private final InviteService inviteService;
     private final String superAdminBootstrapToken;
 
     public AuthService(
@@ -60,6 +62,7 @@ public class AuthService {
             RefreshTokenService refreshTokenService,
             AuditService auditService,
             EmailVerificationService emailVerificationService,
+            InviteService inviteService,
             @Value("${app.super-admin-bootstrap-token:}") String superAdminBootstrapToken) {
         this.organizationRepository = organizationRepository;
         this.memberRepository = memberRepository;
@@ -70,6 +73,7 @@ public class AuthService {
         this.refreshTokenService = refreshTokenService;
         this.auditService = auditService;
         this.emailVerificationService = emailVerificationService;
+        this.inviteService = inviteService;
         this.superAdminBootstrapToken = superAdminBootstrapToken;
     }
 
@@ -183,9 +187,37 @@ public class AuthService {
         AppUser user = memberRepository.findByEmail(request.email())
                 .orElseThrow(() -> new BadCredentialsException("Invalid email or password."));
 
-        if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
+        // A pending invite has no password at all: same generic message as a
+        // wrong password, so login can't be used to probe who's been invited.
+        if (user.isInvitePending() || !passwordEncoder.matches(request.password(), user.getPasswordHash())) {
             throw new BadCredentialsException("Invalid email or password.");
         }
+        ensureCanSignIn(user);
+        return issueTokens(user);
+    }
+
+    /**
+     * Sets an invited member's own password from a valid invite token and
+     * signs them in. Receiving the link proves they control the address it was
+     * sent to (or that their admin shared it with them), so it also counts as
+     * email verification.
+     */
+    @Transactional
+    public AuthResponse acceptInvite(AcceptInviteRequest request) {
+        UUID userId = inviteService.consume(request.token());
+        AppUser user = memberRepository.findById(userId)
+                .orElseThrow(() -> new ForbiddenException("User no longer exists."));
+        ensureCanSignIn(user);
+        user.setPasswordHash(passwordEncoder.encode(request.password()));
+        user.verifyEmail();
+        memberRepository.save(user);
+        auditService.record(user.getOrganizationId(), user.getId(), user.getFullName(),
+                "Accepted invitation", user.getEmail());
+        return issueTokens(user);
+    }
+
+    /** Account- and organization-level checks shared by every way of signing in. */
+    private static void ensureCanSignIn(AppUser user) {
         if (user.getStatus() == MemberStatus.suspended || user.getStatus() == MemberStatus.exited) {
             throw new ForbiddenException("This account is " + user.getStatus().name() + ".");
         }
@@ -197,8 +229,6 @@ public class AuthService {
         if (organization != null && organization.getStatus() == OrganizationStatus.suspended) {
             throw new ForbiddenException("Your organization's account is suspended. Contact the platform administrator.");
         }
-
-        return issueTokens(user);
     }
 
     @Transactional

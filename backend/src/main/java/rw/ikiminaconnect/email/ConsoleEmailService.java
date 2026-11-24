@@ -22,4 +22,14 @@ public class ConsoleEmailService implements EmailService {
     public void sendVerificationEmail(String toEmail, String recipientName, String verificationLink) {
         log.info("[DEV EMAIL STUB] Verification email to {} <{}> — link: {}", recipientName, toEmail, verificationLink);
     }
+
+    @Override
+    public void sendInviteEmail(String toEmail, String recipientName, String organizationName, String inviteLink) {
+        log.info("[DEV EMAIL STUB] Invite to {} for {} <{}> — link: {}", organizationName, recipientName, toEmail, inviteLink);
+    }
+
+    @Override
+    public void sendPasswordResetEmail(String toEmail, String recipientName, String resetLink) {
+        log.info("[DEV EMAIL STUB] Password reset for {} <{}> — link: {}", recipientName, toEmail, resetLink);
+    }
 }

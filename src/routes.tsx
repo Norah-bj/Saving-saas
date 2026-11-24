@@ -6,7 +6,9 @@ const LandingPage = lazy(() => import("@/pages/LandingPage"));
 const Login = lazy(() => import("@/pages/auth/Login"));
 const Register = lazy(() => import("@/pages/auth/Register"));
 const VerifyEmail = lazy(() => import("@/pages/auth/VerifyEmail"));
+const AcceptInvite = lazy(() => import("@/pages/auth/AcceptInvite"));
 const ForgotPassword = lazy(() => import("@/pages/auth/ForgotPassword"));
+const ResetPassword = lazy(() => import("@/pages/auth/ResetPassword"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
 const LoanContract = lazy(() => import("@/pages/LoanContract"));
 const ExitSettlement = lazy(() => import("@/pages/ExitSettlement"));
@@ -84,7 +86,9 @@ export function AppRoutes() {
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/verify-email" element={<VerifyEmail />} />
+      <Route path="/accept-invite" element={<AcceptInvite />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
 
       <Route element={<ProtectedLayout />}>
         <Route path="/member/dashboard" element={<MemberDashboard />} />

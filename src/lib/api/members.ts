@@ -58,6 +58,8 @@ export interface MemberSummaryDto {
   roles: string[];
   monthlySalaryRwf: number;
   committeeChair: boolean;
+  /** True until a staff-added member accepts their invite and chooses a password. */
+  invitePending: boolean;
 }
 
 /**
@@ -90,16 +92,34 @@ export interface CreateMemberInput {
   monthlySalaryRwf: number;
 }
 
-export interface CreateMemberResult {
+/**
+ * Mirrors member.InviteResponse. `inviteLink` is single-use and expires after
+ * 72 hours; staff share it by hand (WhatsApp, SMS) when `inviteEmailSent` is
+ * false, e.g. before the email sending domain is verified.
+ */
+export interface InviteResult {
+  inviteLink: string;
+  inviteEmailSent: boolean;
+}
+
+/** Mirrors member.CreateMemberResponse — new members get an invite, not a password. */
+export interface CreateMemberResult extends InviteResult {
   member: MemberSummaryDto;
-  /** Shown once — the backend can't retrieve it again (no invite-email flow yet). */
-  temporaryPassword: string;
 }
 
 export function useCreateMember() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: CreateMemberInput) => apiClient.post<CreateMemberResult>("/members", input),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["members"] }),
+  });
+}
+
+/** SECRETARY/ORG_ADMIN — issues a fresh invite link (the previous one stops working). */
+export function useResendInvite() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (memberId: string) => apiClient.post<InviteResult>(`/members/${memberId}/resend-invite`),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["members"] }),
   });
 }

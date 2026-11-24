@@ -1,17 +1,15 @@
 package rw.ikiminaconnect.member;
 
 import java.math.BigDecimal;
-import java.security.SecureRandom;
-import java.util.Base64;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import rw.ikiminaconnect.audit.AuditService;
+import rw.ikiminaconnect.auth.InviteService;
 import rw.ikiminaconnect.common.BadRequestException;
 import rw.ikiminaconnect.common.ConflictException;
 import rw.ikiminaconnect.common.NotFoundException;
@@ -24,13 +22,11 @@ import rw.ikiminaconnect.savings.ShareHoldingRepository;
 @Service
 public class MemberService {
 
-    private static final SecureRandom RANDOM = new SecureRandom();
-
     private final MemberRepository memberRepository;
     private final OrganizationRepository organizationRepository;
     private final ShareHoldingRepository shareHoldingRepository;
     private final SavingsService savingsService;
-    private final PasswordEncoder passwordEncoder;
+    private final InviteService inviteService;
     private final AuditService auditService;
 
     public MemberService(
@@ -38,13 +34,13 @@ public class MemberService {
             OrganizationRepository organizationRepository,
             ShareHoldingRepository shareHoldingRepository,
             SavingsService savingsService,
-            PasswordEncoder passwordEncoder,
+            InviteService inviteService,
             AuditService auditService) {
         this.memberRepository = memberRepository;
         this.organizationRepository = organizationRepository;
         this.shareHoldingRepository = shareHoldingRepository;
         this.savingsService = savingsService;
-        this.passwordEncoder = passwordEncoder;
+        this.inviteService = inviteService;
         this.auditService = auditService;
     }
 
@@ -86,7 +82,9 @@ public class MemberService {
         Organization organization = organizationRepository.findById(organizationId)
                 .orElseThrow(() -> new NotFoundException("Organization not found."));
 
-        String temporaryPassword = generateTemporaryPassword();
+        // No password yet: the member chooses one through their invite link
+        // (gap-closure phase 9), so nobody — not even this admin — can sign
+        // in as them before they do.
         AppUser member = new AppUser(
                 organization,
                 request.nationalId(),
@@ -96,7 +94,7 @@ public class MemberService {
                 request.phone(),
                 request.department(),
                 request.position(),
-                passwordEncoder.encode(temporaryPassword),
+                null,
                 request.monthlySalaryRwf() == null ? BigDecimal.ZERO : request.monthlySalaryRwf());
         member.addRole(Role.MEMBER, false);
         // Staff-added, not self-registered — the adding admin already vouches
@@ -114,7 +112,21 @@ public class MemberService {
 
         auditService.record(organizationId, actorId, actorName, "Added member", member.getFullName());
 
-        return new CreateMemberResponse(toSummary(member), temporaryPassword);
+        InviteService.InviteResult invite = inviteService.issue(member, organization.getName());
+        return new CreateMemberResponse(toSummary(member), invite.inviteLink(), invite.emailSent());
+    }
+
+    /** Issues a fresh invite link (retiring older ones) for a member who hasn't accepted yet. */
+    @Transactional
+    public InviteResponse resendInvite(UUID organizationId, UUID memberId, UUID actorId, String actorName) {
+        AppUser member = memberRepository.findByIdAndOrganizationId(memberId, organizationId)
+                .orElseThrow(() -> new NotFoundException("Member not found."));
+        if (!member.isInvitePending()) {
+            throw new ConflictException(member.getFullName() + " has already accepted their invitation.");
+        }
+        InviteService.InviteResult invite = inviteService.issue(member, member.getOrganization().getName());
+        auditService.record(organizationId, actorId, actorName, "Resent member invitation", member.getFullName());
+        return new InviteResponse(invite.inviteLink(), invite.emailSent());
     }
 
     @Transactional
@@ -198,7 +210,8 @@ public class MemberService {
         return new MemberSummary(
                 user.getId(), user.getNationalId(), user.getEmployeeId(), user.getFullName(),
                 user.getDepartment(), user.getPosition(), user.getStatus().name(),
-                user.getDateJoined(), balance, roles, user.getMonthlySalaryRwf(), user.isCommitteeChair());
+                user.getDateJoined(), balance, roles, user.getMonthlySalaryRwf(), user.isCommitteeChair(),
+                user.isInvitePending());
     }
 
     private MemberDetail toDetail(AppUser user) {
@@ -214,11 +227,5 @@ public class MemberService {
                 user.getFullName(), user.getEmail(), user.getPhone(), user.getDepartment(), user.getPosition(),
                 user.getStatus().name(), user.getDateJoined(), user.getMonthlySalaryRwf(), roles,
                 user.isCommitteeChair(), balance, totalShares);
-    }
-
-    private static String generateTemporaryPassword() {
-        byte[] bytes = new byte[9];
-        RANDOM.nextBytes(bytes);
-        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 }

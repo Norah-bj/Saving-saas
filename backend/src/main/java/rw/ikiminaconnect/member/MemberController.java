@@ -54,6 +54,14 @@ public class MemberController {
                 currentUser.organizationId(), request, currentUser.userId(), currentUser.fullName());
     }
 
+    /** 409 once the member has accepted. Issuing a new link retires any earlier one. */
+    @PostMapping("/{id}/resend-invite")
+    @PreAuthorize("hasAnyRole('SECRETARY','ORG_ADMIN')")
+    public InviteResponse resendInvite(@AuthenticationPrincipal CurrentUser currentUser, @PathVariable UUID id) {
+        return memberService.resendInvite(
+                currentUser.organizationId(), id, currentUser.userId(), currentUser.fullName());
+    }
+
     /** Any authenticated member — deliberately open, deliberately minimal (see GuarantorCandidateDto). */
     @GetMapping("/guarantor-candidates")
     public List<GuarantorCandidateDto> guarantorCandidates(@AuthenticationPrincipal CurrentUser currentUser) {

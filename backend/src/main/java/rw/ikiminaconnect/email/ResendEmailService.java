@@ -35,6 +35,33 @@ public class ResendEmailService implements EmailService {
                 .retrieve().toBodilessEntity();
     }
 
+    @Override
+    public void sendInviteEmail(String toEmail, String recipientName, String organizationName, String inviteLink) {
+        String html = "<p>Hello " + escape(recipientName) + ",</p>"
+                + "<p>You've been added to <strong>" + escape(organizationName) + "</strong> on IkiminaConnect.</p>"
+                + "<p>Click below to choose your password and sign in:</p>"
+                + "<p><a href=\"" + escape(inviteLink) + "\">Accept invitation</a></p>"
+                + "<p>This link expires in 72 hours and can only be used once. "
+                + "If you weren't expecting this, you can ignore this email.</p>";
+        client.post().uri("/emails").contentType(MediaType.APPLICATION_JSON)
+                .body(Map.of("from", from, "to", new String[] {toEmail},
+                        "subject", "You're invited to " + organizationName + " on IkiminaConnect", "html", html))
+                .retrieve().toBodilessEntity();
+    }
+
+    @Override
+    public void sendPasswordResetEmail(String toEmail, String recipientName, String resetLink) {
+        String html = "<p>Hello " + escape(recipientName) + ",</p>"
+                + "<p>We received a request to reset your IkiminaConnect password.</p>"
+                + "<p><a href=\"" + escape(resetLink) + "\">Choose a new password</a></p>"
+                + "<p>This link expires in 1 hour and can only be used once. "
+                + "If you didn't ask for this, you can ignore this email — your password won't change.</p>";
+        client.post().uri("/emails").contentType(MediaType.APPLICATION_JSON)
+                .body(Map.of("from", from, "to", new String[] {toEmail},
+                        "subject", "Reset your IkiminaConnect password", "html", html))
+                .retrieve().toBodilessEntity();
+    }
+
     private static String escape(String value) {
         return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
                 .replace("\"", "&quot;").replace("'", "&#39;");

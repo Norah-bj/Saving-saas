@@ -17,5 +17,7 @@ public record MemberSummary(
         BigDecimal savingsBalanceRwf,
         List<String> roles,
         BigDecimal monthlySalaryRwf,
-        boolean committeeChair) {
+        boolean committeeChair,
+        // True until a staff-added member accepts their invite and chooses a password.
+        boolean invitePending) {
 }

@@ -125,8 +125,16 @@ messages, PRs opened via the `gh` CLI (full path on this machine:
 
 ## Testing pattern
 
-See [TESTING.md](TESTING.md) — no automated suite yet; manual curl + psql cross-checking is the
-current standard for every phase before it's considered done.
+See [TESTING.md](TESTING.md). `mvn test` in `backend/` (Docker Desktop must be running) runs the
+integration suite against a throwaway PostgreSQL container; CI runs the same on every PR. New
+features are still first verified manually (curl + psql), then get an integration test.
+
+## Running the backend in Docker
+
+`docker compose up --build` from the repository root runs the backend from the same Docker image
+production uses, with its own PostgreSQL 17 (host port 5433, so it never clashes with the local
+PostgreSQL service on 5432). Connection details and stop/wipe commands are at the top of
+`docker-compose.yml`. Stop any locally started backend first — both use port 8080.
 
 ## Documentation is part of the implementation
 

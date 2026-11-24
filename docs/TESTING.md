@@ -1,9 +1,42 @@
 # Testing
 
-No automated test suite exists yet (`spring-boot-starter-test`/`spring-security-test` are
-dependencies but no test classes have been written) — every phase so far has been verified
-manually against a real running server and a real local Postgres database. This document records
-the pattern used and what was actually exercised, so gaps are visible.
+## Automated tests (since gap-closure phase 7)
+
+Backend integration tests live in `backend/src/test/java/rw/ikiminaconnect/` and run the real
+Spring context, the real security filter chain and the real Flyway migrations against a
+**throwaway PostgreSQL 17 container** (Testcontainers) — never your local database.
+
+```bash
+cd backend
+mvn test          # needs Docker Desktop running ("Engine running")
+```
+
+- `support/IntegrationTestBase` starts one container per test run and offers helpers
+  (`registerVerifiedOrg`, `createMember`, `setRoles`, `superAdminToken`, `getJson`/`postJson`/...).
+  Each test registers its **own** organization with unique emails, so tests never share data
+  and can run in any order. Roles live in the JWT, so log in again after `setRoles`.
+- `support/RecordingEmailService` captures verification links instead of sending email, so tests
+  complete the real `POST /auth/verify-email` flow.
+- Current coverage (10 tests): login and wrong password; unverified-admin gating; single-use
+  verification tokens; organization suspension blocking login; cross-tenant isolation (member
+  detail, org detail, member list, forced audit-log scope); staff-only endpoints and backup
+  permissions; the full guaranteed-loan lifecycle (apply → review → guarantor → chair approval →
+  contract → disbursement revenue ledger rows → every repayment → completed, guarantee released,
+  notifications); payroll import row classification and crediting; non-Excel/corrupt uploads;
+  share purchase → withdrawal request → approval moving shares and balance.
+- Not covered yet: frontend (lint + build only), creating a real `pg_dump` backup in tests,
+  meetings/announcements/documents, exit requests.
+
+On slow connections the first run downloads `postgres:17-alpine` and `testcontainers/ryuk`; if
+Testcontainers times out pulling them, run `docker pull postgres:17-alpine` and
+`docker pull testcontainers/ryuk:0.12.0` first.
+
+**CI** (`.github/workflows/ci.yml`) runs on every pull request and every push to `main`: backend
+`mvn verify` (these tests), frontend `npm run lint` + `npm run build`, and a production Docker
+image build that also checks the image's `pg_dump` is version 17.
+
+The manual pattern below is still how a new feature is first verified before tests are written
+for it. This document records that pattern and what was exercised per phase, so gaps are visible.
 
 ## Manual verification pattern (used for every phase)
 

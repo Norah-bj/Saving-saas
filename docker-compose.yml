@@ -1,0 +1,58 @@
+# Run the backend exactly as production will (same Docker image), with its own
+# throwaway PostgreSQL 17 — separate from the PostgreSQL installed on this PC.
+#
+#   docker compose up --build      # start (first build takes a few minutes)
+#   docker compose down            # stop, keep the data
+#   docker compose down -v         # stop and wipe the data
+#
+# API:      http://localhost:8080/api/v1  (health: http://localhost:8080/actuator/health)
+# Database: localhost:5433, database/user "ikiminaconnect", password "ikiminaconnect_docker"
+#           (5433 so it never clashes with the local PostgreSQL service on 5432)
+#
+# Stop any backend you started with `mvn spring-boot:run` / `java -jar` first —
+# both want port 8080. The frontend (`npm run dev`) works against this unchanged.
+# Local development values only: never reuse these passwords anywhere real.
+
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ikiminaconnect
+      POSTGRES_USER: ikiminaconnect
+      POSTGRES_PASSWORD: ikiminaconnect_docker
+    ports:
+      - "5433:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ikiminaconnect -d ikiminaconnect"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build: ./backend
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/ikiminaconnect
+      DB_USERNAME: ikiminaconnect
+      DB_PASSWORD: ikiminaconnect_docker
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_NAME: ikiminaconnect
+      BACKUP_DIRECTORY: /var/lib/ikiminaconnect/backups
+      CORS_ALLOWED_ORIGINS: http://localhost:3000
+      FRONTEND_URL: http://localhost:3000
+      EMAIL_PROVIDER: console
+      # Lets you create a local super-admin once via POST /auth/bootstrap-super-admin.
+      SUPER_ADMIN_BOOTSTRAP_TOKEN: local-docker-bootstrap-token
+    ports:
+      - "8080:8080"
+    volumes:
+      - backups:/var/lib/ikiminaconnect/backups
+
+volumes:
+  db-data:
+  backups:

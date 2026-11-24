@@ -11,6 +11,7 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -40,6 +41,19 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BadRequestException.class)
     public ResponseEntity<ApiError> handleBadRequest(BadRequestException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiError.of("bad_request", ex.getMessage()));
+    }
+
+    /**
+     * Without this, an upload past application.yml's configured
+     * max-file-size/max-request-size (10MB) fell through to the generic
+     * catch-all below as an unhelpful 500 — see docs/CHANGELOG.md,
+     * gap-closure phase 5 (payroll import hardening; the only multipart
+     * upload endpoint in the app today, but this applies to any future one).
+     */
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiError> handleMaxUploadSize(MaxUploadSizeExceededException ex) {
+        return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
+                .body(ApiError.of("payload_too_large", "This file is too large. The maximum upload size is 10MB."));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

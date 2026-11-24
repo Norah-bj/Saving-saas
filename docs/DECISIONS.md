@@ -5,6 +5,64 @@ Dated, most recent first. Format: **Decision** / **Reason** / **Alternatives con
 
 ---
 
+### Employee-registry picker declined — the payroll file format has no name/metadata to pick from (2026-08-29, gap-closure phase 5)
+
+**Decision**: Confirmed, not just deferred: `secretary/Members.tsx`'s dropped "pre-fill from
+employee registry" picker stays dropped, and won't be built as a straightforward new endpoint over
+existing data.
+
+**Reason**: the picker's whole premise is showing a secretary a candidate list of employees who've
+been imported via payroll but aren't members yet, so they can pick one and have the add-member form
+pre-fill. But `PayrollFileRow` — and the import file format itself — only ever carries Employee ID
+and Saving Amount (see `PayrollFileParser`'s two recognized header pairs). There's no name,
+department, or phone number anywhere in a payroll import to pre-fill *with*. Building this feature
+for real would mean redesigning the payroll file contract to require additional columns no real
+payroll export was ever asked to include — a much bigger, different change than "expose data that
+already exists," and one with no actual request behind it.
+
+**Alternatives considered**: expose just the Employee ID (with no name) as a picker — rejected as
+barely better than typing it manually, not worth the endpoint; requiring HR to also upload a
+separate employee-roster file with full metadata — rejected as inventing a whole second import
+flow nobody asked for.
+
+**Impact**: none — no code changed. Documented so this doesn't get re-investigated from scratch
+next time it comes up; revisit only if a real employee-roster data source (beyond the payroll
+savings-deduction file) is ever introduced.
+
+---
+
+### Payroll import: per-row deduction attempted before the summary is built, not after (2026-08-29, gap-closure phase 5)
+
+**Decision**: `PayrollImportService.importFile()` now calls `savingsService.recordDeduction(...)`
+for each matched row *during* the first pass over the file — before that row is counted successful
+or the `PayrollImportSummary` is constructed — catching any exception there and downgrading just
+that row to `error`. Previously, `PayrollImportSummary` (with its `successful`/`failed` counts) was
+built and saved first, and the actual deductions were only attempted in a second pass afterward —
+so a failure during that second pass would either go unnoticed (the summary would already claim
+success) or, if the exception propagated, roll back the entire `@Transactional` method including
+every other row's genuinely successful work.
+
+**Reason**: a payroll file processes many members' real money at once; both silently misreporting
+a failed deduction as successful and having one unlucky row nuke an entire otherwise-good import
+are real integrity problems worth fixing without being asked to invent new scope — it's squarely
+"transaction safety," which was explicitly requested for this phase.
+
+**Alternatives considered**: give each row its own nested transaction (`REQUIRES_NEW` propagation)
+so a single row's failure truly can't affect any other row, even a DB-level one — rejected as
+disproportionate for a failure mode (an unexpected exception from a call whose inputs are already
+validated: positive amount, member confirmed to exist) that's already rare, and because Spring's
+`REQUIRES_NEW` needs a separate proxied bean call to work reliably, adding real complexity for a
+theoretical edge case.
+
+**Impact — what this does and doesn't guarantee**: an *application-level* failure in
+`recordDeduction` (a bug, an unexpected null, etc.) is now caught per-row and correctly reported.
+A genuine *database-level* failure (a constraint violation, connection loss) would likely only
+surface later, at the transaction's implicit flush-on-commit — after the loop has already finished
+— and would still roll back the whole import. That residual risk is accepted, not solved, here;
+revisit with per-row `REQUIRES_NEW` transactions only if this actually happens in practice.
+
+---
+
 ### Notification scope: loan lifecycle + meetings/announcements only, not savings (2026-08-29, gap-closure phase 4)
 
 **Decision**: Wired real notification-creation to 8 concrete events — loan submitted, guarantor

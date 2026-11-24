@@ -27,14 +27,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { AnimatedStatCard } from "@/components/shared/animated-stat-card";
 import { Reveal } from "@/components/shared/reveal";
 import { BrowserFrame } from "@/components/shared/browser-frame";
 import { TrendLineChart } from "@/components/charts/trend-line-chart";
 import { BarComparisonChart } from "@/components/charts/bar-comparison-chart";
 import { DonutChart } from "@/components/charts/donut-chart";
 import { formatRwf } from "@/lib/format";
-import { PLATFORM_ORGANIZATIONS, SUBSCRIPTION_PLANS } from "@/lib/mock-data";
+import { SUBSCRIPTION_PLANS } from "@/lib/plans";
 import { cn } from "@/lib/utils";
 
 interface FeatureItem {
@@ -223,7 +222,7 @@ const FAQS = [
   {
     question: "We currently track everything in Excel. Can we migrate?",
     answer:
-      "Yes. The Accountant and HR workspaces include an Excel payroll importer that validates rows against Employee IDs and reports successes, errors, and duplicates before anything is saved.",
+      "Yes. The Accountant and HR workspaces include an Excel payroll importer that matches each row to a member by Employee ID, credits the matching rows, and reports exactly which rows succeeded, failed, or were duplicates.",
   },
   {
     question: "Is pricing per member or per organization?",
@@ -318,7 +317,7 @@ export default function LandingPage() {
                   Register your organization <ArrowRight className="size-4" />
                 </Button>
                 <Button size="lg" variant="outline" render={<Link to="/login" />}>
-                  Explore the demo
+                  Sign in
                 </Button>
               </div>
             </div>
@@ -329,80 +328,7 @@ export default function LandingPage() {
                 src="/screenshots/org-dashboard.png"
                 alt="Organization dashboard showing total members, savings, active loans, shares, and growth charts"
               />
-              <Card className="absolute -bottom-6 -left-4 hidden w-56 shadow-soft-md sm:block md:-left-10">
-                <CardContent className="p-0">
-                  <AnimatedStatCard
-                    label="Loan Approval Rate"
-                    endValue={91}
-                    formatValue={(n) => `${n}%`}
-                    icon={TrendingUp}
-                    trend={{ value: "+2 pts", direction: "up", label: "this quarter" }}
-                    className="border-0 p-4 shadow-none hover:shadow-none"
-                  />
-                </CardContent>
-              </Card>
             </Reveal>
-
-            <div className="mt-16 flex flex-wrap items-center justify-center gap-x-10 gap-y-3 text-sm text-muted-foreground">
-              <span className="text-xs uppercase tracking-wide">Trusted by cooperatives across Rwanda</span>
-              {PLATFORM_ORGANIZATIONS.map((org) => (
-                <span key={org.id} className="font-medium text-foreground/70">
-                  {org.shortName}
-                </span>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* Platform at a glance */}
-        <section className="border-t bg-primary/[0.025] py-16">
-          <div className="mx-auto max-w-6xl px-4">
-            <SectionHeading
-              eyebrow="Platform at a glance"
-              title="Real numbers from a real, working platform"
-              description="Not placeholders — this is what runs across the cooperatives already live on IkiminaConnect."
-            />
-            <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <Reveal>
-                <AnimatedStatCard
-                  label="Total Savings Managed"
-                  endValue={48250000}
-                  formatValue={formatRwf}
-                  icon={PiggyBank}
-                  trend={{ value: "+8.4%", direction: "up", label: "vs last month" }}
-                  sparkline={[6, 7, 7, 8, 9, 9, 10, 11]}
-                />
-              </Reveal>
-              <Reveal delay={80}>
-                <AnimatedStatCard
-                  label="Active Loan Portfolio"
-                  endValue={21400000}
-                  formatValue={formatRwf}
-                  icon={HandCoins}
-                  trend={{ value: "+3.1%", direction: "up", label: "vs last month" }}
-                  sparkline={[4, 4, 5, 5, 6, 6, 6, 7]}
-                />
-              </Reveal>
-              <Reveal delay={160}>
-                <AnimatedStatCard
-                  label="Loan Approval Rate"
-                  endValue={91}
-                  formatValue={(n) => `${n}%`}
-                  icon={TrendingUp}
-                  trend={{ value: "+2 pts", direction: "up", label: "this quarter" }}
-                  sparkline={[80, 82, 85, 86, 88, 89, 90, 91]}
-                />
-              </Reveal>
-              <Reveal delay={240}>
-                <AnimatedStatCard
-                  label="Cooperatives Onboarded"
-                  endValue={PLATFORM_ORGANIZATIONS.length}
-                  formatValue={(n) => `${n}`}
-                  icon={Building2}
-                  trend={{ value: "growing", direction: "up", label: "across Rwanda" }}
-                />
-              </Reveal>
-            </div>
           </div>
         </section>
 

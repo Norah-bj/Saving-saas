@@ -6,6 +6,32 @@ verified.
 
 ---
 
+## 2026-11-24 — Gap-closure Phase 8: remove the last mock data
+
+**Changed**: deleted `src/lib/mock-data/` and the zustand `data-store` (~2,700 lines), plus the
+now-unused `AnimatedStatCard`/`useCountUp`. `super-admin/Dashboard.tsx` reads the real
+`GET /organizations` (with loading/error states; MRR relabelled "Plan Value", a sum of list prices,
+since there is no billing system; the growth chart no longer claims "since 2020"). Landing page:
+removed the invented "Trusted by" organization list, the "Platform at a glance" section of made-up
+figures that claimed to be "not placeholders", and the hero's fake approval-rate card; "Explore the
+demo" → "Sign in" (no demo logins exist); corrected the payroll FAQ answer to match the real
+one-step import. `org-admin/Backups.tsx`'s Restore button (which only flipped local state) became an
+honest "contact the platform administrator" note; the super-admin backup button no longer labels
+manual backups "scheduled". Plans moved to `src/lib/plans.ts` (with a shared `planPriceRwf`) and
+`monthsBetween` to `src/lib/dates.ts`. The unbuilt super-admin Monitoring/Settings/Support pages
+show a "Preview with sample data" banner.
+
+**Flagged, not changed** (business decisions): the Enterprise plan's feature list advertises things
+that don't exist, and the landing-page testimonial attributed to APUPEKA needs confirming — see
+[KNOWN_ISSUES.md](KNOWN_ISSUES.md).
+
+**Verification**: `npm run lint` (0 errors, the 1 known react-hook-form warning) and
+`npm run build` pass; the production bundle no longer contains a `mock-data` chunk. **Not done**:
+an in-browser visual check (the Chrome automation extension wasn't connected) — needs a human look
+at the landing page, super-admin Dashboard and org-admin Backups.
+
+---
+
 ## 2026-11-24 — Gap-closure Phase 7: automated integration tests + CI
 
 **Added**: the project's first automated tests — 10 backend integration tests running the real

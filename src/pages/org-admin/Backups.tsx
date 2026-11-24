@@ -1,26 +1,21 @@
-import * as React from "react";
-import { RotateCcw, CheckCircle2 } from "lucide-react";
+import { Info } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/shared/data-table";
-import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { useOrganization } from "@/lib/api/organization";
 import { useBackups } from "@/lib/api/backups";
 import { formatDate } from "@/lib/format";
-import type { BackupRecord } from "@/lib/types";
 
 /**
  * Read-only since gap-closure phase 6 — a real pg_dump only ever makes
  * sense platform-wide (see docs/DECISIONS.md), so only SUPER_ADMIN can
  * trigger one (super-admin/Backups.tsx). This page shows the same
- * platform-wide backups, which already cover this org's data.
+ * platform-wide backups, which already cover this org's data. There is no
+ * in-app restore: restoring is a manual platform-operations task, so this
+ * page says so instead of offering a button that would do nothing.
  */
 export default function OrgAdminBackupsPage() {
   const { data: organization } = useOrganization();
   const { data: orgBackups = [] } = useBackups();
-
-  const [restoreTarget, setRestoreTarget] = React.useState<BackupRecord | null>(null);
-  const [restoredIds, setRestoredIds] = React.useState<string[]>([]);
 
   if (!organization) return null;
 
@@ -31,6 +26,14 @@ export default function OrgAdminBackupsPage() {
         <p className="text-sm text-muted-foreground">
           Platform-wide data snapshots, which cover {organization.shortName}&apos;s data too.
           Backups are managed at the platform level.
+        </p>
+      </div>
+
+      <div className="flex items-start gap-3 rounded-lg border bg-muted/40 p-4 text-sm">
+        <Info className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+        <p className="text-muted-foreground">
+          Need data restored from one of these backups? Contact the platform administrator.
+          Restores are carried out by platform operations, not from this page.
         </p>
       </div>
 
@@ -45,20 +48,6 @@ export default function OrgAdminBackupsPage() {
               { header: "Type", cell: (r) => <span className="capitalize">{r.type}</span> },
               { header: "Date", cell: (r) => formatDate(r.date) },
               { header: "Size", cell: (r) => `${r.sizeMb} MB` },
-              {
-                header: "",
-                headClassName: "w-px",
-                cell: (r) =>
-                  restoredIds.includes(r.id) ? (
-                    <span className="flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
-                      <CheckCircle2 className="size-3.5" /> Restored
-                    </span>
-                  ) : (
-                    <Button variant="outline" size="sm" onClick={() => setRestoreTarget(r)}>
-                      <RotateCcw className="size-3.5" /> Restore
-                    </Button>
-                  ),
-              },
             ]}
             rows={orgBackups}
             rowKey={(r) => r.id}
@@ -66,21 +55,6 @@ export default function OrgAdminBackupsPage() {
           />
         </CardContent>
       </Card>
-
-      <ConfirmDialog
-        open={!!restoreTarget}
-        onOpenChange={(open) => !open && setRestoreTarget(null)}
-        title="Restore this backup?"
-        description={
-          restoreTarget
-            ? `This will restore all organization data to the state captured on ${formatDate(restoreTarget.date)} (${restoreTarget.label}).`
-            : undefined
-        }
-        confirmLabel="Restore backup"
-        onConfirm={() => {
-          if (restoreTarget) setRestoredIds((prev) => [...prev, restoreTarget.id]);
-        }}
-      />
     </div>
   );
 }

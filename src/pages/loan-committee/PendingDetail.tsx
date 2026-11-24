@@ -14,7 +14,7 @@ import { useLoanDetail, useStartReview, useCommitteeDecision } from "@/lib/api/l
 import { useMemberDetail, useMembers } from "@/lib/api/members";
 import { ApiError } from "@/lib/api/client";
 import { riskBand } from "@/lib/loan-calculator";
-import { monthsBetween } from "@/lib/mock-data";
+import { monthsBetween } from "@/lib/dates";
 import { formatRwf } from "@/lib/format";
 import { LOAN_STATUS_ORDER } from "@/lib/types";
 

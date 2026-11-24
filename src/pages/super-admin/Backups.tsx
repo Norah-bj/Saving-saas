@@ -27,11 +27,12 @@ export default function SuperAdminBackupsPage() {
         <div>
           <h1 className="text-lg font-semibold tracking-tight">Global Backups</h1>
           <p className="text-sm text-muted-foreground">
-            Data snapshots across the platform and every organization.
+            Full database snapshots (pg_dump) covering the platform and every organization. Restoring
+            is a manual operations task: see &ldquo;Backups and manual restore&rdquo; in docs/DEVELOPMENT.md.
           </p>
         </div>
         <Button
-          onClick={() => createBackup.mutate("Platform-wide scheduled backup")}
+          onClick={() => createBackup.mutate("Manual platform backup")}
           disabled={createBackup.isPending}
         >
           <DatabaseBackup className="size-4" /> Create Platform Backup

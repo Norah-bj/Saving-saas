@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DataTable } from "@/components/shared/data-table";
 import { ToneBadge, type Tone } from "@/components/shared/status-badge";
 import { formatDate } from "@/lib/format";
+import { SampleDataNotice } from "@/components/shared/sample-data-notice";
 
 interface SupportTicket {
   id: string;
@@ -79,6 +80,7 @@ export default function SuperAdminSupportPage() {
 
   return (
     <div className="flex flex-col gap-6">
+      <SampleDataNotice>These tickets are illustrative. There is no support ticketing system behind this page yet.</SampleDataNotice>
       <div>
         <h1 className="text-lg font-semibold tracking-tight">Support Center</h1>
         <p className="text-sm text-muted-foreground">

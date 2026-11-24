@@ -6,12 +6,8 @@ import { DataTable } from "@/components/shared/data-table";
 import { usePlatformOrganizations, useUpdatePlatformOrganizationPlan } from "@/lib/api/platform-organizations";
 import { ApiError } from "@/lib/api/client";
 import { formatRwf, formatNumber } from "@/lib/format";
-import { SUBSCRIPTION_PLANS } from "@/lib/mock-data";
+import { SUBSCRIPTION_PLANS, planPriceRwf as planPrice } from "@/lib/plans";
 import type { Organization } from "@/lib/types";
-
-function planPrice(plan: string) {
-  return SUBSCRIPTION_PLANS.find((p) => p.id === `plan-${plan}`)?.priceMonthlyRwf ?? 0;
-}
 
 function planIdToKey(planId: string): Organization["plan"] {
   return planId.replace("plan-", "") as Organization["plan"];

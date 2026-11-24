@@ -3,6 +3,7 @@ import { StatCard } from "@/components/shared/stat-card";
 import { ChartCard } from "@/components/shared/chart-card";
 import { TrendLineChart } from "@/components/charts/trend-line-chart";
 import { formatNumber } from "@/lib/format";
+import { SampleDataNotice } from "@/components/shared/sample-data-notice";
 
 const SYSTEM_HEALTH = {
   apiUptimePct: 99.97,
@@ -32,6 +33,7 @@ const UPTIME_SERIES = [
 export default function SuperAdminMonitoringPage() {
   return (
     <div className="flex flex-col gap-6">
+      <SampleDataNotice>Uptime, response-time and database figures below are illustrative. There is no monitoring pipeline behind this page yet.</SampleDataNotice>
       <div>
         <h1 className="text-lg font-semibold tracking-tight">System Monitoring</h1>
         <p className="text-sm text-muted-foreground">

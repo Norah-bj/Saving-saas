@@ -45,6 +45,10 @@ public abstract class IntegrationTestBase {
 
     protected static final String PASSWORD = "TestPass123!";
 
+    // Deliberately never closed: one container is shared by the whole test run
+    // (singleton pattern), and Testcontainers' Ryuk sidecar removes it when the
+    // JVM exits. Closing it per class would restart PostgreSQL for every class.
+    @SuppressWarnings("resource")
     static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:17-alpine")
             .withDatabaseName("ikiminaconnect")
             .withUsername("ikiminaconnect")

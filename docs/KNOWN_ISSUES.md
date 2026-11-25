@@ -17,8 +17,10 @@
   `GET /organizations`. **`LandingPage.tsx`** likewise renders the mock `PLATFORM_ORGANIZATIONS`
   list and count as if they were real customers — must be replaced or removed before a public
   launch.
-- **No automated tests and no CI.** Every phase so far was verified by hand (curl + SQL); there
-  are no backend or frontend test files and no `.github/workflows`.
+- **Test coverage is still partial.** Backend integration tests and CI exist since gap-closure
+  phase 7 (see [TESTING.md](TESTING.md)), but the frontend has no tests (lint + build only) and
+  several backend areas (meetings, announcements, documents, exit requests, real backup creation)
+  are only manually verified.
 - **Platform Super Admin (phase 15) deliberately covers only part of `super-admin/`'s 9 pages.**
   Asked the user how to scope it given the pages span very different maturity levels; chose "build
   only the real parts." Built: Organizations (list/status/plan), Analytics and Billing's

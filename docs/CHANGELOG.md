@@ -6,6 +6,26 @@ verified.
 
 ---
 
+## 2026-11-24 — Gap-closure Phase 7: automated integration tests + CI
+
+**Added**: the project's first automated tests — 10 backend integration tests running the real
+Spring context against a throwaway PostgreSQL 17 container (Testcontainers 1.21.4, pinned above
+Spring Boot 3.3's managed 1.19.x because Docker Engine 29 rejects the older Docker API version).
+Covered: auth and email-verification gating, organization suspension, cross-tenant isolation,
+staff-only and backup permissions, the full guaranteed-loan lifecycle including revenue ledger rows
+and notifications, payroll import classification, and share withdrawal money movement — see
+[TESTING.md](TESTING.md). Added `.github/workflows/ci.yml` (backend `mvn verify`, frontend lint +
+build, production Docker image build with a `pg_dump` 17 check) and a root `docker-compose.yml` to
+run the production image locally with its own database.
+
+**Verification**: `mvn test` → 10 tests, 0 failures, against `postgres:17-alpine` in Docker Desktop
+on this machine. The only first-run failure was a wrong expectation in the test itself (payroll
+import correctly returns 201, not 200). Not yet run: the CI workflow itself (runs on the PR) and a
+local `docker compose up` / image build (base-image downloads still in progress on this
+connection; the CI `docker` job covers the image build).
+
+---
+
 ## 2026-11-24 — Gap-closure Phase 6: real pg_dump backups + lint cleanup
 
 **Changed**: `POST /backups` now runs a real platform-wide `pg_dump -F c` through the new

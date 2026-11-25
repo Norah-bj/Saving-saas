@@ -8,9 +8,9 @@ Two codebases in this one repo, now wired together — every role workspace call
 - **Frontend** (repo root `src/`): Vite + React 18 + TypeScript + React Router + Tailwind v4 +
   shadcn/ui (base-ui flavor), TanStack React Query for server state. Fully built and polished. All
   six role workspaces (member, secretary, loan committee, accountant, HR, org admin, super admin)
-  call the real backend now, though a handful of individual pages within them deliberately still
-  read from the zustand mock store (`src/lib/mock-data/`, `src/lib/store/data-store.ts`) — see
-  [FEATURES.md](FEATURES.md) and [KNOWN_ISSUES.md](KNOWN_ISSUES.md) for exactly which ones and why.
+  call the real backend; the original zustand mock data layer was deleted in gap-closure phase 8
+  (only the deliberately unbuilt super-admin Monitoring/Settings/Support pages show inline sample
+  data, labelled as such) — see [FEATURES.md](FEATURES.md) and [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
   Deployed to Vercel (see [DEPLOYMENT.md](DEPLOYMENT.md)). The deployed build
   currently points at `localhost` because the API is not deployed yet; it must
   receive the deployed API URL as `VITE_API_URL` at frontend build time.
@@ -39,10 +39,12 @@ change is technically unavoidable. The frontend's UI/UX is considered finished.
 - `src/components/shared/`, `src/components/charts/` — reusable dashboard building blocks
   (StatCard, DataTable, chart wrappers)
 - `src/lib/types.ts` — the domain model (source of truth for backend entity design)
-- `src/lib/store/data-store.ts` — zustand store; its action functions (`committeeDecision`,
-  `disburseLoan`, `recordRepayment`, `importPayroll`, etc.) are the business-logic spec the
-  backend ports
-- `src/lib/mock-data/` — seed data
+- `src/lib/api/` — React Query hooks over the real API, one module per backend area
+- `src/lib/plans.ts` — subscription plan reference data (prices/features); `src/lib/dates.ts` —
+  shared date math
+- (historical) the zustand `data-store.ts` and `mock-data/` seed data were the business-logic spec
+  the backend was ported from; both were deleted in gap-closure phase 8 once nothing read them —
+  see git history if the original mock behavior is ever needed
 - `src/lib/loan-calculator.ts` — interest/insurance/schedule/risk-score math, ported to
   `backend`'s `LoanCalculator`
 
@@ -135,10 +137,8 @@ real bug when violated — see [KNOWN_ISSUES.md](KNOWN_ISSUES.md) and
 Every role workspace — member (`src/pages/member/*`, plus `Profile.tsx`/`Notifications.tsx`),
 secretary, loan committee, accountant, HR, org admin, and super admin (`src/pages/super-admin/*`,
 5 of its 9 pages — `Monitoring.tsx`/`Settings.tsx`/`Support.tsx` were deliberately excluded, see
-[KNOWN_ISSUES.md](KNOWN_ISSUES.md)) — is wired to the real backend. A handful of individual pages
-within otherwise-wired workspaces still read the zustand mock store on purpose (no backend exists
-for that specific content) — see [FEATURES.md](FEATURES.md) for the current per-page list. This
-section describes the shape every workspace's wiring followed:
+[KNOWN_ISSUES.md](KNOWN_ISSUES.md)) — is wired to the real backend, and no page reads mock data
+since gap-closure phase 8. This section describes the shape every workspace's wiring followed:
 
 - **`src/lib/api/client.ts`** — a single shared `fetch` wrapper (`apiClient.get/post/put/patch`).
   Attaches `Authorization: Bearer` from the auth store; on a 401 from any endpoint *except*

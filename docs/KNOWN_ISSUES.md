@@ -6,17 +6,20 @@
   brand-new org + its first ORG_ADMIN. There is no invite-a-new-staff-member-to-my-org flow.
 - **No in-app backup restore endpoint.** The platform can now create a real,
   platform-wide `pg_dump`, but restore remains a manual platform-operations
-  action (see [DEVELOPMENT.md](DEVELOPMENT.md#backups-and-manual-restore)). The
-  frontend Restore button is still local-only UI state. Production backup
+  action (see [DEVELOPMENT.md](DEVELOPMENT.md#backups-and-manual-restore)); the
+  org-admin Backups page says so instead of offering a button. Production backup
   retention, off-host replication, and recovery drills still need an operational
   runbook and storage configuration; see [DEPLOYMENT.md](DEPLOYMENT.md). A full
   restore into a scratch database has not been exercised yet (the local
   `ikiminaconnect` role has no `CREATEDB`); only `pg_restore --list` was verified.
-- **`super-admin/Dashboard.tsx` still reads the zustand mock store** (`useDataStore` organizations,
-  `MOCK_TODAY`), unlike its sibling `Organizations.tsx`/`Analytics.tsx`, which use the real
-  `GET /organizations`. **`LandingPage.tsx`** likewise renders the mock `PLATFORM_ORGANIZATIONS`
-  list and count as if they were real customers — must be replaced or removed before a public
-  launch.
+- **The Enterprise plan advertises features that don't exist.** `src/lib/plans.ts` (shown on the
+  landing page's pricing section) lists "Unlimited members" (while `maxMembers` is 2000),
+  "Multi-branch support", "Dedicated account manager" and "SLA-backed uptime". Plan member limits
+  aren't enforced by the backend either. Pricing and plan contents are a business decision, so
+  they were left as-is — confirm or correct them before launch.
+- **Landing-page testimonial needs confirming.** The quote attributed to "APUPEKA Digital Savings
+  and Loan Cooperative" in `LandingPage.tsx` must be a real, approved statement from that
+  cooperative before the page goes public; remove it otherwise.
 - **Test coverage is still partial.** Backend integration tests and CI exist since gap-closure
   phase 7 (see [TESTING.md](TESTING.md)), but the frontend has no tests (lint + build only) and
   several backend areas (meetings, announcements, documents, exit requests, real backup creation)
@@ -38,6 +41,18 @@
   uses it — see [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## Recently closed gaps
+
+- **Last mock data removed — fixed (gap-closure phase 8).** `src/lib/mock-data/` and the zustand
+  `data-store` are deleted; no page reads seed data any more. `super-admin/Dashboard.tsx` now uses
+  the real `GET /organizations` (its MRR card is labelled as a sum of list prices, since there's no
+  billing system). The landing page's invented "Trusted by" organization list, its "Platform at a
+  glance" section of made-up figures (presented as "not placeholders"), and the hero's fake approval
+  rate card are gone; the "Explore the demo" button (no demo logins exist) now says "Sign in"; and
+  an FAQ answer that described the old preview-before-saving payroll import was corrected. The
+  org-admin Backups page's fake Restore button was replaced by an honest note. Real reference data
+  that lived in `mock-data` moved: plans → `src/lib/plans.ts`, `monthsBetween` → `src/lib/dates.ts`.
+  The never-built super-admin Monitoring/Settings/Support pages now carry a "Preview with sample
+  data" banner.
 
 - **Backups were metadata-only — fixed (gap-closure phase 6).** `POST /backups` (now SUPER_ADMIN
   only) runs a real platform-wide `pg_dump -F c` and records the file's real size and absolute
@@ -191,11 +206,10 @@
   layer) is designed but not implemented — see [ARCHITECTURE.md](ARCHITECTURE.md).
 - **Every role workspace now calls the real backend** — the workspace-by-workspace wiring effort
   (member → secretary → loan committee → accountant → HR → org admin → super admin) is complete.
-  What's left is page-level, not workspace-level: a handful of individual pages within otherwise-
-  wired workspaces deliberately still read the zustand mock store (listed in the items directly
-  below), plus `super-admin/Monitoring.tsx`/`Settings.tsx`/`Support.tsx`, which were explicitly
-  scoped out back in phase 15 since no real system exists behind any of the three (fabricated
-  uptime numbers, fabricated API keys, a hardcoded ticket list — see that item further down). See
+  Since gap-closure phase 8 no page reads mock data; the only non-live pages are
+  `super-admin/Monitoring.tsx`/`Settings.tsx`/`Support.tsx`, explicitly scoped out in phase 15
+  since no real system exists behind any of the three, and now labelled "Preview with sample data"
+  in the UI (see that item further up). See
   [FEATURES.md](FEATURES.md) and [ARCHITECTURE.md](ARCHITECTURE.md#frontendbackend-integration).
 - **Every page in the member workspace's roadmap now calls the real backend** — see "Recently
   closed gaps" for `Policies.tsx`, `LoanContract.tsx`, and `ExitSettlement.tsx`.

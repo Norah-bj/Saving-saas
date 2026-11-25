@@ -4,9 +4,9 @@ A multi-tenant savings and loan management platform for SACCOs, cooperatives,
 and employee savings associations. The frontend is Vite, React and TypeScript;
 the backend is Java 21, Spring Boot and PostgreSQL.
 
-The implemented workflows are wired to the real API. A small number of
-deliberately unfinished pages still use local mock data; see
-[`docs/KNOWN_ISSUES.md`](docs/KNOWN_ISSUES.md). The frontend is deployed on
+Every workflow is wired to the real API; the only pages not backed by real
+data are three deliberately unbuilt super-admin pages, labelled as sample-data
+previews (see [`docs/KNOWN_ISSUES.md`](docs/KNOWN_ISSUES.md)). The frontend is deployed on
 Vercel, but it cannot log in until the API and production database are
 deployed and Vercel receives the deployed API URL. Start with
 [`docs/README.md`](docs/README.md) for the documentation map.

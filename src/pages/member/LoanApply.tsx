@@ -31,7 +31,7 @@ import { useSavingsLedger } from "@/lib/api/savings";
 import { useGuarantorCandidates } from "@/lib/api/members";
 import { useApplyLoan } from "@/lib/api/loans";
 import { calculateLoan } from "@/lib/loan-calculator";
-import { monthsBetween } from "@/lib/mock-data";
+import { monthsBetween } from "@/lib/dates";
 import { formatRwf } from "@/lib/format";
 import { ApiError } from "@/lib/api/client";
 

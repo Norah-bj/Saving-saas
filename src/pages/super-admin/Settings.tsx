@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { formatDate } from "@/lib/format";
+import { SampleDataNotice } from "@/components/shared/sample-data-notice";
 
 interface ApiKey {
   id: string;
@@ -77,6 +78,7 @@ export default function SuperAdminSettingsPage() {
 
   return (
     <div className="flex flex-col gap-6">
+      <SampleDataNotice>These API keys and settings are illustrative and are not saved. The platform uses login tokens only and has no API-key access.</SampleDataNotice>
       <div>
         <h1 className="text-lg font-semibold tracking-tight">Settings & API Keys</h1>
         <p className="text-sm text-muted-foreground">

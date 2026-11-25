@@ -2,8 +2,10 @@
 
 ## Real gaps
 
-- **`/auth/register` cannot attach a new user to an existing organization** — it always creates a
-  brand-new org + its first ORG_ADMIN. There is no invite-a-new-staff-member-to-my-org flow.
+- **`/auth/register` always creates a new organization.** People join an existing organization
+  only by being added by its secretary/admin, who sends an invite (gap-closure phase 9). There is no
+  "request to join" flow, and no rate limiting yet on the public `/auth/*` endpoints (login,
+  forgot-password) — worth adding before launch.
 - **No in-app backup restore endpoint.** The platform can now create a real,
   platform-wide `pg_dump`, but restore remains a manual platform-operations
   action (see [DEVELOPMENT.md](DEVELOPMENT.md#backups-and-manual-restore)); the
@@ -41,6 +43,13 @@
   uses it — see [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## Recently closed gaps
+
+- **Staff-added members got a temporary password passed on by hand, and "Forgot password" was
+  fake — fixed (gap-closure phase 9).** `POST /members` now sends an invitation link instead (with
+  a copyable fallback link when email can't be delivered), `POST /members/{id}/resend-invite`
+  re-issues it, and `/accept-invite` lets the member choose their own password. The forgot-password
+  page used to show "check your email" without calling anything; `POST /auth/forgot-password` and
+  `/reset-password` now implement a real reset. See [BUSINESS_RULES.md](BUSINESS_RULES.md).
 
 - **Last mock data removed — fixed (gap-closure phase 8).** `src/lib/mock-data/` and the zustand
   `data-store` are deleted; no page reads seed data any more. `super-admin/Dashboard.tsx` now uses

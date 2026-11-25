@@ -2,7 +2,7 @@ import * as React from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { CheckCircle2, Loader2, UserPlus } from "lucide-react";
+import { Check, CheckCircle2, Copy, Loader2, MailWarning, Send, UserPlus } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/form";
 import { DataTable } from "@/components/shared/data-table";
 import { MemberStatusBadge } from "@/components/shared/status-badge";
-import { useMembers, useCreateMember } from "@/lib/api/members";
+import { useMembers, useCreateMember, useResendInvite, type InviteResult } from "@/lib/api/members";
 import { useOrganization } from "@/lib/api/organization";
 import { ApiError } from "@/lib/api/client";
 import { formatDate } from "@/lib/format";
@@ -44,13 +44,77 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
+/** What the dialog shows after creating a member or re-sending their invite. */
+interface InviteOutcome extends InviteResult {
+  fullName: string;
+  resent: boolean;
+}
+
+function InviteOutcomePanel({ outcome, onDone }: { outcome: InviteOutcome; onDone: () => void }) {
+  const [copied, setCopied] = React.useState(false);
+
+  async function copyLink() {
+    try {
+      await navigator.clipboard.writeText(outcome.inviteLink);
+      setCopied(true);
+    } catch {
+      setCopied(false); // clipboard blocked: the link is still selectable below
+    }
+  }
+
+  return (
+    <div className="flex flex-col items-center gap-3 py-4 text-center">
+      {outcome.inviteEmailSent ? (
+        <CheckCircle2 className="size-10 text-emerald-500" />
+      ) : (
+        <MailWarning className="size-10 text-amber-500" />
+      )}
+      <p className="font-medium">
+        {outcome.resent ? `New invitation for ${outcome.fullName}` : `${outcome.fullName} has been registered`}
+      </p>
+      <p className="max-w-sm text-sm text-muted-foreground">
+        {outcome.inviteEmailSent
+          ? "We've emailed them a link to choose their password and sign in. You can also share the link below directly."
+          : "We couldn't send the invitation email. Share this link with them directly (for example by WhatsApp or SMS) so they can choose their password."}
+      </p>
+      <code className="w-full max-w-sm break-all rounded-lg border bg-muted px-3 py-2 text-left text-xs select-all">
+        {outcome.inviteLink}
+      </code>
+      <p className="max-w-sm text-xs text-muted-foreground">
+        The link works once and expires in 72 hours. Only share it with this member.
+      </p>
+      <div className="mt-2 flex gap-2">
+        <Button variant="outline" onClick={copyLink}>
+          {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
+          {copied ? "Copied" : "Copy link"}
+        </Button>
+        <Button onClick={onDone}>Done</Button>
+      </div>
+    </div>
+  );
+}
+
 export default function SecretaryMembersPage() {
   const { data: organization } = useOrganization();
   const { data: members = [] } = useMembers();
   const createMember = useCreateMember();
+  const resendInvite = useResendInvite();
 
   const [open, setOpen] = React.useState(false);
-  const [created, setCreated] = React.useState<{ fullName: string; temporaryPassword: string } | null>(null);
+  const [created, setCreated] = React.useState<InviteOutcome | null>(null);
+  const [resendError, setResendError] = React.useState<string | null>(null);
+
+  function onResend(memberId: string, fullName: string) {
+    setResendError(null);
+    resendInvite.mutate(memberId, {
+      onSuccess: (result) => {
+        setCreated({ ...result, fullName, resent: true });
+        setOpen(true);
+      },
+      onError: (err) =>
+        setResendError(err instanceof ApiError ? err.message : "Couldn't resend the invitation. Please try again."),
+    });
+  }
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -80,7 +144,12 @@ export default function SecretaryMembersPage() {
       },
       {
         onSuccess: (result) => {
-          setCreated({ fullName: result.member.fullName, temporaryPassword: result.temporaryPassword });
+          setCreated({
+            fullName: result.member.fullName,
+            inviteLink: result.inviteLink,
+            inviteEmailSent: result.inviteEmailSent,
+            resent: false,
+          });
           form.reset({
             nationalId: "",
             employeeId: "",
@@ -121,13 +190,26 @@ export default function SecretaryMembersPage() {
           <CardTitle className="text-sm font-medium">All Members ({members.length})</CardTitle>
         </CardHeader>
         <CardContent>
+          {resendError && <p className="mb-3 text-sm text-destructive">{resendError}</p>}
           <DataTable
             columns={[
               { header: "Name", cell: (r) => r.fullName },
               { header: "Employee ID", cell: (r) => r.employeeId },
               { header: "National ID", cell: (r) => r.nationalId },
               { header: "Department", cell: (r) => r.department },
-              { header: "Status", cell: (r) => <MemberStatusBadge status={r.status as never} /> },
+              {
+                header: "Status",
+                cell: (r) => (
+                  <div className="flex flex-wrap items-center gap-1">
+                    <MemberStatusBadge status={r.status as never} />
+                    {r.invitePending && (
+                      <Badge variant="outline" className="border-amber-300 text-amber-700 dark:text-amber-300">
+                        Invite pending
+                      </Badge>
+                    )}
+                  </div>
+                ),
+              },
               {
                 header: "Roles",
                 cell: (r) => (
@@ -141,6 +223,21 @@ export default function SecretaryMembersPage() {
                 ),
               },
               { header: "Date Joined", cell: (r) => formatDate(r.dateJoined) },
+              {
+                header: "",
+                headClassName: "w-px",
+                cell: (r) =>
+                  r.invitePending ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={resendInvite.isPending && resendInvite.variables === r.id}
+                      onClick={() => onResend(r.id, r.fullName)}
+                    >
+                      <Send className="size-3.5" /> Resend invite
+                    </Button>
+                  ) : null,
+              },
             ]}
             rows={members}
             rowKey={(r) => r.id}
@@ -154,19 +251,7 @@ export default function SecretaryMembersPage() {
       <Dialog open={open} onOpenChange={(o) => (o ? setOpen(true) : closeDialog())}>
         <DialogContent className="sm:max-w-lg">
           {created ? (
-            <div className="flex flex-col items-center gap-3 py-4 text-center">
-              <CheckCircle2 className="size-10 text-emerald-500" />
-              <p className="font-medium">{created.fullName} has been registered</p>
-              <p className="max-w-sm text-sm text-muted-foreground">
-                Share this temporary password with them — it won't be shown again.
-              </p>
-              <code className="rounded-lg border bg-muted px-3 py-1.5 text-sm font-medium">
-                {created.temporaryPassword}
-              </code>
-              <Button onClick={closeDialog} className="mt-2">
-                Done
-              </Button>
-            </div>
+            <InviteOutcomePanel outcome={created} onDone={closeDialog} />
           ) : (
             <>
               <DialogHeader>
@@ -288,8 +373,8 @@ export default function SecretaryMembersPage() {
                     />
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    A temporary login password is generated automatically — you'll see it once, right
-                    after this member is created.
+                    We'll email them an invitation link to choose their own password. You'll also get the
+                    link to share directly in case the email doesn't arrive.
                   </p>
                   {createMember.isError && (
                     <p className="text-sm text-destructive">

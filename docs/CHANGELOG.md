@@ -6,6 +6,36 @@ verified.
 
 ---
 
+## 2026-11-24 — Gap-closure Phase 9: staff invites + real password reset
+
+**Changed**: staff-added members no longer get a generated temporary password. `POST /members`
+creates the account with no password and returns `{member, inviteLink, inviteEmailSent}`; an
+invitation email carries a single-use, 72-hour `/accept-invite` link (new public page) where the
+member chooses a password and is signed in. Email delivery is best-effort — on failure the member
+is still created and staff get the link to share directly. New `POST /members/{id}/resend-invite`
+(retires older links) and `MemberSummary.invitePending`; `secretary/Members.tsx` shows the invite
+outcome with a copy button, an "Invite pending" badge and a "Resend invite" action. Login refuses
+accounts with a pending invite using the generic invalid-credentials message.
+
+Also replaced the fake forgot-password page (it showed "check your email" without calling anything):
+`POST /auth/forgot-password` (always 204, no account enumeration; 1-hour single-use link) and
+`POST /auth/reset-password` (revokes all refresh tokens), plus a new `/reset-password` page. Invite
+and reset links share one hashed `account_tokens` table with a per-token purpose
+(`V11__staff_invites.sql`, which also makes `users.password_hash` nullable). `EmailService` gained
+invite and password-reset messages (console + Resend).
+
+**Verification**: `mvn test` → 18 tests, 0 failures (8 new: invite acceptance, early-login refusal,
+token reuse, resend retiring old links, resend permissions/tenancy, reset flow incl. session
+revocation, no email for unknown/pending addresses, invite token rejected as reset token). Existing
+tests now create members through the real invite flow. Against local Postgres: V11 applied; created
+a member over HTTP (invite logged by the console email stub), login refused before accepting,
+accepted, requested and completed a reset, new password works and old doesn't; existing dev users
+still log in; `account_tokens` rows hold 64-char SHA-256 hashes, marked used. `npm run lint`/`build`
+pass. **Not done**: in-browser check of the new pages (browser automation unavailable), and a real
+Resend delivery (needs your API key and verified domain).
+
+---
+
 ## 2026-11-24 — Gap-closure Phase 8: remove the last mock data
 
 **Changed**: deleted `src/lib/mock-data/` and the zustand `data-store` (~2,700 lines), plus the

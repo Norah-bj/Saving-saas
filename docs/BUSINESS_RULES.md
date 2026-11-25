@@ -150,6 +150,24 @@ credentials. `trial` is a normal operating status (a billing signal only) and ne
 platform SUPER_ADMIN has no organization (`organization_id = NULL`) and so can never be blocked by
 this check. See [KNOWN_ISSUES.md](KNOWN_ISSUES.md) for when this was fixed.
 
+## Staff invites and password resets (gap-closure phase 9)
+
+- A member added by staff (`POST /members`) has **no password** until they accept their invite.
+  Nobody, including the admin who added them, can sign in as them before then; a login attempt
+  fails with the same generic "Invalid email or password" as a wrong password.
+- The invite link is single-use and expires after 72 hours. Re-sending (`POST
+  /members/{id}/resend-invite`) retires every earlier link. Accepting sets the password, counts as
+  email verification, and signs the member in.
+- Invitation email is best-effort: if it can't be delivered (provider down, or Resend's test
+  sender before a domain is verified), the member is still created and the staff member gets the
+  link to share directly. This is deliberately no weaker than the temporary password it replaced.
+- Forgot password always answers the same way, so it can't reveal whether an address is
+  registered. Reset links are single-use, expire after 1 hour, and only the newest works. A
+  completed reset signs the user out of other sessions. Members with a pending invite are pointed
+  to their invite instead (staff can re-send it); exited members get nothing.
+- Invite and reset tokens are separate purposes in one table (`account_tokens`); a token only
+  works for the purpose it was issued for. Only SHA-256 hashes are stored.
+
 ## Email verification gates sensitive access (added beyond the frontend mock — the mock has no auth backend at all)
 
 Self-service organization registration (`POST /auth/register`) stays **instant** — no manual

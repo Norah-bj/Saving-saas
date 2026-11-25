@@ -213,8 +213,24 @@ public abstract class IntegrationTestBase {
                 login(adminEmail, PASSWORD));
     }
 
-    /** Creates a member as staff, sets their password via the returned temporary one, and logs in. */
+    /** Creates a member as staff, accepts their invite with {@link #PASSWORD}, and returns their token. */
     protected Member createMember(Org org, String fullName) throws Exception {
+        Response created = postMember(org, fullName);
+        String email = created.body().get("email").asText();
+        UUID id = UUID.fromString(created.body().get("member").get("id").asText());
+        String employeeId = created.body().get("member").get("employeeId").asText();
+        String inviteToken = RecordingEmailService.tokenFromLink(created.body().get("inviteLink").asText());
+        Response accepted = postJson("/auth/accept-invite", null, Map.of("token", inviteToken, "password", PASSWORD));
+        assertStatus(accepted, 200);
+        return new Member(id, email, employeeId, accepted.body().get("accessToken").asText());
+    }
+
+    /**
+     * POST /members as the org admin, without accepting the invite. The JSON
+     * body gets an extra {@code email} field (not part of the API response)
+     * so callers know which address was used.
+     */
+    protected Response postMember(Org org, String fullName) throws Exception {
         String suffix = unique();
         String email = "m-" + suffix + "@test.rw";
         String employeeId = "EMP-" + suffix;
@@ -228,9 +244,8 @@ public abstract class IntegrationTestBase {
                 "position", "Officer",
                 "monthlySalaryRwf", 400_000));
         assertStatus(created, 201);
-        UUID id = UUID.fromString(created.body().get("member").get("id").asText());
-        String temporaryPassword = created.body().get("temporaryPassword").asText();
-        return new Member(id, email, employeeId, login(email, temporaryPassword));
+        ((com.fasterxml.jackson.databind.node.ObjectNode) created.body()).put("email", email);
+        return created;
     }
 
     /** Replaces a user's roles (ORG_ADMIN action). Roles live in the JWT, so callers must log in again. */

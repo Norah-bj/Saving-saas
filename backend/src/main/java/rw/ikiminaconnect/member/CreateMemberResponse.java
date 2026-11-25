@@ -1,9 +1,11 @@
 package rw.ikiminaconnect.member;
 
 /**
- * {@code temporaryPassword} is shown exactly once — it isn't retrievable
- * again, only re-issuable (a future "reset member password" endpoint, not in
- * this slice). Deferring email-based invites to phase 16 (notifications).
+ * Since gap-closure phase 9 a staff-added member gets an invite link instead
+ * of a temporary password. {@code inviteLink} is returned to the staff member
+ * who created the account so they can share it another way (WhatsApp, SMS)
+ * when {@code inviteEmailSent} is false — e.g. before a Resend sending domain
+ * is verified. It's single-use and expires (see auth/InviteService).
  */
-public record CreateMemberResponse(MemberSummary member, String temporaryPassword) {
+public record CreateMemberResponse(MemberSummary member, String inviteLink, boolean inviteEmailSent) {
 }

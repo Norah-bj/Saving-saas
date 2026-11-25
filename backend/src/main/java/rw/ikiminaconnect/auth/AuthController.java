@@ -16,9 +16,28 @@ import rw.ikiminaconnect.security.CurrentUser;
 public class AuthController {
 
     private final AuthService authService;
+    private final PasswordResetService passwordResetService;
 
-    public AuthController(AuthService authService) {
+    public AuthController(AuthService authService, PasswordResetService passwordResetService) {
         this.authService = authService;
+        this.passwordResetService = passwordResetService;
+    }
+
+    /**
+     * Public. Always 204, whether or not the address has an account, so it
+     * can't be used to find out who is registered. Emails a 1-hour link.
+     */
+    @PostMapping("/auth/forgot-password")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        passwordResetService.requestReset(request.email());
+    }
+
+    /** Public — the single-use reset token proves identity. 403 if invalid/expired/used. Signs out other sessions. */
+    @PostMapping("/auth/reset-password")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        passwordResetService.resetPassword(request.token(), request.password());
     }
 
     @PostMapping("/auth/register")
@@ -52,6 +71,17 @@ public class AuthController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void verifyEmail(@Valid @RequestBody VerifyEmailRequest request) {
         authService.verifyEmail(request.token());
+    }
+
+    /**
+     * Public — the single-use invite token itself proves identity (it was
+     * sent to the member's email or shared by their admin). Sets the
+     * member's password and signs them in. 403 if the token is invalid,
+     * expired or already used.
+     */
+    @PostMapping("/auth/accept-invite")
+    public AuthResponse acceptInvite(@Valid @RequestBody AcceptInviteRequest request) {
+        return authService.acceptInvite(request);
     }
 
     @PostMapping("/auth/resend-verification")

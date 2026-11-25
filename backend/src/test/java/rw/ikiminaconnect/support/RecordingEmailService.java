@@ -22,6 +22,39 @@ public class RecordingEmailService implements EmailService {
         latestLinkByEmail.put(toEmail.toLowerCase(), verificationLink);
     }
 
+    private final Map<String, String> latestInviteByEmail = new ConcurrentHashMap<>();
+
+    @Override
+    public void sendInviteEmail(String toEmail, String recipientName, String organizationName, String inviteLink) {
+        latestInviteByEmail.put(toEmail.toLowerCase(), inviteLink);
+    }
+
+    /** The token from the most recent invite emailed to this address. */
+    public String inviteTokenFor(String email) {
+        String link = latestInviteByEmail.get(email.toLowerCase());
+        if (link == null) {
+            throw new AssertionError("No invite email was sent to " + email);
+        }
+        return tokenFromLink(link);
+    }
+
+    private final Map<String, String> latestResetByEmail = new ConcurrentHashMap<>();
+
+    @Override
+    public void sendPasswordResetEmail(String toEmail, String recipientName, String resetLink) {
+        latestResetByEmail.put(toEmail.toLowerCase(), resetLink);
+    }
+
+    /** The token from the most recent reset email to this address, or null if none was sent. */
+    public String resetTokenFor(String email) {
+        String link = latestResetByEmail.get(email.toLowerCase());
+        return link == null ? null : tokenFromLink(link);
+    }
+
+    public static String tokenFromLink(String link) {
+        return link.substring(link.indexOf("token=") + "token=".length());
+    }
+
     public String tokenFor(String email) {
         String link = latestLinkByEmail.get(email.toLowerCase());
         if (link == null) {

@@ -52,6 +52,12 @@ public class RefreshTokenService {
         return new RotationResult(existing.getUserId(), newRawToken);
     }
 
+    /** Revokes every active refresh token for the user — existing sessions can't be renewed. */
+    @org.springframework.transaction.annotation.Transactional
+    public void revokeAllForUser(UUID userId) {
+        refreshTokenRepository.revokeAllForUser(userId, java.time.Instant.now());
+    }
+
     public void revoke(String rawToken) {
         refreshTokenRepository.findByTokenHash(hash(rawToken)).ifPresent(token -> {
             token.revoke();

@@ -5,12 +5,16 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.web.ErrorResponse;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 @RestControllerAdvice
@@ -65,8 +69,27 @@ public class GlobalExceptionHandler {
                 .body(ApiError.of("validation_failed", "One or more fields are invalid.", details));
     }
 
+    /** A path variable or query parameter of the wrong type: a non-UUID id, an unknown enum filter value. */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiError> handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiError.of("bad_request", "Invalid value for '" + ex.getName() + "'."));
+    }
+
+    /** Missing or malformed JSON body, including unknown enum values and unparseable dates. */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiError> handleUnreadableBody(HttpMessageNotReadableException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiError.of("bad_request", "The request body is missing or malformed."));
+    }
+
     /**
-     * Catch-all for anything not handled above. Critical to have: without
+     * Catch-all for anything not handled above. Spring MVC's own client-error
+     * exceptions (unknown path 404, wrong method 405, unsupported content type
+     * 415, missing parameter 400, ...) implement {@link ErrorResponse} and keep
+     * their 4xx status here instead of being reported as a server error.
+     *
+     * <p>Critical to have: without
      * this, an unhandled exception propagates to the servlet container's
      * default error handling, which internally forwards to /error — and
      * because JwtAuthenticationFilter is a OncePerRequestFilter that already
@@ -80,6 +103,17 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiError> handleUnexpected(Exception ex) {
+        if (ex instanceof ErrorResponse errorResponse && errorResponse.getStatusCode().is4xxClientError()) {
+            HttpStatusCode status = errorResponse.getStatusCode();
+            String code = switch (status.value()) {
+                case 404 -> "not_found";
+                case 405 -> "method_not_allowed";
+                case 415 -> "unsupported_media_type";
+                default -> "bad_request";
+            };
+            String message = status.value() == 404 ? "Not found." : "This request isn't supported.";
+            return ResponseEntity.status(status).body(ApiError.of(code, message));
+        }
         log.error("Unhandled exception", ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ApiError.of("internal_error", "Something went wrong. Please try again."));

@@ -33,3 +33,6 @@ yarn-error.log*
 
 # typescript
 *.tsbuildinfo
+
+# API smoke test output (scripts/api-smoke-test.mjs)
+smoke-test-results.json

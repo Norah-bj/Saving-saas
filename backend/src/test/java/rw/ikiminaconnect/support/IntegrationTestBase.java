@@ -174,7 +174,7 @@ public abstract class IntegrationTestBase {
         return UUID.randomUUID().toString().substring(0, 8);
     }
 
-    private static String digits(int length) {
+    protected static String digits(int length) {
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < length; i++) {
             sb.append(ThreadLocalRandom.current().nextInt(10));

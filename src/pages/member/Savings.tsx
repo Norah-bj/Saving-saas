@@ -13,6 +13,8 @@ import { useCurrentUser } from "@/lib/hooks/use-current-user";
 import { useSavingsLedger, useAddVoluntarySaving } from "@/lib/api/savings";
 import { formatRwf } from "@/lib/format";
 import { monthlySeriesFromLedger } from "@/lib/chart-utils";
+import { usePublicConfig } from "@/lib/api/config";
+import { DemoPaymentNotice } from "@/components/shared/demo-payment-notice";
 
 export default function MemberSavingsPage() {
   const { user } = useCurrentUser();
@@ -20,6 +22,8 @@ export default function MemberSavingsPage() {
   const addVoluntarySaving = useAddVoluntarySaving(user?.id);
 
   const [amount, setAmount] = React.useState<number>(10000);
+  const { data: config } = usePublicConfig();
+  const paymentsDisabled = config?.paymentsMode === "disabled";
   const [submitted, setSubmitted] = React.useState(false);
 
   if (!user) return null;
@@ -38,6 +42,14 @@ export default function MemberSavingsPage() {
 
   const series = monthlySeriesFromLedger(ledger, 8);
 
+  const amountError = !Number.isFinite(amount) || !Number.isInteger(amount)
+    ? "Enter a whole amount in RWF."
+    : amount < 100
+      ? "The minimum deposit is 100 RWF."
+      : amount > 50_000_000
+        ? "The maximum single deposit is 50,000,000 RWF."
+        : null;
+
   const breakdown = [
     { key: "salary", label: "Salary Deduction", value: salaryTotal, color: "var(--chart-1)" },
     { key: "voluntary", label: "Voluntary Savings", value: voluntaryTotal, color: "var(--chart-2)" },
@@ -46,7 +58,7 @@ export default function MemberSavingsPage() {
 
   function handleDeposit(e: React.FormEvent) {
     e.preventDefault();
-    if (!user || amount <= 0) return;
+    if (!user || amountError || paymentsDisabled) return;
     addVoluntarySaving.mutate(
       { amountRwf: amount, source: "Member Self-Service" },
       {
@@ -115,25 +127,29 @@ export default function MemberSavingsPage() {
           <CardTitle className="text-sm font-medium">Make a Voluntary Deposit</CardTitle>
           <CardDescription>Add extra savings on top of your monthly payroll deduction.</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex flex-col gap-3">
+          <DemoPaymentNotice mode={config?.paymentsMode} />
+          {!paymentsDisabled && (
           <form onSubmit={handleDeposit} className="flex flex-col gap-3">
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="deposit-amount">Amount (RWF)</Label>
               <Input
                 id="deposit-amount"
                 type="number"
-                min={1000}
+                min={100}
                 step={1000}
-                value={amount}
-                onChange={(e) => setAmount(e.target.valueAsNumber || 0)}
+                value={Number.isNaN(amount) ? "" : amount}
+                aria-invalid={Boolean(amountError)}
+                onChange={(e) => setAmount(e.target.valueAsNumber)}
               />
+              {amountError && <p className="text-xs text-destructive">{amountError}</p>}
             </div>
-            <Button type="submit" className="w-fit" disabled={amount <= 0 || addVoluntarySaving.isPending}>
-              <PlusCircle className="size-4" /> Deposit {amount > 0 ? formatRwf(amount) : ""}
+            <Button type="submit" className="w-fit" disabled={Boolean(amountError) || addVoluntarySaving.isPending}>
+              <PlusCircle className="size-4" /> Deposit {amountError ? "" : formatRwf(amount)}
             </Button>
             {submitted && (
               <p className="text-sm text-emerald-600 dark:text-emerald-400">
-                Deposit recorded. Your new balance reflects immediately in your statement.
+                Demo deposit recorded. It shows in your statement as "Demo (no real payment)".
               </p>
             )}
             {addVoluntarySaving.isError && (
@@ -144,6 +160,7 @@ export default function MemberSavingsPage() {
               </p>
             )}
           </form>
+          )}
         </CardContent>
       </Card>
     </div>

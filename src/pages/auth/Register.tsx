@@ -21,23 +21,38 @@ import { useSessionStore } from "@/lib/store/session-store";
 import { apiClient, ApiError } from "@/lib/api/client";
 import { HOME_PAGE } from "@/lib/nav-config";
 import type { AuthResponse } from "@/lib/store/auth-store";
+import { PasswordStrength } from "@/components/shared/password-strength";
+import {
+  applyServerFieldErrors,
+  emailSchema,
+  employeeIdSchema,
+  nationalIdSchema,
+  newPasswordFields,
+  passwordsMatch,
+  passwordsMatchError,
+  phoneSchema,
+  requiredText,
+} from "@/lib/validation";
 
-const schema = z.object({
-  organizationName: z.string().min(2, "Organization name is required"),
-  organizationShortName: z.string().min(2, "Short name is required").max(40),
-  district: z.string().min(1, "District is required"),
-  sector: z.string().min(1, "Sector is required"),
-  address: z.string().min(1, "Address is required"),
-  contactEmail: z.string().email("Enter a valid email address"),
-  contactPhone: z.string().min(1, "Contact phone is required"),
-  adminFullName: z.string().min(2, "Your full name is required"),
-  adminNationalId: z.string().min(1, "National ID is required"),
-  adminEmployeeId: z.string().min(1, "Employee ID is required"),
-  adminEmail: z.string().email("Enter a valid email address"),
-  adminPhone: z.string().min(1, "Phone is required"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
-});
-type FormValues = z.infer<typeof schema>;
+const schema = z
+  .object({
+    organizationName: requiredText("Organization name", 2, 120),
+    organizationShortName: requiredText("Short name", 2, 40),
+    district: requiredText("District", 1, 60),
+    sector: requiredText("Sector", 1, 60),
+    address: requiredText("Address", 1, 200),
+    contactEmail: emailSchema,
+    contactPhone: phoneSchema,
+    adminFullName: requiredText("Your full name", 2, 120),
+    adminNationalId: nationalIdSchema,
+    adminEmployeeId: employeeIdSchema,
+    adminEmail: emailSchema,
+    adminPhone: phoneSchema,
+    ...newPasswordFields,
+  })
+  .refine(passwordsMatch, passwordsMatchError);
+type FormInput = z.input<typeof schema>;
+type FormValues = z.output<typeof schema>;
 
 export default function RegisterPage() {
   const navigate = useNavigate();
@@ -46,8 +61,9 @@ export default function RegisterPage() {
   const [submitted, setSubmitted] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
-  const form = useForm<FormValues>({
+  const form = useForm<FormInput, unknown, FormValues>({
     resolver: zodResolver(schema),
+    mode: "onTouched",
     defaultValues: {
       organizationName: "",
       organizationShortName: "",
@@ -62,18 +78,26 @@ export default function RegisterPage() {
       adminEmail: "",
       adminPhone: "",
       password: "",
+      confirmPassword: "",
     },
   });
+  const passwordValue = form.watch("password");
 
   async function onSubmit(values: FormValues) {
     setError(null);
     try {
-      const response = await apiClient.post<AuthResponse>("/auth/register", values);
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { confirmPassword, ...body } = values;
+      const response = await apiClient.post<AuthResponse>("/auth/register", body);
       setTokens(response);
       const homeRole = response.user.roles[0];
       switchRole(homeRole);
       setSubmitted(true);
     } catch (err) {
+      if (applyServerFieldErrors(err, form.setError)) {
+        setError("Please correct the highlighted fields.");
+        return;
+      }
       setError(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
     }
   }
@@ -232,7 +256,7 @@ export default function RegisterPage() {
                       <FormItem>
                         <FormLabel>National ID</FormLabel>
                         <FormControl>
-                          <Input {...field} />
+                          <Input inputMode="numeric" placeholder="16 digits" maxLength={20} {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -286,6 +310,20 @@ export default function RegisterPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Password</FormLabel>
+                      <FormControl>
+                        <PasswordInput autoComplete="new-password" aria-describedby="register-password-help" {...field} />
+                      </FormControl>
+                      <PasswordStrength id="register-password-help" password={passwordValue ?? ""} />
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="confirmPassword"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Confirm password</FormLabel>
                       <FormControl>
                         <PasswordInput autoComplete="new-password" {...field} />
                       </FormControl>

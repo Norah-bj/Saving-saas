@@ -15,6 +15,19 @@ import { cn } from "@/lib/utils";
 
 const PERIOD_CANDIDATES = [3, 6, 8, 12, 18, 24, 36];
 
+/** Same limits as the API (UpdateOrganizationLoanPolicyRequest). */
+function policyErrors(p: { loanInterestRate: number; loanInsuranceRate: number; minMonthsBeforeEligible: number; allowedRepaymentPeriods: number[] }) {
+  const errors: Record<string, string> = {};
+  if (!Number.isFinite(p.loanInterestRate) || p.loanInterestRate < 0 || p.loanInterestRate > 50)
+    errors.loanInterestRate = "Enter a rate between 0 and 50%.";
+  if (!Number.isFinite(p.loanInsuranceRate) || p.loanInsuranceRate < 0 || p.loanInsuranceRate > 20)
+    errors.loanInsuranceRate = "Enter a rate between 0 and 20%.";
+  if (!Number.isInteger(p.minMonthsBeforeEligible) || p.minMonthsBeforeEligible < 0 || p.minMonthsBeforeEligible > 60)
+    errors.minMonthsBeforeEligible = "Enter whole months between 0 and 60.";
+  if (p.allowedRepaymentPeriods.length === 0) errors.allowedRepaymentPeriods = "Select at least one repayment period.";
+  return errors;
+}
+
 export default function LoanCommitteePolicyPage() {
   const { data: organization } = useOrganization();
   const updateLoanPolicy = useUpdateLoanPolicy();
@@ -53,7 +66,7 @@ export default function LoanCommitteePolicyPage() {
   }
 
   function handleSave() {
-    if (!active || active.allowedRepaymentPeriods.length === 0) return;
+    if (!active || Object.keys(policyErrors(active)).length > 0) return;
     updateLoanPolicy.mutate(active, { onSuccess: () => setForm(null) });
   }
 
@@ -62,6 +75,7 @@ export default function LoanCommitteePolicyPage() {
     .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1));
 
   if (!active || !organization) return null;
+  const errors = policyErrors(active);
 
   return (
     <div className="flex flex-col gap-6">
@@ -87,23 +101,27 @@ export default function LoanCommitteePolicyPage() {
               <Label htmlFor="interest-rate">Interest Rate (%)</Label>
               <Input
                 id="interest-rate"
+                aria-invalid={Boolean(errors.loanInterestRate)}
                 type="number"
                 min={0}
                 step={0.5}
-                value={active.loanInterestRate}
-                onChange={(e) => set("loanInterestRate", e.target.valueAsNumber || 0)}
+                value={Number.isNaN(active.loanInterestRate) ? "" : active.loanInterestRate}
+                onChange={(e) => set("loanInterestRate", e.target.valueAsNumber)}
               />
+              {errors.loanInterestRate && <p className="text-xs text-destructive">{errors.loanInterestRate}</p>}
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="insurance-rate">Insurance Rate (%)</Label>
               <Input
                 id="insurance-rate"
+                aria-invalid={Boolean(errors.loanInsuranceRate)}
                 type="number"
                 min={0}
                 step={0.5}
-                value={active.loanInsuranceRate}
-                onChange={(e) => set("loanInsuranceRate", e.target.valueAsNumber || 0)}
+                value={Number.isNaN(active.loanInsuranceRate) ? "" : active.loanInsuranceRate}
+                onChange={(e) => set("loanInsuranceRate", e.target.valueAsNumber)}
               />
+              {errors.loanInsuranceRate && <p className="text-xs text-destructive">{errors.loanInsuranceRate}</p>}
               <p className="text-xs text-muted-foreground">
                 Only charged when the loan exceeds the member&apos;s savings.
               </p>
@@ -112,12 +130,14 @@ export default function LoanCommitteePolicyPage() {
               <Label htmlFor="min-months">Minimum Months Before Eligible</Label>
               <Input
                 id="min-months"
+                aria-invalid={Boolean(errors.minMonthsBeforeEligible)}
                 type="number"
                 min={0}
                 step={1}
-                value={active.minMonthsBeforeEligible}
-                onChange={(e) => set("minMonthsBeforeEligible", e.target.valueAsNumber || 0)}
+                value={Number.isNaN(active.minMonthsBeforeEligible) ? "" : active.minMonthsBeforeEligible}
+                onChange={(e) => set("minMonthsBeforeEligible", e.target.valueAsNumber)}
               />
+              {errors.minMonthsBeforeEligible && <p className="text-xs text-destructive">{errors.minMonthsBeforeEligible}</p>}
             </div>
           </div>
 
@@ -143,8 +163,8 @@ export default function LoanCommitteePolicyPage() {
                 );
               })}
             </div>
-            {active.allowedRepaymentPeriods.length === 0 && (
-              <p className="text-xs text-destructive">Select at least one repayment period.</p>
+            {errors.allowedRepaymentPeriods && (
+              <p className="text-xs text-destructive">{errors.allowedRepaymentPeriods}</p>
             )}
           </div>
 
@@ -156,7 +176,7 @@ export default function LoanCommitteePolicyPage() {
           <div className="flex items-center gap-3 pt-1">
             <Button
               onClick={handleSave}
-              disabled={active.allowedRepaymentPeriods.length === 0 || updateLoanPolicy.isPending}
+              disabled={Object.keys(errors).length > 0 || updateLoanPolicy.isPending}
             >
               <Save className="size-4" /> Save Changes
             </Button>

@@ -51,11 +51,11 @@ const FILE_ICON: Record<string, typeof FileText> = {
 };
 
 const schema = z.object({
-  name: z.string().min(3, "Document name is required"),
+  name: z.string().trim().min(3, "Document name is required").max(120, "Keep the name under 120 characters"),
   category: z.enum(["constitution", "policy", "report", "minutes", "form"]),
   fileType: z.enum(["pdf", "docx", "xlsx"]),
   visibility: z.enum(["all", "admins"]),
-  sizeKb: z.number().min(1, "File size is required"),
+  sizeKb: z.number({ message: "Enter the file size in KB" }).int("Use a whole number").min(1, "File size is required").max(102400, "Files over 100 MB aren't supported"),
 });
 type FormValues = z.infer<typeof schema>;
 

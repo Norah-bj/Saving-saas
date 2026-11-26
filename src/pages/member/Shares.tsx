@@ -15,6 +15,8 @@ import { useOrganization } from "@/lib/api/organization";
 import { useSavingsLedger, useBuyShares } from "@/lib/api/savings";
 import { useShareWithdrawalRequests, useSubmitShareWithdrawal } from "@/lib/api/membership";
 import { formatDate, formatRwf } from "@/lib/format";
+import { usePublicConfig } from "@/lib/api/config";
+import { DemoPaymentNotice } from "@/components/shared/demo-payment-notice";
 
 export default function MemberSharesPage() {
   const { user } = useCurrentUser();
@@ -26,6 +28,8 @@ export default function MemberSharesPage() {
   const submitWithdrawal = useSubmitShareWithdrawal();
 
   const [buyCount, setBuyCount] = React.useState<number>(1);
+  const { data: config } = usePublicConfig();
+  const paymentsDisabled = config?.paymentsMode === "disabled";
   const [buyMsg, setBuyMsg] = React.useState(false);
   const [withdrawCount, setWithdrawCount] = React.useState<number>(1);
   const [withdrawMsg, setWithdrawMsg] = React.useState(false);
@@ -60,7 +64,7 @@ export default function MemberSharesPage() {
 
   function handleBuy(e: React.FormEvent) {
     e.preventDefault();
-    if (!user || buyCount <= 0) return;
+    if (!user || buyCount <= 0 || buyCount > 10000 || paymentsDisabled) return;
     buyShares.mutate(buyCount, {
       onSuccess: () => {
         setBuyMsg(true);
@@ -111,7 +115,9 @@ export default function MemberSharesPage() {
             <CardTitle className="text-sm font-medium">Buy Shares</CardTitle>
             <CardDescription>Purchase additional shares in whole-share increments.</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex flex-col gap-3">
+            <DemoPaymentNotice mode={config?.paymentsMode} />
+            {!paymentsDisabled && (
             <form onSubmit={handleBuy} className="flex flex-col gap-3">
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="buy-shares">Number of shares</Label>
@@ -123,11 +129,13 @@ export default function MemberSharesPage() {
                   value={buyCount}
                   onChange={(e) => setBuyCount(Math.max(0, Math.round(e.target.valueAsNumber || 0)))}
                 />
+                {buyCount < 1 && <p className="text-xs text-destructive">Enter at least 1 share.</p>}
+                {buyCount > 10000 && <p className="text-xs text-destructive">You can buy at most 10,000 shares at once.</p>}
               </div>
               <p className="text-sm text-muted-foreground">
                 Cost preview: <span className="font-medium text-foreground">{formatRwf(buyCount * shareValue)}</span>
               </p>
-              <Button type="submit" className="w-fit" disabled={buyCount <= 0 || buyShares.isPending}>
+              <Button type="submit" className="w-fit" disabled={buyCount <= 0 || buyCount > 10000 || buyShares.isPending}>
                 <PlusCircle className="size-4" /> Buy {buyCount > 0 ? `${buyCount} share${buyCount > 1 ? "s" : ""}` : "shares"}
               </Button>
               {buyMsg && (
@@ -141,6 +149,7 @@ export default function MemberSharesPage() {
                 </p>
               )}
             </form>
+            )}
           </CardContent>
         </Card>
 

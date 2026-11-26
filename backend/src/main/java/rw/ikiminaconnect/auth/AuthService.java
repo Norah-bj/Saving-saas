@@ -82,6 +82,9 @@ public class AuthService {
         if (memberRepository.existsByNationalId(request.adminNationalId())) {
             throw new ConflictException("A user with this national ID already exists on the platform.");
         }
+        if (memberRepository.existsByEmail(request.adminEmail())) {
+            throw new ConflictException("An account with this email address already exists. Sign in instead, or use a different email.");
+        }
 
         String slug = slugify(request.organizationShortName());
         if (organizationRepository.existsBySlug(slug)) {
@@ -155,6 +158,9 @@ public class AuthService {
         }
         if (memberRepository.existsByNationalId(request.nationalId())) {
             throw new ConflictException("A user with this national ID already exists on the platform.");
+        }
+        if (memberRepository.existsByEmail(request.email())) {
+            throw new ConflictException("An account with this email address already exists.");
         }
 
         AppUser admin = new AppUser(

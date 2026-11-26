@@ -1,5 +1,31 @@
 # Testing
 
+## End-to-end API smoke test (`scripts/api-smoke-test.mjs`)
+
+Walks every endpoint as every role (admin, secretary, accountant, HR, committee chair and member,
+borrower, guarantor, plain member, super admin) against a **running** backend: 140 checks covering
+auth and sessions, invites, roles, organization settings, savings and shares, the full guaranteed
+loan lifecycle and a rejection, ledger and reports, payroll import, meetings/announcements/
+documents visibility, notifications, share withdrawal, exit, suspension, audit log, password
+reset, platform administration and backups, plus error handling and CORS. It registers a fresh
+"QA Checklist Coop …" organization each run, so existing data is untouched — but it does create
+real rows, so never point it at a database holding real members unless you mean to keep that test
+organization.
+
+```bash
+# Local backend with the console email provider (reads the verification link from its log):
+SMOKE_BACKEND_LOG=/path/to/backend.log \
+SMOKE_SUPERADMIN_EMAIL=superadmin@ikiminaconnect.rw SMOKE_SUPERADMIN_PASSWORD='...' \
+node scripts/api-smoke-test.mjs
+
+# A hosted server: point it at the API and use an existing, verified org admin instead.
+SMOKE_API=https://api.example.com/api/v1 SMOKE_ADMIN_EMAIL=... SMOKE_ADMIN_PASSWORD=... \
+node scripts/api-smoke-test.mjs
+```
+
+It prints PASS/FAIL per check and writes `smoke-test-results.json`. The backup check needs `pg_dump`
+reachable by the backend (`PG_DUMP_PATH` locally). Last full run: 140/140 on 2026-11-25.
+
 ## Automated tests (since gap-closure phase 7)
 
 Backend integration tests live in `backend/src/test/java/rw/ikiminaconnect/` and run the real

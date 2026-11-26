@@ -31,6 +31,9 @@ public interface MemberRepository extends JpaRepository<AppUser, UUID> {
 
     boolean existsByNationalId(String nationalId);
 
+    /** Emails are unique platform-wide (users_email_key); check before inserting so the caller gets a clear 409. */
+    boolean existsByEmail(String email);
+
     boolean existsByOrganizationIdAndEmployeeId(UUID organizationId, String employeeId);
 
     Optional<AppUser> findByOrganizationIdAndEmployeeId(UUID organizationId, String employeeId);

@@ -50,8 +50,8 @@ const AUDIENCE_LABEL: Record<string, string> = {
 };
 
 const schema = z.object({
-  title: z.string().min(3, "Title is required"),
-  body: z.string().min(10, "Please write the announcement body"),
+  title: z.string().trim().min(3, "Title is required").max(120, "Keep the title under 120 characters"),
+  body: z.string().trim().min(10, "Please write the announcement body").max(4000, "Keep the announcement under 4,000 characters"),
   priority: z.enum(["normal", "important", "urgent"]),
   audience: z.enum(["all", "members", "admins"]),
 });

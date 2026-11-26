@@ -33,7 +33,7 @@ class AuthAndTenancyIntegrationTest extends IntegrationTestBase {
                 Map.entry("contactEmail", "c-" + suffix + "@test.rw"),
                 Map.entry("contactPhone", "0788000001"),
                 Map.entry("adminFullName", "Unverified Admin"),
-                Map.entry("adminNationalId", "1199000000" + suffix.hashCode()),
+                Map.entry("adminNationalId", "1199" + digits(12)),
                 Map.entry("adminEmployeeId", "UV-" + suffix),
                 Map.entry("adminEmail", "uv-" + suffix + "@test.rw"),
                 Map.entry("adminPhone", "0788000002"),

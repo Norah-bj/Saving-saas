@@ -6,12 +6,37 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useOrganization, useUpdateOrganizationProfile, type UpdateOrganizationProfileInput } from "@/lib/api/organization";
 import { ApiError } from "@/lib/api/client";
+import { z } from "zod";
+import { emailSchema, hexColorSchema, phoneSchema, requiredText } from "@/lib/validation";
+
+const profileSchema = z.object({
+  name: requiredText("Organization name", 2, 120),
+  shortName: requiredText("Short name", 2, 40),
+  district: requiredText("District", 1, 60),
+  sector: requiredText("Sector", 1, 60),
+  address: requiredText("Address", 1, 200),
+  contactEmail: emailSchema,
+  contactPhone: phoneSchema,
+  logoInitials: requiredText("Logo initials", 1, 3),
+  brandColor: hexColorSchema,
+  stampLabel: requiredText("Stamp label", 1, 80),
+});
+type FieldErrors = Partial<Record<keyof UpdateOrganizationProfileInput, string>>;
+
+function FieldError({ message, id }: { message?: string; id: string }) {
+  return message ? (
+    <p id={id} className="text-xs text-destructive">
+      {message}
+    </p>
+  ) : null;
+}
 
 export default function OrgAdminSettingsPage() {
   const { data: organization } = useOrganization();
   const updateProfile = useUpdateOrganizationProfile();
 
   const [form, setForm] = React.useState<UpdateOrganizationProfileInput | null>(null);
+  const [errors, setErrors] = React.useState<FieldErrors>({});
 
   const active = form ?? (organization
     ? {
@@ -31,12 +56,28 @@ export default function OrgAdminSettingsPage() {
   function set<K extends keyof UpdateOrganizationProfileInput>(key: K, value: UpdateOrganizationProfileInput[K]) {
     if (!active) return;
     setForm({ ...active, [key]: value });
+    setErrors((prev) => ({ ...prev, [key]: undefined }));
     updateProfile.reset();
   }
 
   function handleSave() {
     if (!active) return;
-    updateProfile.mutate(active, { onSuccess: () => setForm(null) });
+    const parsed = profileSchema.safeParse(active);
+    if (!parsed.success) {
+      const next: FieldErrors = {};
+      for (const issue of parsed.error.issues) {
+        const key = issue.path[0] as keyof UpdateOrganizationProfileInput;
+        next[key] ??= issue.message;
+      }
+      setErrors(next);
+      return;
+    }
+    updateProfile.mutate(parsed.data, {
+      onSuccess: () => setForm(null),
+      onError: (err) => {
+        if (err instanceof ApiError && err.details) setErrors(err.details as FieldErrors);
+      },
+    });
   }
 
   if (!active) return null;
@@ -61,23 +102,28 @@ export default function OrgAdminSettingsPage() {
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="name">Organization Name</Label>
                 <Input id="name" value={active.name} onChange={(e) => set("name", e.target.value)} />
+                <FieldError id="name-error" message={errors.name} />
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="shortName">Short Name</Label>
                 <Input id="shortName" value={active.shortName} onChange={(e) => set("shortName", e.target.value)} />
+                <FieldError id="shortName-error" message={errors.shortName} />
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="district">District</Label>
                 <Input id="district" value={active.district} onChange={(e) => set("district", e.target.value)} />
+                <FieldError id="district-error" message={errors.district} />
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="sector">Sector</Label>
                 <Input id="sector" value={active.sector} onChange={(e) => set("sector", e.target.value)} />
+                <FieldError id="sector-error" message={errors.sector} />
               </div>
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="address">Address</Label>
               <Input id="address" value={active.address} onChange={(e) => set("address", e.target.value)} />
+                <FieldError id="address-error" message={errors.address} />
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="flex flex-col gap-1.5">
@@ -88,6 +134,7 @@ export default function OrgAdminSettingsPage() {
                   value={active.contactEmail}
                   onChange={(e) => set("contactEmail", e.target.value)}
                 />
+                <FieldError id="contactEmail-error" message={errors.contactEmail} />
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="contactPhone">Contact Phone</Label>
@@ -96,6 +143,7 @@ export default function OrgAdminSettingsPage() {
                   value={active.contactPhone}
                   onChange={(e) => set("contactPhone", e.target.value)}
                 />
+                <FieldError id="contactPhone-error" message={errors.contactPhone} />
               </div>
             </div>
             <div className="grid gap-4 sm:grid-cols-3">
@@ -107,6 +155,7 @@ export default function OrgAdminSettingsPage() {
                   value={active.logoInitials}
                   onChange={(e) => set("logoInitials", e.target.value.toUpperCase())}
                 />
+                <FieldError id="logoInitials-error" message={errors.logoInitials} />
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="brandColor">Brand Color</Label>
@@ -118,12 +167,14 @@ export default function OrgAdminSettingsPage() {
                     className="size-8 shrink-0 cursor-pointer rounded-md border border-input bg-transparent p-0.5"
                     aria-label="Brand color"
                   />
-                  <Input value={active.brandColor} onChange={(e) => set("brandColor", e.target.value)} />
+                  <Input aria-label="Brand color hex value" value={active.brandColor} onChange={(e) => set("brandColor", e.target.value)} />
                 </div>
+                <FieldError id="brandColor-error" message={errors.brandColor} />
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="stampLabel">Stamp Label</Label>
                 <Input id="stampLabel" value={active.stampLabel} onChange={(e) => set("stampLabel", e.target.value)} />
+                <FieldError id="stampLabel-error" message={errors.stampLabel} />
               </div>
             </div>
             {updateProfile.isError && (

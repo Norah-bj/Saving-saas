@@ -22,9 +22,20 @@ public class SavingsController {
             "#memberId == authentication.principal.userId() or hasAnyRole('ACCOUNTANT','SECRETARY','ORG_ADMIN')";
 
     private final SavingsService savingsService;
+    private final rw.ikiminaconnect.common.PaymentsMode paymentsMode;
 
-    public SavingsController(SavingsService savingsService) {
+    public SavingsController(SavingsService savingsService, rw.ikiminaconnect.common.PaymentsMode paymentsMode) {
         this.savingsService = savingsService;
+        this.paymentsMode = paymentsMode;
+    }
+
+    /**
+     * A member putting money in from their own dashboard (as opposed to staff
+     * recording a payment they received). There's no payment provider yet, so
+     * this is only allowed in demo mode — see common/PaymentsMode.
+     */
+    private boolean isSelfService(CurrentUser currentUser, java.util.UUID memberId) {
+        return memberId.equals(currentUser.userId());
     }
 
     @GetMapping("/savings-ledger")
@@ -43,6 +54,11 @@ public class SavingsController {
             @AuthenticationPrincipal CurrentUser currentUser,
             @PathVariable java.util.UUID memberId,
             @Valid @RequestBody VoluntarySavingRequest request) {
+        if (isSelfService(currentUser, memberId)) {
+            paymentsMode.requireSelfServiceAllowed();
+            // Label it in the ledger so demo money is never mistaken for a real payment.
+            request = new VoluntarySavingRequest(request.amountRwf(), rw.ikiminaconnect.common.PaymentsMode.DEMO_SOURCE);
+        }
         return savingsService.addVoluntarySaving(
                 currentUser.organizationId(), memberId, request, currentUser.userId(), currentUser.fullName());
     }
@@ -54,6 +70,9 @@ public class SavingsController {
             @AuthenticationPrincipal CurrentUser currentUser,
             @PathVariable java.util.UUID memberId,
             @Valid @RequestBody BuySharesRequest request) {
+        if (isSelfService(currentUser, memberId)) {
+            paymentsMode.requireSelfServiceAllowed();
+        }
         return savingsService.buyShares(
                 currentUser.organizationId(), memberId, request, currentUser.userId(), currentUser.fullName());
     }

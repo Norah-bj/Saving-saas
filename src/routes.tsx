@@ -33,6 +33,7 @@ const Profile = lazy(() => import("@/pages/Profile"));
 const SecretaryDashboard = lazy(() => import("@/pages/secretary/Dashboard"));
 const SecretaryMembers = lazy(() => import("@/pages/secretary/Members"));
 const SecretaryExitRequests = lazy(() => import("@/pages/secretary/ExitRequests"));
+const SecretaryShareWithdrawals = lazy(() => import("@/pages/secretary/ShareWithdrawals"));
 const SecretarySuspended = lazy(() => import("@/pages/secretary/Suspended"));
 const SecretaryMeetings = lazy(() => import("@/pages/secretary/Meetings"));
 const SecretaryAnnouncements = lazy(() => import("@/pages/secretary/Announcements"));
@@ -111,6 +112,7 @@ export function AppRoutes() {
         <Route path="/secretary/dashboard" element={<SecretaryDashboard />} />
         <Route path="/secretary/members" element={<SecretaryMembers />} />
         <Route path="/secretary/exit-requests" element={<SecretaryExitRequests />} />
+        <Route path="/secretary/share-withdrawals" element={<SecretaryShareWithdrawals />} />
         <Route path="/secretary/suspended" element={<SecretarySuspended />} />
         <Route path="/secretary/meetings" element={<SecretaryMeetings />} />
         <Route path="/secretary/announcements" element={<SecretaryAnnouncements />} />

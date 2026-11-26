@@ -30,19 +30,25 @@ import { useOrganization } from "@/lib/api/organization";
 import { ApiError } from "@/lib/api/client";
 import { formatDate } from "@/lib/format";
 import { ROLE_LABEL, type Role } from "@/lib/types";
+import { applyServerFieldErrors, emailSchema, employeeIdSchema, nationalIdSchema, phoneSchema, requiredText } from "@/lib/validation";
 
 const schema = z.object({
-  nationalId: z.string().min(6, "National ID is required"),
-  employeeId: z.string().min(2, "Employee ID is required"),
-  fullName: z.string().min(2, "Full name is required"),
-  email: z.string().email("Enter a valid email"),
-  phone: z.string().min(8, "Enter a valid phone number"),
-  department: z.string().min(1, "Department is required"),
-  position: z.string().min(1, "Position is required"),
-  monthlySalary: z.number().min(1, "Monthly salary is required"),
+  nationalId: nationalIdSchema,
+  employeeId: employeeIdSchema,
+  fullName: requiredText("Full name", 2, 120),
+  email: emailSchema,
+  phone: phoneSchema,
+  department: requiredText("Department", 1, 80),
+  position: requiredText("Position", 1, 80),
+  monthlySalary: z
+    .number({ message: "Enter the monthly salary in RWF" })
+    .int("Use whole francs")
+    .min(1, "Monthly salary is required")
+    .max(100_000_000, "Salary looks too high — check the amount"),
 });
 
-type FormValues = z.infer<typeof schema>;
+type FormInput = z.input<typeof schema>;
+type FormValues = z.output<typeof schema>;
 
 /** What the dialog shows after creating a member or re-sending their invite. */
 interface InviteOutcome extends InviteResult {
@@ -116,8 +122,9 @@ export default function SecretaryMembersPage() {
     });
   }
 
-  const form = useForm<FormValues>({
+  const form = useForm<FormInput, unknown, FormValues>({
     resolver: zodResolver(schema),
+    mode: "onTouched",
     defaultValues: {
       nationalId: "",
       employeeId: "",
@@ -160,6 +167,9 @@ export default function SecretaryMembersPage() {
             position: "",
             monthlySalary: 200000,
           });
+        },
+        onError: (err) => {
+          applyServerFieldErrors(err, form.setError, { monthlySalaryRwf: "monthlySalary" });
         },
       }
     );

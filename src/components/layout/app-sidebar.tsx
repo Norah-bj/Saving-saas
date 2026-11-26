@@ -12,6 +12,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import {
   DropdownMenu,
@@ -33,6 +34,11 @@ export function AppSidebar() {
   const { user, activeRole } = useCurrentUser();
   const logout = useAuthStore((s) => s.logout);
   const clearRole = useSessionStore((s) => s.clearRole);
+  // On phones the sidebar is a slide-over sheet: close it once a page is picked.
+  const { isMobile, setOpenMobile } = useSidebar();
+  const closeOnMobile = () => {
+    if (isMobile) setOpenMobile(false);
+  };
 
   if (!user || !activeRole) return null;
   const groups = NAV_CONFIG[activeRole];
@@ -64,6 +70,7 @@ export function AppSidebar() {
                         isActive={isActive}
                         tooltip={item.title}
                         render={<Link to={item.href} />}
+                        onClick={closeOnMobile}
                       >
                         <item.icon />
                         <span>{item.title}</span>
@@ -93,7 +100,10 @@ export function AppSidebar() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-56">
                 <DropdownMenuItem
-                  onClick={() => navigate("/profile")}
+                  onClick={() => {
+                    navigate("/profile");
+                    closeOnMobile();
+                  }}
                   className="gap-2"
                 >
                   <User className="size-4" /> Profile & Settings

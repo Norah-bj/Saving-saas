@@ -16,7 +16,9 @@ import {
 } from "@/components/ui/sidebar";
 import { useCurrentUser } from "@/lib/hooks/use-current-user";
 import { useSessionStore } from "@/lib/store/session-store";
-import { useOrganization } from "@/lib/api/organization";
+import { organizationLogoUrl, useOrganization } from "@/lib/api/organization";
+import { OrgLogo } from "@/components/shared/org-logo";
+import { useSidebar } from "@/components/ui/sidebar";
 import { HOME_PAGE } from "@/lib/nav-config";
 import { ROLE_LABEL, type Role } from "@/lib/types";
 
@@ -35,6 +37,7 @@ export function WorkspaceSwitcher() {
   const { user, activeRole } = useCurrentUser();
   const switchRole = useSessionStore((s) => s.switchRole);
   const { data: organization } = useOrganization();
+  const { isMobile, setOpenMobile } = useSidebar();
 
   if (!user || !activeRole) return null;
 
@@ -54,9 +57,13 @@ export function WorkspaceSwitcher() {
               />
             }
           >
-            <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-sm font-semibold text-primary-foreground">
-              {orgInitials}
-            </div>
+            <OrgLogo
+              src={isSuperAdmin ? null : organizationLogoUrl(organization?.id, organization?.logoUpdatedAt)}
+              initials={orgInitials}
+              name={orgLabel}
+              className="aspect-square size-8 rounded-lg text-sm"
+              initialsClassName="bg-primary text-primary-foreground"
+            />
             <div className="grid flex-1 text-left text-sm leading-tight">
               <span className="truncate font-semibold">{orgLabel}</span>
               <span className="truncate text-xs text-muted-foreground">
@@ -75,6 +82,7 @@ export function WorkspaceSwitcher() {
                   onClick={() => {
                     switchRole(role);
                     navigate(HOME_PAGE[role]);
+                    if (isMobile) setOpenMobile(false);
                   }}
                   className="flex items-center justify-between py-2"
                 >

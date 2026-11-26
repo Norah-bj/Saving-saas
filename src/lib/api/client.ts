@@ -147,5 +147,11 @@ export const apiClient = {
     request<T>(path, { ...options, method: "PUT", body }),
   patch: <T>(path: string, body?: unknown, options?: RequestOptions) =>
     request<T>(path, { ...options, method: "PATCH", body }),
+  delete: <T>(path: string, options?: RequestOptions) => request<T>(path, { ...options, method: "DELETE" }),
   getBlob: requestBlob,
 };
+
+/** Absolute URL for an API path, for <img src> and links that bypass fetch. */
+export function apiUrl(path: string) {
+  return `${BASE_URL}${path}`;
+}

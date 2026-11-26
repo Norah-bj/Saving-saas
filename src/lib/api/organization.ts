@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { apiClient } from "@/lib/api/client";
+import { apiClient, apiUrl } from "@/lib/api/client";
 import { useAuthStore } from "@/lib/store/auth-store";
 
 /** Mirrors the backend's organization.OrganizationDto (fields this workspace slice actually uses). */
@@ -16,6 +16,8 @@ export interface OrganizationDto {
   logoInitials: string;
   brandColor: string;
   stampLabel: string;
+  /** ISO time of the last logo upload; null when no logo is set (show logoInitials instead). */
+  logoUpdatedAt: string | null;
   plan: string;
   status: string;
   legalRepresentativeName: string;
@@ -86,6 +88,38 @@ export function useUpdateOrganizationProfile() {
   return useMutation({
     mutationFn: (input: UpdateOrganizationProfileInput) =>
       apiClient.patch<OrganizationDto>(`/organizations/${organizationId}/profile`, input),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["organization", organizationId] }),
+  });
+}
+
+/** Public logo URL, versioned so a new upload shows immediately. Null when no logo is set. */
+export function organizationLogoUrl(organizationId: string | null | undefined, logoUpdatedAt: string | null | undefined) {
+  if (!organizationId || !logoUpdatedAt) return null;
+  return apiUrl(`/organizations/${organizationId}/logo?v=${encodeURIComponent(logoUpdatedAt)}`);
+}
+
+export const LOGO_MAX_BYTES = 1024 * 1024;
+export const LOGO_TYPES = ["image/png", "image/jpeg", "image/webp"];
+
+/** ORG_ADMIN only. PNG, JPG or WebP up to 1 MB; the server checks the file's real type. */
+export function useUploadOrganizationLogo() {
+  const organizationId = useAuthStore((s) => s.user?.organizationId);
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (file: File) => {
+      const form = new FormData();
+      form.append("file", file);
+      return apiClient.put<OrganizationDto>(`/organizations/${organizationId}/logo`, form);
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["organization", organizationId] }),
+  });
+}
+
+export function useRemoveOrganizationLogo() {
+  const organizationId = useAuthStore((s) => s.user?.organizationId);
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => apiClient.delete<OrganizationDto>(`/organizations/${organizationId}/logo`),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["organization", organizationId] }),
   });
 }

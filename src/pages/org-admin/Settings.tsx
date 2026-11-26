@@ -1,10 +1,20 @@
 import * as React from "react";
-import { Save, CheckCircle2 } from "lucide-react";
+import { Save, CheckCircle2, ImageUp, Trash2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useOrganization, useUpdateOrganizationProfile, type UpdateOrganizationProfileInput } from "@/lib/api/organization";
+import {
+  LOGO_MAX_BYTES,
+  LOGO_TYPES,
+  organizationLogoUrl,
+  useOrganization,
+  useRemoveOrganizationLogo,
+  useUpdateOrganizationProfile,
+  useUploadOrganizationLogo,
+  type UpdateOrganizationProfileInput,
+} from "@/lib/api/organization";
+import { OrgLogo } from "@/components/shared/org-logo";
 import { ApiError } from "@/lib/api/client";
 import { z } from "zod";
 import { emailSchema, hexColorSchema, phoneSchema, requiredText } from "@/lib/validation";
@@ -34,6 +44,26 @@ function FieldError({ message, id }: { message?: string; id: string }) {
 export default function OrgAdminSettingsPage() {
   const { data: organization } = useOrganization();
   const updateProfile = useUpdateOrganizationProfile();
+  const uploadLogo = useUploadOrganizationLogo();
+  const removeLogo = useRemoveOrganizationLogo();
+  const [logoError, setLogoError] = React.useState<string | null>(null);
+  const fileInput = React.useRef<HTMLInputElement>(null);
+
+  function handleLogoFile(file: File | undefined) {
+    setLogoError(null);
+    if (!file) return;
+    if (!LOGO_TYPES.includes(file.type)) {
+      setLogoError("Choose a PNG, JPG or WebP image.");
+      return;
+    }
+    if (file.size > LOGO_MAX_BYTES) {
+      setLogoError("The logo must be 1 MB or smaller.");
+      return;
+    }
+    uploadLogo.mutate(file, {
+      onError: (err) => setLogoError(err instanceof ApiError ? err.message : "Couldn't upload the logo. Try again."),
+    });
+  }
 
   const [form, setForm] = React.useState<UpdateOrganizationProfileInput | null>(null);
   const [errors, setErrors] = React.useState<FieldErrors>({});
@@ -148,7 +178,7 @@ export default function OrgAdminSettingsPage() {
             </div>
             <div className="grid gap-4 sm:grid-cols-3">
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="logoInitials">Logo Initials</Label>
+                <Label htmlFor="logoInitials">Initials (shown without a logo)</Label>
                 <Input
                   id="logoInitials"
                   maxLength={3}
@@ -201,11 +231,57 @@ export default function OrgAdminSettingsPage() {
             <CardDescription>How your organization appears across the platform.</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col items-center gap-4 py-6">
-            <div
-              className="flex size-20 items-center justify-center rounded-2xl text-2xl font-semibold text-white shadow-sm"
+            <OrgLogo
+              src={organizationLogoUrl(organization?.id, organization?.logoUpdatedAt)}
+              initials={active.logoInitials || "??"}
+              name={active.name}
+              className="size-20 rounded-2xl text-2xl shadow-sm"
+              initialsClassName="text-white"
               style={{ backgroundColor: active.brandColor }}
-            >
-              {active.logoInitials || "??"}
+            />
+            <div className="flex flex-col items-center gap-2">
+              <input
+                ref={fileInput}
+                id="logo-file"
+                type="file"
+                accept={LOGO_TYPES.join(",")}
+                className="sr-only"
+                onChange={(e) => {
+                  handleLogoFile(e.target.files?.[0]);
+                  e.target.value = "";
+                }}
+              />
+              <div className="flex flex-wrap justify-center gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={uploadLogo.isPending}
+                  onClick={() => fileInput.current?.click()}
+                >
+                  <ImageUp className="size-3.5" />
+                  {uploadLogo.isPending ? "Uploading…" : organization?.logoUpdatedAt ? "Change logo" : "Upload logo"}
+                </Button>
+                {organization?.logoUpdatedAt && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    disabled={removeLogo.isPending}
+                    onClick={() => {
+                      setLogoError(null);
+                      removeLogo.mutate();
+                    }}
+                  >
+                    <Trash2 className="size-3.5" /> Remove
+                  </Button>
+                )}
+              </div>
+              <p className="text-center text-xs text-muted-foreground">
+                PNG, JPG or WebP, up to 1 MB. Square images look best.
+                {organization?.logoUpdatedAt ? "" : " Until you add one, your initials are shown."}
+              </p>
+              {logoError && <p className="text-center text-xs text-destructive">{logoError}</p>}
             </div>
             <div className="text-center">
               <p className="text-sm font-semibold">{active.name}</p>

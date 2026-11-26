@@ -73,7 +73,8 @@ public class EmailVerificationFilter extends OncePerRequestFilter {
 
     private boolean isAllowlisted(HttpServletRequest request) {
         String path = request.getRequestURI();
-        if (path.startsWith("/api/v1/auth/") || path.equals("/actuator/health") || path.equals("/api/v1/config") || path.equals("/error")) {
+        if (path.startsWith("/api/v1/auth/") || path.equals("/actuator/health") || path.equals("/api/v1/config") || path.equals("/error")
+                || (path.startsWith("/api/v1/organizations/") && path.endsWith("/logo") && "GET".equals(request.getMethod()))) {
             return true;
         }
         return path.equals("/api/v1/me") && "GET".equalsIgnoreCase(request.getMethod());

@@ -35,7 +35,7 @@ export function StatCard({
           )}
         </div>
         <div className="mt-1.5 flex items-end justify-between gap-3">
-          <div className="text-xl font-semibold tracking-tight">{value}</div>
+          <div className="text-xl font-semibold tracking-tight tabular-nums">{value}</div>
           {sparkline && sparkline.length > 1 && (
             <Sparkline
               data={sparkline}

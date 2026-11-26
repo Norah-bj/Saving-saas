@@ -88,6 +88,40 @@ on the backend process's PATH, e.g.
 `PG_DUMP_PATH=C:\Program Files\PostgreSQL\17\bin\pg_dump.exe`. `BACKUP_DIRECTORY` defaults to
 `./backups` (git-ignored via `backend/.gitignore`).
 
+## Emails during local testing
+
+By default (`EMAIL_PROVIDER=console`) nothing is sent: verification, invite and password-reset
+emails are printed in the backend's terminal as `[DEV EMAIL STUB]` lines with the link to open.
+
+To send real emails while testing locally, create a free Resend account and an API key
+(resend.com → API Keys), then start the backend from PowerShell with:
+
+```powershell
+$env:EMAIL_PROVIDER = "resend"
+$env:RESEND_API_KEY = "re_..."          # your key; never commit it
+$env:EMAIL_FROM = "onboarding@resend.dev"
+mvn spring-boot:run
+```
+
+With the test sender `onboarding@resend.dev`, Resend only delivers to the email address you signed
+up to Resend with. Messages to anyone else are rejected: the account is still created (or the
+member still added), the console shows a warning, invites show a link to share instead, and the
+"Resend" buttons say the email couldn't be sent. To email other people, verify a domain in Resend
+and use an address on it (see [DEPLOYMENT.md](DEPLOYMENT.md)).
+
+## Resetting the local database
+
+To start from an empty database, back it up first, then empty every table except
+`flyway_schema_history` (the schema stays, so the backend starts normally):
+
+```bash
+pg_dump -h localhost -U ikiminaconnect -d ikiminaconnect -F c -f backend/backups/before-reset.dump
+psql -h localhost -U ikiminaconnect -d ikiminaconnect -c "DO \$\$ DECLARE t text; BEGIN SELECT string_agg(quote_ident(tablename), ', ') INTO t FROM pg_tables WHERE schemaname='public' AND tablename <> 'flyway_schema_history'; EXECUTE 'TRUNCATE ' || t || ' RESTART IDENTITY CASCADE'; END \$\$;"
+```
+
+This also removes the dev super-admin; recreate one with `POST /auth/bootstrap-super-admin`
+(see above). To undo a reset, `pg_restore --clean -d ikiminaconnect backend/backups/before-reset.dump`.
+
 ## Backups and manual restore
 
 `POST /api/v1/backups` (SUPER_ADMIN only) runs `pg_dump -F c` against the whole database and

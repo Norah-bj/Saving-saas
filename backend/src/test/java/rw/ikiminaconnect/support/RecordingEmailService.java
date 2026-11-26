@@ -17,8 +17,14 @@ public class RecordingEmailService implements EmailService {
 
     private final Map<String, String> latestLinkByEmail = new ConcurrentHashMap<>();
 
+    /** Addresses starting with this prefix simulate the provider rejecting the message. */
+    public static final String BOUNCE_PREFIX = "bounce-";
+
     @Override
     public void sendVerificationEmail(String toEmail, String recipientName, String verificationLink) {
+        if (toEmail.toLowerCase().startsWith(BOUNCE_PREFIX)) {
+            throw new IllegalStateException("Simulated provider rejection for " + toEmail);
+        }
         latestLinkByEmail.put(toEmail.toLowerCase(), verificationLink);
     }
 

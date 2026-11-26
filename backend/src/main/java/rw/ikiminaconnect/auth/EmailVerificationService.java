@@ -20,6 +20,7 @@ import rw.ikiminaconnect.member.AppUser;
 public class EmailVerificationService {
 
     private static final SecureRandom RANDOM = new SecureRandom();
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(EmailVerificationService.class);
 
     private final EmailVerificationTokenRepository tokenRepository;
     private final EmailService emailService;
@@ -37,9 +38,18 @@ public class EmailVerificationService {
         this.frontendUrl = frontendUrl;
     }
 
-    /** Issues a new token and sends the verification email. Old tokens for this user are left to expire naturally. */
+    /**
+     * Issues a new token and tries to send the verification email. Old tokens
+     * for this user are left to expire naturally.
+     *
+     * <p>Returns false instead of throwing when the provider rejects or can't
+     * be reached (Resend's test sender, for example, only delivers to the
+     * account owner until a domain is verified). Throwing here would mark the
+     * caller's transaction rollback-only, so a failed email would also undo
+     * the registration that triggered it; the person can use "Resend" instead.
+     */
     @Transactional
-    public void issueAndSend(AppUser user) {
+    public boolean issueAndSend(AppUser user) {
         byte[] bytes = new byte[32];
         RANDOM.nextBytes(bytes);
         String rawToken = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
@@ -48,7 +58,13 @@ public class EmailVerificationService {
         tokenRepository.save(entity);
 
         String link = frontendUrl + "/verify-email?token=" + rawToken;
-        emailService.sendVerificationEmail(user.getEmail(), user.getFullName(), link);
+        try {
+            emailService.sendVerificationEmail(user.getEmail(), user.getFullName(), link);
+            return true;
+        } catch (RuntimeException e) {
+            log.warn("Verification email to user {} could not be sent: {}", user.getId(), e.getMessage());
+            return false;
+        }
     }
 
     /** Validates and consumes the token. Returns the user id it belonged to. */

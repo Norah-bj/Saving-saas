@@ -267,7 +267,10 @@ public class AuthService {
         if (user.isEmailVerified()) {
             throw new ConflictException("Email is already verified.");
         }
-        emailVerificationService.issueAndSend(user);
+        if (!emailVerificationService.issueAndSend(user)) {
+            throw new ConflictException("We couldn't send the verification email right now. "
+                    + "Please try again in a few minutes, or contact your administrator.");
+        }
     }
 
     @Transactional(readOnly = true)

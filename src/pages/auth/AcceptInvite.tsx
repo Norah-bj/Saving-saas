@@ -9,19 +9,13 @@ import { Button } from "@/components/ui/button";
 import { PasswordInput } from "@/components/ui/password-input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { apiClient, ApiError } from "@/lib/api/client";
+import { PasswordStrength } from "@/components/shared/password-strength";
+import { newPasswordFields, passwordsMatch, passwordsMatchError } from "@/lib/validation";
 import { useAuthStore, type AuthResponse } from "@/lib/store/auth-store";
 import { useSessionStore } from "@/lib/store/session-store";
 import { HOME_PAGE } from "@/lib/nav-config";
 
-const schema = z
-  .object({
-    password: z.string().min(8, "Use at least 8 characters"),
-    confirmPassword: z.string().min(1, "Repeat your password"),
-  })
-  .refine((v) => v.password === v.confirmPassword, {
-    message: "The passwords don't match",
-    path: ["confirmPassword"],
-  });
+const schema = z.object({ ...newPasswordFields }).refine(passwordsMatch, passwordsMatchError);
 type FormValues = z.infer<typeof schema>;
 
 /**
@@ -39,6 +33,7 @@ export default function AcceptInvitePage() {
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
+    mode: "onTouched",
     defaultValues: { password: "", confirmPassword: "" },
   });
 
@@ -104,6 +99,7 @@ export default function AcceptInvitePage() {
                         <FormControl>
                           <PasswordInput autoComplete="new-password" {...field} />
                         </FormControl>
+                        <PasswordStrength password={field.value ?? ""} />
                         <FormMessage />
                       </FormItem>
                     )}

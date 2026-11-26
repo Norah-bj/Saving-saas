@@ -36,8 +36,12 @@ import { formatRwf } from "@/lib/format";
 import { ApiError } from "@/lib/api/client";
 
 const schema = z.object({
-  amount: z.number().min(50000, "Minimum loan amount is 50,000 RWF"),
-  purpose: z.string().min(4, "Please describe the purpose of this loan"),
+  amount: z
+    .number({ message: "Enter the loan amount in RWF" })
+    .int("Use whole francs")
+    .min(50000, "Minimum loan amount is 50,000 RWF")
+    .max(100_000_000, "That amount looks too high — check it"),
+  purpose: z.string().trim().min(4, "Please describe the purpose of this loan").max(300, "Keep the purpose under 300 characters"),
   periodMonths: z.number().min(1),
   guarantorId: z.string().optional(),
 });

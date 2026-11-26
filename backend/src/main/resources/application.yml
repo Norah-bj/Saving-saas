@@ -53,6 +53,10 @@ app:
     ttl-hours: 72
   password-reset:
     ttl-minutes: 60
+  # demo = members may "deposit"/buy shares themselves for testing (no real money moves);
+  # disabled = only staff record payments they actually received. See common/PaymentsMode.
+  payments:
+    mode: ${PAYMENTS_MODE:demo}
   email:
     provider: ${EMAIL_PROVIDER:console}
     resend-api-key: ${RESEND_API_KEY:}

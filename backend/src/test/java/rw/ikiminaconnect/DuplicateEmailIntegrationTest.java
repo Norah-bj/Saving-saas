@@ -28,7 +28,7 @@ class DuplicateEmailIntegrationTest extends IntegrationTestBase {
                 Map.entry("contactEmail", "c-" + suffix + "@test.rw"),
                 Map.entry("contactPhone", "0788000001"),
                 Map.entry("adminFullName", "Second Admin"),
-                Map.entry("adminNationalId", "1197" + System.nanoTime() % 1_000_000_000_000L),
+                Map.entry("adminNationalId", "1197" + digits(12)),
                 Map.entry("adminEmployeeId", "SC-1"),
                 Map.entry("adminEmail", existing.adminEmail()),
                 Map.entry("adminPhone", "0788000002"),
@@ -44,7 +44,7 @@ class DuplicateEmailIntegrationTest extends IntegrationTestBase {
         Member existing = createMember(org, "Existing Person");
 
         Response response = postJson("/members", org.adminToken(), Map.of(
-                "nationalId", "1196" + System.nanoTime() % 1_000_000_000_000L,
+                "nationalId", "1196" + digits(12),
                 "employeeId", "DUP-" + unique(),
                 "fullName", "Someone Else",
                 "email", existing.email(),

@@ -37,16 +37,19 @@ const MEETING_STATUS_TONE: Record<Meeting["status"], Tone> = {
 };
 
 const scheduleSchema = z.object({
-  title: z.string().min(3, "Title is required"),
-  date: z.string().min(1, "Date is required"),
-  time: z.string().min(1, "Time is required"),
-  location: z.string().min(2, "Location is required"),
-  agenda: z.string().min(3, "Add at least one agenda item"),
+  title: z.string().trim().min(3, "Title is required").max(120, "Keep the title under 120 characters"),
+  date: z
+    .string()
+    .min(1, "Date is required")
+    .refine((d) => d >= new Date().toISOString().slice(0, 10), "Choose today or a future date"),
+  time: z.string().regex(/^([01]d|2[0-3]):[0-5]d$/, "Choose a time"),
+  location: z.string().trim().min(2, "Location is required").max(120, "Keep the location under 120 characters"),
+  agenda: z.string().trim().min(3, "Add at least one agenda item").max(2000, "The agenda is too long"),
 });
 type ScheduleValues = z.infer<typeof scheduleSchema>;
 
 const minutesSchema = z.object({
-  minutesSummary: z.string().min(5, "Please summarize the meeting minutes"),
+  minutesSummary: z.string().trim().min(5, "Please summarize the meeting minutes").max(5000, "Keep the minutes under 5,000 characters"),
 });
 type MinutesValues = z.infer<typeof minutesSchema>;
 

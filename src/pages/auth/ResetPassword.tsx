@@ -9,16 +9,10 @@ import { Button } from "@/components/ui/button";
 import { PasswordInput } from "@/components/ui/password-input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { apiClient, ApiError } from "@/lib/api/client";
+import { PasswordStrength } from "@/components/shared/password-strength";
+import { newPasswordFields, passwordsMatch, passwordsMatchError } from "@/lib/validation";
 
-const schema = z
-  .object({
-    password: z.string().min(8, "Use at least 8 characters"),
-    confirmPassword: z.string().min(1, "Repeat your password"),
-  })
-  .refine((v) => v.password === v.confirmPassword, {
-    message: "The passwords don't match",
-    path: ["confirmPassword"],
-  });
+const schema = z.object({ ...newPasswordFields }).refine(passwordsMatch, passwordsMatchError);
 type FormValues = z.infer<typeof schema>;
 
 /** Public route: the link from a password reset email (POST /auth/reset-password). */
@@ -30,6 +24,7 @@ export default function ResetPasswordPage() {
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
+    mode: "onTouched",
     defaultValues: { password: "", confirmPassword: "" },
   });
 
@@ -86,6 +81,7 @@ export default function ResetPasswordPage() {
                       <FormControl>
                         <PasswordInput autoComplete="new-password" {...field} />
                       </FormControl>
+                        <PasswordStrength password={field.value ?? ""} />
                       <FormMessage />
                     </FormItem>
                   )}

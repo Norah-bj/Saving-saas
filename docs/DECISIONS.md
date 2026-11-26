@@ -292,6 +292,31 @@ Older/broader design rationale (multi-tenancy pitch, entity-by-entity mapping fr
 mock, full future endpoint list) lives in [BACKEND_CONTRACT.md](../BACKEND_CONTRACT.md), written
 before this file existed — not duplicated here.
 
+### No payment provider yet: self-service payments are demo-only (2026-11-26)
+
+There is no MTN MoMo / Airtel Money integration, so a member "depositing" or "buying shares" from
+their own dashboard moves no real money. `app.payments.mode` (`PAYMENTS_MODE`) makes this explicit:
+`demo` (local default) allows it for testing, labels the ledger row "Demo (no real payment)" and
+shows a demo banner; `disabled` (the `prod` profile default) refuses member self-service with a
+403, while staff keep recording cash or bank payments they actually received. The frontend reads
+the mode from the public `GET /api/v1/config`.
+
+**How a real mobile-money mode would work** (not built): the member enters an amount and their
+MoMo number; the backend creates a `payment_intents` row (`pending`) and calls the provider's
+collection API (MTN MoMo "Request to Pay") with that row's id as the reference; the member approves
+on their phone with their MoMo PIN; the provider calls our webhook (and we also poll its status
+endpoint as a fallback); only on a verified `SUCCESSFUL` status do we write the savings/share
+ledger row, exactly once per reference. Failed or expired intents never touch balances. Needs: an
+MTN MoMo merchant account and API keys (sandbox first), a public HTTPS callback URL, idempotent
+webhook handling, and daily reconciliation against the provider's statement.
+
+### Shared field formats, enforced on both sides (2026-11-26)
+
+National ID = 16 digits; phone = Rwandan mobile (07[2389]…, optional +250, spaces allowed);
+password = 8+ characters with a letter and a number; employee IDs, colours and text lengths have
+fixed limits. Defined once per side (`common/ValidationRules.java`, `src/lib/validation.ts`) and
+kept in step; the server returns per-field `details` that the forms show next to each field.
+
 ### Typography: Source Serif 4 + Public Sans (2026-11-26)
 
 Chosen from four options (a font comparison shared with the team); IBM Plex was tried first and

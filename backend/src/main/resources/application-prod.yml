@@ -12,6 +12,9 @@ spring:
 
 app:
   frontend-url: ${FRONTEND_URL}
+  # No real payment provider yet: never accept self-service "payments" in production.
+  payments:
+    mode: ${PAYMENTS_MODE:disabled}
   email:
     provider: ${EMAIL_PROVIDER:resend}
     resend-api-key: ${RESEND_API_KEY}

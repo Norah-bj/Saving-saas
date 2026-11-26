@@ -29,7 +29,7 @@ class EmailDeliveryFailureIntegrationTest extends IntegrationTestBase {
                 Map.entry("contactEmail", "c-" + suffix + "@test.rw"),
                 Map.entry("contactPhone", "0788000001"),
                 Map.entry("adminFullName", "Bounce Admin"),
-                Map.entry("adminNationalId", "1195" + System.nanoTime() % 1_000_000_000_000L),
+                Map.entry("adminNationalId", "1195" + digits(12)),
                 Map.entry("adminEmployeeId", "BC-1"),
                 Map.entry("adminEmail", email),
                 Map.entry("adminPhone", "0788000002"),

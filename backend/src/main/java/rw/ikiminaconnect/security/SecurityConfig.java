@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
+import org.springframework.http.HttpMethod;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -52,6 +53,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/auth/resend-verification").authenticated()
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers("/actuator/health").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/config").permitAll()
                         // Defense-in-depth alongside GlobalExceptionHandler's catch-all: if an
                         // exception ever still escapes to the container's error dispatch, it
                         // should render as its real status, not get rejected as unauthenticated

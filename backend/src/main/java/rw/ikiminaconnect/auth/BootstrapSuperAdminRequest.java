@@ -2,7 +2,9 @@ package rw.ikiminaconnect.auth;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+import rw.ikiminaconnect.common.ValidationRules;
 
 /**
  * Provisions the platform's first (and, in practice, only ever automatically
@@ -15,9 +17,9 @@ import jakarta.validation.constraints.Size;
 public record BootstrapSuperAdminRequest(
         @NotBlank String token,
         @NotBlank String fullName,
-        @NotBlank String nationalId,
-        @NotBlank String employeeId,
+        @NotBlank @Pattern(regexp = ValidationRules.NATIONAL_ID, message = ValidationRules.NATIONAL_ID_MESSAGE) String nationalId,
+        @NotBlank @Size(max = 40) String employeeId,
         @NotBlank @Email String email,
-        @NotBlank String phone,
-        @NotBlank @Size(min = 8) String password) {
+        @NotBlank @Pattern(regexp = ValidationRules.PHONE, message = ValidationRules.PHONE_MESSAGE) String phone,
+        @NotBlank @Pattern(regexp = ValidationRules.PASSWORD, message = ValidationRules.PASSWORD_MESSAGE) String password) {
 }

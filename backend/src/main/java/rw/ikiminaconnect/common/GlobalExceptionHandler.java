@@ -4,6 +4,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
@@ -67,6 +68,18 @@ public class GlobalExceptionHandler {
                 details.put(fe.getField(), fe.getDefaultMessage()));
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ApiError.of("validation_failed", "One or more fields are invalid.", details));
+    }
+
+    /**
+     * Safety net for a database uniqueness/constraint clash the service layer
+     * didn't pre-check (or a race between two identical requests). Services
+     * should still check first so users get a specific message.
+     */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiError> handleDataIntegrity(DataIntegrityViolationException ex) {
+        log.warn("Data integrity violation: {}", ex.getMostSpecificCause().getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiError.of("conflict", "This conflicts with existing data (for example an email or ID that is already in use)."));
     }
 
     /** A path variable or query parameter of the wrong type: a non-UUID id, an unknown enum filter value. */

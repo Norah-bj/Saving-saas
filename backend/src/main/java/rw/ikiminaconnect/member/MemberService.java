@@ -75,6 +75,9 @@ public class MemberService {
         if (memberRepository.existsByNationalId(request.nationalId())) {
             throw new ConflictException("A user with this national ID already exists on the platform.");
         }
+        if (memberRepository.existsByEmail(request.email())) {
+            throw new ConflictException("Another account already uses this email address.");
+        }
         if (memberRepository.existsByOrganizationIdAndEmployeeId(organizationId, request.employeeId())) {
             throw new ConflictException("A member with this employee ID already exists in this organization.");
         }

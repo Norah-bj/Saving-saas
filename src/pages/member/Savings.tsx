@@ -14,7 +14,7 @@ import { useSavingsLedger, useAddVoluntarySaving } from "@/lib/api/savings";
 import { formatRwf } from "@/lib/format";
 import { monthlySeriesFromLedger } from "@/lib/chart-utils";
 import { usePublicConfig } from "@/lib/api/config";
-import { DemoPaymentNotice } from "@/components/shared/demo-payment-notice";
+import { DemoBadge, DemoPaymentNotice } from "@/components/shared/demo-payment-notice";
 
 export default function MemberSavingsPage() {
   const { user } = useCurrentUser();
@@ -125,6 +125,7 @@ export default function MemberSavingsPage() {
       <Card className="max-w-md">
         <CardHeader>
           <CardTitle className="text-sm font-medium">Make a Voluntary Deposit</CardTitle>
+          <DemoBadge mode={config?.paymentsMode} />
           <CardDescription>Add extra savings on top of your monthly payroll deduction.</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
@@ -149,7 +150,7 @@ export default function MemberSavingsPage() {
             </Button>
             {submitted && (
               <p className="text-sm text-emerald-600 dark:text-emerald-400">
-                Demo deposit recorded. It shows in your statement as "Demo (no real payment)".
+                Demo deposit recorded.
               </p>
             )}
             {addVoluntarySaving.isError && (

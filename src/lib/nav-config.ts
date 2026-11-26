@@ -95,6 +95,7 @@ export const NAV_CONFIG: Record<Role, NavGroup[]> = {
       items: [
         { title: "Members", href: "/secretary/members", icon: Users },
         { title: "Exit Requests", href: "/secretary/exit-requests", icon: LogOut },
+        { title: "Share Withdrawals", href: "/secretary/share-withdrawals", icon: HandCoins },
         { title: "Suspended Members", href: "/secretary/suspended", icon: UserX },
       ],
     },

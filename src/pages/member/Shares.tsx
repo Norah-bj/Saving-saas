@@ -16,7 +16,7 @@ import { useSavingsLedger, useBuyShares } from "@/lib/api/savings";
 import { useShareWithdrawalRequests, useSubmitShareWithdrawal } from "@/lib/api/membership";
 import { formatDate, formatRwf } from "@/lib/format";
 import { usePublicConfig } from "@/lib/api/config";
-import { DemoPaymentNotice } from "@/components/shared/demo-payment-notice";
+import { DemoBadge, DemoPaymentNotice } from "@/components/shared/demo-payment-notice";
 
 export default function MemberSharesPage() {
   const { user } = useCurrentUser();
@@ -113,6 +113,7 @@ export default function MemberSharesPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-sm font-medium">Buy Shares</CardTitle>
+            <DemoBadge mode={config?.paymentsMode} />
             <CardDescription>Purchase additional shares in whole-share increments.</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">

@@ -1,32 +1,32 @@
 import { FlaskConical, Store } from "lucide-react";
+import { CardAction } from "@/components/ui/card";
 
 /**
- * Shown on every form where a member would pay money in (voluntary deposit,
- * share purchase). There's no real payment provider yet, so in demo mode
- * these record test money only, and in disabled mode they're switched off.
+ * There's no real payment provider yet. In demo mode, forms where a member pays money in
+ * (voluntary deposit, share purchase) carry a small "Demo" tag in the card's corner; in
+ * disabled mode the form is replaced by a one-line note.
  */
-export function DemoPaymentNotice({ mode }: { mode: string | undefined }) {
-  if (mode === "disabled") {
-    return (
-      <div role="note" className="flex items-start gap-3 rounded-lg border bg-muted/40 p-3 text-sm">
-        <Store className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-        <p className="text-muted-foreground">
-          Online payments aren&apos;t available yet. Pay at your cooperative&apos;s office and the accountant will
-          record it here.
-        </p>
-      </div>
-    );
-  }
+export function DemoBadge({ mode }: { mode: string | undefined }) {
+  if (mode !== "demo") return null;
   return (
-    <div
-      role="note"
-      className="flex items-start gap-3 rounded-lg border border-amber-300/60 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200"
-    >
-      <FlaskConical className="mt-0.5 size-4 shrink-0" />
-      <p>
-        <span className="font-medium">Demo only: no real money moves.</span> This records a test payment so the app
-        can be tried out. Real payments will need a mobile money connection (e.g. MTN MoMo) before launch.
-      </p>
-    </div>
+    <CardAction>
+      <span
+        title="Test payment only. No real money moves."
+        className="inline-flex items-center gap-1 rounded-full border border-amber-300/70 bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300"
+      >
+        <FlaskConical className="size-3" aria-hidden="true" />
+        Demo · no real money
+      </span>
+    </CardAction>
+  );
+}
+
+export function DemoPaymentNotice({ mode }: { mode: string | undefined }) {
+  if (mode !== "disabled") return null;
+  return (
+    <p role="note" className="flex items-center gap-2 text-sm text-muted-foreground">
+      <Store className="size-4 shrink-0" aria-hidden="true" />
+      Pay at your cooperative&apos;s office for now.
+    </p>
   );
 }

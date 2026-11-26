@@ -54,6 +54,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers("/actuator/health").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/config").permitAll()
+                        // Logos are shown in <img> tags, which can't send a bearer token.
+                        .requestMatchers(HttpMethod.GET, "/api/v1/organizations/*/logo").permitAll()
                         // Defense-in-depth alongside GlobalExceptionHandler's catch-all: if an
                         // exception ever still escapes to the container's error dispatch, it
                         // should render as its real status, not get rejected as unauthenticated

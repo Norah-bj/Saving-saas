@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { EmptyState } from "@/components/shared/empty-state";
 import { useMemberDetail } from "@/lib/api/members";
-import { useOrganization } from "@/lib/api/organization";
+import { organizationLogoUrl, useOrganization } from "@/lib/api/organization";
+import { OrgLogo } from "@/components/shared/org-logo";
 import { useExitEligibility, useExitRequests } from "@/lib/api/membership";
 import { formatDate, formatRwf } from "@/lib/format";
 
@@ -70,9 +71,13 @@ export default function ExitSettlementPage() {
       <div className="print-area rounded-xl border bg-card p-8 text-sm shadow-soft print:rounded-none print:border-0 print:shadow-none">
         <div className="flex items-start justify-between border-b pb-4">
           <div className="flex items-center gap-3">
-            <div className="flex size-11 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground">
-              {organization.logoInitials}
-            </div>
+            <OrgLogo
+              src={organizationLogoUrl(organization.id, organization.logoUpdatedAt)}
+              initials={organization.logoInitials}
+              name={organization.name}
+              className="size-11 rounded-lg text-sm font-bold"
+              initialsClassName="bg-primary text-primary-foreground"
+            />
             <div>
               <p className="font-semibold">{organization.name}</p>
               <p className="text-xs text-muted-foreground">

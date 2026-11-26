@@ -62,6 +62,9 @@ public class Organization {
     @Column(name = "stamp_label", nullable = false)
     private String stampLabel;
 
+    @Column(name = "logo_updated_at")
+    private Instant logoUpdatedAt;
+
     // Plain TEXT column with a CHECK constraint in the DB (see V1__vertical_slice.sql) —
     // not a native Postgres enum type. @Enumerated(STRING) matches the enum's name()
     // against the CHECK'd values directly, no custom converter needed since these two
@@ -230,6 +233,16 @@ public class Organization {
 
     public String getStampLabel() {
         return stampLabel;
+    }
+
+    /** When the uploaded logo last changed; null when the organization has no logo (initials are shown). */
+    public Instant getLogoUpdatedAt() {
+        return logoUpdatedAt;
+    }
+
+    public void setLogoUpdatedAt(Instant logoUpdatedAt) {
+        this.logoUpdatedAt = logoUpdatedAt;
+        this.updatedAt = Instant.now();
     }
 
     public SubscriptionPlan getPlan() {

@@ -124,6 +124,9 @@ super-admins, who are never gated) — an authenticated-but-unverified caller ge
 | GET | `/organizations/{id}` | any authenticated user of that org. Now also returns `shareValueRwf`, `loanInterestRate`, `loanInsuranceRate`, `minMonthsBeforeEligible`, `allowedRepaymentPeriods` — needed by `member/Shares.tsx` and `member/LoanApply.tsx` once wired to real data. |
 | PATCH | `/organizations/{id}/profile` | ORG_ADMIN only. Branding/contact fields (`org-admin/Settings.tsx`). |
 | PATCH | `/organizations/{id}/loan-policy` | ORG_ADMIN or LOAN_COMMITTEE. Interest/insurance rates, eligibility window, repayment periods (`loan-committee/Policy.tsx`). Rates are fractions (`0.05` = 5%), matching how this backend stores them everywhere — not the frontend mock's whole-percentage UI convention; see [DECISIONS.md](DECISIONS.md). |
+| PUT | `/organizations/{id}/logo` | ORG_ADMIN. `multipart/form-data` with a `file` part: PNG, JPEG or WebP up to 1 MB, recognised from the file's own bytes (SVG and anything else → 400). Replaces any existing logo; returns the `OrganizationDto`, whose `logoUpdatedAt` is set. |
+| DELETE | `/organizations/{id}/logo` | ORG_ADMIN. Removes the logo; `logoUpdatedAt` becomes null and the app shows `logoInitials` again. |
+| GET | `/organizations/{id}/logo` | **Public** (an `<img>` tag can't send a bearer token; logos aren't sensitive). Returns the image with its real type, `nosniff` and a 30-day public cache; clients append `?v=<logoUpdatedAt>` so a new upload shows at once. 404 when no logo is set. |
 
 Split into two endpoints (rather than BACKEND_CONTRACT.md's single suggested `PATCH
 /organizations/{id}`) specifically so each field group can carry its own authorization — ORG_ADMIN

@@ -8,7 +8,10 @@ import java.util.UUID;
 public record OrganizationDto(
         UUID id, String name, String shortName, String slug, String district, String sector,
         String address, String contactEmail, String contactPhone, String logoInitials,
-        String brandColor, String stampLabel, String plan, String status,
+        String brandColor, String stampLabel,
+        // Null when no logo is uploaded (show logoInitials). Also the cache-buster for GET .../logo?v=.
+        Instant logoUpdatedAt,
+        String plan, String status,
         String legalRepresentativeName, String legalRepresentativeTitle,
         BigDecimal shareValueRwf, BigDecimal loanInterestRate, BigDecimal loanInsuranceRate,
         Integer minMonthsBeforeEligible, List<Integer> allowedRepaymentPeriods,
@@ -20,7 +23,7 @@ public record OrganizationDto(
         return new OrganizationDto(
                 o.getId(), o.getName(), o.getShortName(), o.getSlug(), o.getDistrict(), o.getSector(),
                 o.getAddress(), o.getContactEmail(), o.getContactPhone(), o.getLogoInitials(),
-                o.getBrandColor(), o.getStampLabel(), o.getPlan().name(), o.getStatus().name(),
+                o.getBrandColor(), o.getStampLabel(), o.getLogoUpdatedAt(), o.getPlan().name(), o.getStatus().name(),
                 o.getLegalRepresentativeName(), o.getLegalRepresentativeTitle(), o.getShareValueRwf(),
                 o.getLoanInterestRate(), o.getLoanInsuranceRate(), o.getMinMonthsBeforeEligible(),
                 o.getAllowedRepaymentPeriods(), o.getCreatedAt(), memberCount);
